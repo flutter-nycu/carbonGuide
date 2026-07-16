@@ -1,0 +1,98 @@
+// @vitest-environment jsdom
+
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import App from './App'
+
+const authMocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  onAuthStateChange: vi.fn(),
+  signOut: vi.fn(),
+  maybeSingle: vi.fn(),
+}))
+
+vi.mock('./lib/supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: authMocks.getSession,
+      onAuthStateChange: authMocks.onAuthStateChange,
+      signOut: authMocks.signOut,
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: authMocks.maybeSingle }),
+      }),
+    }),
+  },
+}))
+
+vi.mock('./components/Dashboard', () => ({
+  default: ({ role }: { role: string }) => <div>dashboard:{role}</div>,
+}))
+
+vi.mock('./components/LoginForm', () => ({
+  default: ({ error }: { error?: string | null }) => <div>{error ?? 'login'}</div>,
+}))
+
+beforeEach(() => {
+  authMocks.getSession.mockResolvedValue({
+    data: {
+      session: {
+        user: { id: 'auth-user-1', email: 'j20692091@gmail.com' },
+      },
+    },
+  })
+  authMocks.onAuthStateChange.mockReturnValue({
+    data: { subscription: { unsubscribe: vi.fn() } },
+  })
+  authMocks.signOut.mockResolvedValue({ error: null })
+})
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
+
+describe('App admin gate', () => {
+  it('restores an authorized viewer session', async () => {
+    authMocks.maybeSingle.mockResolvedValue({
+      data: { role: 'viewer' },
+      error: null,
+    })
+
+    render(<App />)
+
+    expect(await screen.findByText('dashboard:viewer')).toBeTruthy()
+    expect(authMocks.signOut).not.toHaveBeenCalled()
+  })
+
+  it('signs out a Google account outside the admin allowlist', async () => {
+    authMocks.maybeSingle.mockResolvedValue({ data: null, error: null })
+
+    render(<App />)
+
+    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledOnce())
+    expect(
+      await screen.findByText('此 Google 帳號不在推播管理員白名單中。'),
+    ).toBeTruthy()
+  })
+
+  it('rejects a different email before querying the admin table', async () => {
+    authMocks.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'auth-user-2', email: 'other@example.com' },
+        },
+      },
+    })
+    authMocks.maybeSingle.mockResolvedValue({
+      data: { role: 'owner' },
+      error: null,
+    })
+
+    render(<App />)
+
+    await waitFor(() => expect(authMocks.signOut).toHaveBeenCalledOnce())
+    expect(authMocks.maybeSingle).not.toHaveBeenCalled()
+  })
+})
