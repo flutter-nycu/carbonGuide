@@ -9,6 +9,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         privacyPolicy: resolve(__dirname, 'privacy-policy.html'),
+        support: resolve(__dirname, 'support.html'),
         pushAdmin: resolve(__dirname, 'push-admin.html'),
       },
     },
