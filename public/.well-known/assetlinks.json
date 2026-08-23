@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.carbonguide.app",
+      "sha256_cert_fingerprints": [
+        "39:5B:16:75:8A:44:E7:66:C9:24:48:B7:A6:B3:50:26:49:A8:3F:50:23:88:C3:72:FC:A1:29:6C:98:5D:45:20"
+      ]
+    }
+  }
+]

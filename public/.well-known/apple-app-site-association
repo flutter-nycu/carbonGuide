@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "9JFH57R7DL.com.carbonguide.app"
+        ],
+        "components": [
+          {
+            "/": "/auth/callback*",
+            "comment": "Supabase password recovery callback"
+          }
+        ]
+      }
+    ]
+  }
+}
