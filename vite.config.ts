@@ -10,6 +10,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         privacyPolicy: resolve(__dirname, 'privacy-policy.html'),
         support: resolve(__dirname, 'support.html'),
+        authCallback: resolve(__dirname, 'auth-callback.html'),
         pushAdmin: resolve(__dirname, 'push-admin.html'),
       },
     },
