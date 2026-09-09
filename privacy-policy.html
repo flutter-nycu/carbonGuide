@@ -66,21 +66,22 @@
 <body>
     <div class="container">
         <h1>CarbonGuide 隱私權政策</h1>
-        <p class="subtitle">最後更新日期：2026 年 2 月 18 日</p>
+        <p class="subtitle">最後更新日期：2026 年 9 月 9 日</p>
 
         <p>CarbonGuide（以下簡稱「本應用程式」）是一款個人碳足跡計算與減碳建議工具。我們重視您的隱私，本政策說明我們如何收集、使用及保護您的個人資料。</p>
 
         <h2>一、資料收集範圍</h2>
         <p>本應用程式收集以下類型的資料：</p>
         <ul>
-            <li><strong>帳號資料</strong>：電子郵件地址、姓名（選填），用於帳號建立及登入驗證</li>
+            <li><strong>帳號資料</strong>：電子郵件地址、密碼、姓名（選填）。電子郵件地址與密碼用於註冊、登入、身分驗證及密碼重設；姓名用於顯示個人檔案</li>
             <li><strong>個人檔案資料</strong>：出生年份、性別、居住縣市、職業、住宅類型（均為選填），用於提供更精準的碳足跡分析</li>
             <li><strong>問卷回答資料</strong>：居家用電用水、交通方式、飲食習慣、生活消費等碳排放相關數據，用於計算個人碳足跡</li>
             <li><strong>使用紀錄</strong>：問卷填寫歷史、每日任務完成紀錄，用於追蹤減碳進度</li>
+            <li><strong>推播設定與紀錄</strong>：推播訂閱狀態、通知偏好與推播開啟紀錄，用於提供系統通知、產品公告與個人化減碳提醒</li>
         </ul>
 
         <div class="highlight">
-            本應用程式<strong>不會</strong>收集您的精確位置、通訊錄、照片、裝置識別碼或其他與碳足跡計算無關的個人資訊。
+            本應用程式<strong>不會</strong>主動收集您的精確位置、通訊錄、照片或其他與碳足跡計算及通知服務無關的個人資訊。
         </div>
 
         <h2>二、資料使用目的</h2>
@@ -90,6 +91,8 @@
             <li>生成個人化減碳建議與每日挑戰任務</li>
             <li>追蹤您的碳排放歷史趨勢</li>
             <li>跨裝置同步您的資料</li>
+            <li>在您同意後發送系統通知、產品公告與個人化提醒</li>
+            <li>使用電子郵件地址與密碼建立帳號、登入、驗證身分及重設密碼</li>
         </ul>
 
         <h2>三、資料儲存與安全</h2>
@@ -97,7 +100,7 @@
             <li><strong>雲端儲存</strong>：您的資料儲存於 <a href="https://supabase.com" target="_blank">Supabase</a> 提供的 PostgreSQL 資料庫，伺服器位於受保護的雲端環境</li>
             <li><strong>本機儲存</strong>：部分資料會儲存於您的裝置本機 SQLite 資料庫，以支援離線使用</li>
             <li><strong>傳輸加密</strong>：所有網路傳輸均使用 HTTPS 加密</li>
-            <li><strong>身份驗證</strong>：採用 Supabase Authentication 服務，密碼經過雜湊處理，不以明文儲存</li>
+            <li><strong>身分驗證</strong>：您輸入的密碼會透過 HTTPS 傳送至 Supabase Authentication，僅用於帳號驗證；本應用程式不在裝置或自身資料庫保存明文密碼，驗證服務以不可逆雜湊方式保存密碼</li>
         </ul>
 
         <h2>四、資料分享</h2>
@@ -110,7 +113,8 @@
         <h2>五、第三方服務</h2>
         <p>本應用程式使用以下第三方服務：</p>
         <ul>
-            <li><strong>Supabase</strong>：提供使用者驗證及雲端資料庫服務。請參閱 <a href="https://supabase.com/privacy" target="_blank">Supabase 隱私權政策</a></li>
+            <li><strong>Supabase</strong>：接收電子郵件地址與密碼以提供使用者註冊、登入、身分驗證及密碼重設，並提供雲端資料庫服務。密碼不以明文保存。請參閱 <a href="https://supabase.com/privacy" target="_blank">Supabase 隱私權政策</a></li>
+            <li><strong>OneSignal</strong>：提供推播通知傳送、訂閱狀態管理與通知成效紀錄。請參閱 <a href="https://onesignal.com/privacy_policy" target="_blank">OneSignal 隱私權政策</a></li>
             <li><strong>Google Fonts</strong>：下載字型檔案以改善顯示效果。請參閱 <a href="https://policies.google.com/privacy" target="_blank">Google 隱私權政策</a></li>
         </ul>
 
@@ -119,7 +123,9 @@
         <ul>
             <li>在應用程式內查看及修改您的個人檔案資料</li>
             <li>在設定頁面清除您的本機或雲端資料</li>
-            <li>刪除您的帳號及所有相關資料（請透過下方聯絡方式申請）</li>
+            <li>在應用程式內刪除您的帳號及相關資料；如遇問題，也可以透過下方聯絡方式申請協助</li>
+            <li>在設定頁面調整或關閉行銷與個人化推播</li>
+            <li>拒絕提供電子郵件地址或密碼；拒絕後無法建立或登入正式帳號，但仍可使用 App 提供的匿名、不儲存試算功能</li>
         </ul>
 
         <h2>七、兒童隱私</h2>
