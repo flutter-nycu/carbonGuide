@@ -52,12 +52,12 @@
 
 ## 9. 提交與預覽部署
 
-- [ ] 9.1 commit 到 `preview/rag-phase0`（只含本 change 的檔案），推送到 origin，不碰 `main`
-- [ ] 9.2 從 GitHub deployments 取得 Vercel 預覽網址與狀態
-- [ ] 9.3 用未登入的狀態打開預覽網址，記錄是否導向 Vercel 登入（預期會被擋）；若沒被擋，對預覽網址跑驗證腳本
-- [ ] 9.4 確認正式站 `carbon-guide.vercel.app/rag-preview/` 不存在、`origin/main` 仍是 `cfd6773`
+- [x] 9.1 commit 到 `preview/rag-phase0`（只含本 change 的檔案），推送到 origin，不碰 `main`
+- [x] 9.2 從 GitHub deployments 取得 Vercel 預覽網址與狀態
+- [x] 9.3 用未登入的狀態打開預覽網址，記錄是否導向 Vercel 登入（預期會被擋）；若沒被擋，對預覽網址跑驗證腳本
+- [x] 9.4 確認正式站 `carbon-guide.vercel.app/rag-preview/` 不存在、`origin/main` 仍是 `cfd6773`
 
 ## 10. 交付
 
-- [ ] 10.1 回報預覽網址、commit SHA、分支、驗證結果、未驗證項目（Safari）與風險 R1 的實際狀態，附上 zip
-- [ ] 10.2 寫一段給 Vercel 團隊成員的操作說明：如何為這個預覽部署產生分享連結
+- [x] 10.1 回報預覽網址、commit SHA、分支、驗證結果、未驗證項目（Safari）與風險 R1 的實際狀態，附上 zip
+- [x] 10.2 寫一段給 Vercel 團隊成員的操作說明：如何為這個預覽部署產生分享連結
