@@ -1,9 +1,21 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "redirects": [
     {
       "source": "/push-admin.html",
       "destination": "/push-admin",
       "permanent": true
+    },
+    {
+      "source": "/rag-preview/",
+      "destination": "/push-admin#rag",
+      "permanent": false
+    },
+    {
+      "source": "/rag-preview/:path*",
+      "destination": "/push-admin#rag",
+      "permanent": false
     }
   ],
   "rewrites": [

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { oauthErrorFromHash, pushAdminRedirectUrl } from '../auth'
 import { supabase } from '../lib/supabase'
+import logo from '../rag/logo.png'
 
 interface Props {
   error?: string | null
@@ -30,10 +31,11 @@ export default function LoginForm({ error }: Props) {
   const displayError = loginError ?? error ?? oauthErrorFromHash(window.location.hash)
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="bg-white rounded-xl shadow-md p-8 w-full max-w-sm">
-        <h1 className="text-xl font-bold text-gray-800 mb-1">推播管理台</h1>
-        <p className="text-sm text-gray-400 mb-6">CarbonGuide Push Admin</p>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="admin-brand"><img src={logo} alt="" width="40" height="40" /><div>CarbonGuide<small>營運管理工作台</small></div></div>
+        <h1 className="font-bold">登入管理工作台</h1>
+        <p className="login-description">管理推播通知與 RAG 知識內容。<br />請使用已授權的 Google 帳號登入。</p>
 
         {displayError && (
           <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-4">

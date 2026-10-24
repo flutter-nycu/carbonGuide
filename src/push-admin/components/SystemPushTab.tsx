@@ -82,7 +82,7 @@ export default function SystemPushTab() {
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           placeholder="例：本月碳排提醒"
         />
       </div>
@@ -93,7 +93,7 @@ export default function SystemPushTab() {
           value={body}
           onChange={e => setBody(e.target.value)}
           rows={3}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
           placeholder="例：記得填寫本月的碳排問卷！"
         />
       </div>
@@ -103,7 +103,7 @@ export default function SystemPushTab() {
         <select
           value={route}
           onChange={e => setRoute(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
           {ROUTES.map(r => (
             <option key={r.value} value={r.value}>{r.label}</option>
@@ -119,7 +119,7 @@ export default function SystemPushTab() {
           type="datetime-local"
           value={scheduledAt}
           onChange={e => setScheduledAt(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
         />
       </div>
 
@@ -144,14 +144,14 @@ export default function SystemPushTab() {
         <button
           onClick={handleSend}
           disabled={loading}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
         >
           {loading ? '處理中...' : dryRun ? '乾跑測試' : '發送推播'}
         </button>
       </div>
 
       {audienceCount !== null && (
-        <div className="text-sm text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
+        <div className="text-sm text-teal-700 bg-teal-50 rounded-lg px-3 py-2">
           受眾人數：{audienceCount} 人（已啟用系統通知）
         </div>
       )}

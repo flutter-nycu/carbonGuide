@@ -15,6 +15,14 @@ const config = JSON.parse(
 ) as VercelConfig
 
 describe('Vercel push-admin deployment', () => {
+  it('sends legacy RAG URLs through the same login entry', () => {
+    expect(config.redirects).toContainEqual({
+      source: '/rag-preview/', destination: '/push-admin#rag', permanent: false,
+    })
+    expect(config.redirects).toContainEqual({
+      source: '/rag-preview/:path*', destination: '/push-admin#rag', permanent: false,
+    })
+  })
   it('redirects the physical HTML entry to the secured canonical route', () => {
     expect(config.redirects).toContainEqual({
       source: '/push-admin.html',

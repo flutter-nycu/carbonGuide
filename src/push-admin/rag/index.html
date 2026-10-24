@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>CarbonGuide｜RAG 知識工作台 · 靜態示範</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳至主要內容</a>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="workspace"><span class="workspace-mark">TW</span><div><strong>臺灣日常減碳</strong><small>測試知識庫 · v0.1</small></div></div>
+      <label class="mobile-nav">前往功能<select id="page-select" aria-label="切換管理功能"></select></label>
+      <nav id="nav" aria-label="管理工作台"></nav>
+      <div class="side-note"><strong>示範環境</strong><p>資料不會儲存，重新整理即還原。</p><button id="reset" class="text-button">重設示範</button></div>
+    </aside>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-head"><h2 id="dialog-title"></h2><button id="close-dialog" class="secondary" aria-label="關閉視窗">關閉</button></div><div id="dialog-body"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <noscript>請啟用 JavaScript。</noscript>
+</body>
+</html>

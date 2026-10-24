@@ -176,7 +176,7 @@ export default function RulesTab() {
                 onClick={() => scrollToRule(rule.rule_key)}
                 className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex items-center gap-2 transition-colors ${
                   activeKey === rule.rule_key
-                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    ? 'bg-teal-50 text-teal-700 font-medium'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
                 title={rule.title_zh}
@@ -194,7 +194,7 @@ export default function RulesTab() {
       </nav>
 
       <div className="flex-1 min-w-0 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center justify-between">
           <h2 className="text-base font-semibold text-gray-700">個人化推播規則</h2>
           <button
             onClick={handleExecuteAll}
@@ -234,7 +234,7 @@ export default function RulesTab() {
           </div>
 
           {Object.keys(rule.config).length > 0 && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {Object.keys(rule.config)
                 .filter(key => typeof rule.config[key] === 'number')
                 .map(key => (
@@ -250,7 +250,7 @@ export default function RulesTab() {
                       onChange={e =>
                         updateConfig(rule.id, { [key]: parseFloat(e.target.value) })
                       }
-                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
                     />
                   </div>
                 ))}
@@ -265,7 +265,7 @@ export default function RulesTab() {
             <input
               value={rule.title_zh}
               onChange={e => updateRule(rule.id, { title_zh: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
           </div>
 
@@ -275,11 +275,11 @@ export default function RulesTab() {
               value={rule.body_zh}
               onChange={e => updateRule(rule.id, { body_zh: e.target.value })}
               rows={2}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
             />
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <button
               onClick={() => handlePreview(rule)}
               className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -289,7 +289,7 @@ export default function RulesTab() {
             <button
               onClick={() => handleSave(rule)}
               disabled={savingId === rule.id}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
             >
               {savingId === rule.id ? '儲存中...' : '儲存規則'}
             </button>
@@ -301,7 +301,7 @@ export default function RulesTab() {
               {sendingId === rule.id ? '發送中...' : '立即發送'}
             </button>
             {previewCounts[rule.id] !== undefined && (
-              <span className="text-sm text-blue-600">
+              <span className="text-sm text-teal-600">
                 受眾：{previewCounts[rule.id]} 人
               </span>
             )}

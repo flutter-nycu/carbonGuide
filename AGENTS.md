@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-10-20（分支 `preview/rag-phase0`）
+最後核對：2026-10-24（分支 `preview/rag-admin-20261024`，基於 `preview/rag-phase0`）
 
 這份文件給 Codex、Claude 與其他 AI agent 接手時先讀。內容以本 repo 的程式碼、設定與 Git／部署紀錄為準；和程式碼不一致時，先確認實際行為，再在同一個變更裡修正文件。
 
@@ -23,9 +23,9 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | `privacy-policy.html` | `/privacy-policy.html` | 隱私權政策正式頁。政策工作稿在 App repo 的 `docs/privacy-policy.html` |
 | `support.html` | `/support.html` | App Store 支援頁 |
 | `auth-callback.html`、`src/auth-callback.ts` | `/auth/callback` | 密碼重設 callback，把使用者帶回 App |
-| `push-admin.html`、`src/push-admin/` | `/push-admin` | 推播管理前端（React） |
+| `push-admin.html`、`src/push-admin/` | `/push-admin` | 推播與 RAG 整合工作台（React） |
 | `public/.well-known/` | `/.well-known/...` | iOS AASA 與 Android asset links，給 Universal Link／App Links 使用 |
-| `public/rag-preview/index.html` | `/rag-preview/`（只在預覽分支） | AI 氣候教練 Phase 0 靜態原型，詳見下方 |
+| `src/push-admin/rag/` | `/push-admin#rag` | 登入後掛載的 RAG 假資料工作台；舊 `/rag-preview/` 導向此入口 |
 | `openspec/` | 不部署 | OpenSpec 規格與 change |
 
 建置設定：`vite.config.ts` 列出 5 個 HTML entry；`public/` 底下的檔案由 Vite 原樣複製，不經過打包。`vercel.json` 設定 `/push-admin.html` 轉到 `/push-admin` 的 redirect、`/push-admin` 與 `/auth/callback` 的 rewrite 和安全 header（CSP、`X-Frame-Options`、`noindex` 等），以及 AASA 的 `Content-Type`。`src/push-admin/deployment.test.ts` 只檢查 `/push-admin` 的 redirect、rewrite、CSP 和 `X-Frame-Options`；`/auth/callback` 和 AASA 的設定目前沒有測試。
@@ -39,10 +39,17 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 呼叫後端：發送、受眾預覽和用量查詢呼叫 Supabase Edge Functions（`send-system-push`、`send-personalized-push`、`preview-push-audience`、`onesignal-usage`）；個人化規則是前端直接更新 `push_rules`，由 RLS 限制只有 editor 以上能改。Functions、資料表、RLS 和角色檢查都在 App repo。
 - 環境變數：只有 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`，都是公開值，範例在 `.env.example`。不要把任何伺服器端 secret 放進 `VITE_*`。
 
-## AI 氣候教練 Phase 0 原型
+## 新版 RAG 工作台
+
+- 程式入口為 `src/push-admin/components/RagWorkspace.tsx`，以 Shadow DOM 掛載 `src/push-admin/rag/`。先通過既有登入及角色檢查；登出即卸載，切換工作台保留記憶體狀態。
+- RAG 的匯入、試問、評測、審核、發布與回滾都是假資料流程，沒有接上解析、模型或儲存服務。推播管理仍使用既有真實後端。
+- 規格與本次分支範圍見 `openspec/changes/rag-admin-integration/`；使用與驗證方式見 README「推播與 RAG 整合工作台」。
+- 本分支移除 `public/rag-preview/index.html`。下方 Phase 0 原型是歷史紀錄；其建置及驗證工具只適用原分支，不能拿來重建本分支的公開入口。
+
+## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）
 
 - 用途：給業主審閱畫面和操作流程的靜態原型。全部是假資料，不接 Supabase、Gemini 或任何 API，重新整理就回到預設。
-- 位置：只在分支 `preview/rag-phase0`。`main` 和正式站沒有這個頁面。
+- 位置：原始獨立頁保留在分支 `preview/rag-phase0`；不以 Git 分支狀態推斷正式站目前的部署內容。
 - 規格：`openspec/changes/rag-coach-phase0-preview/`，包含 proposal、spec、design、tasks。tasks 34 項都已完成；change 還沒歸檔，等業主回饋。
 - 原始碼：`openspec/changes/rag-coach-phase0-preview/source/`（`app.js`、`style.css`、`head.html`、`body.html`）。
 - 建置：改完 `source/` 之後執行 `source/build.py`，它會產生 `public/rag-preview/index.html`，從現有檔案取出內嵌 Logo，並依 `<script>` 內容重算 CSP 的 sha256。不要直接改產出的 HTML：script 內容變了而 hash 沒有重算，CSP 會擋掉整段 JS，頁面會變成空白。
@@ -66,12 +73,16 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 ## 開發與驗證
 
 - 安裝：`main` 現有的 `package-lock.json` 和 `package.json` 不同步，npm 12 的 `npm ci` 會拒絕安裝。本機驗證可以改用 `npm install --package-lock=false`，lock 檔不會被改。修正 lock 檔要另外處理，並確認 Vercel 的建置方式。
-- 驗證指令：`npm run type-check`、`npm test`（vitest，6 個檔案、19 個測試）、`npm run build`；README 另外列了 `npm audit --audit-level=moderate`，Phase 0 沒有跑這一項。
+- 驗證指令：`npm run type-check`、`npm test`、`npm run build`；README 另外列了 `npm audit --audit-level=moderate`。整合版瀏覽器驗證使用 `test/verify-admin-integration.py`，後端請求全部 mock，不代表真實登入或推播驗收。
 - 本機驗證建置時用的是假的 `VITE_*` 值；`/push-admin` 在瀏覽器執行時需要真的值，缺少會直接報錯（`src/push-admin/lib/supabase.ts`）。
-- 本機預覽：`npm run preview` 可以看打包後的結果，`/rag-preview/` 也能透過它驗證。跑完要用實際的 PID 停掉 server。
+- 本機預覽：`npm run preview` 後開啟 `/push-admin.html`；Vite preview 不套用 Vercel 的 redirect/rewrite。跑完要用實際的 PID 停掉 server。
 - 執行 agent 的那台主機上，Playwright 的瀏覽器快取由多個工作區共用。執行 `playwright install` 會自動刪掉其他版本的瀏覽器，必要時先列出現況、裝完再比對。WebKit 在那台主機缺系統函式庫，跑不起來，所以 Safari 一直沒有實測。
 
-## 目前進度（2026-10-20）
+## 分支進度（2026-10-24）
+
+本次將本機新版 RAG 後台承接至 `preview/rag-admin-20261024`，以 `preview/rag-phase0` 的 `14937b1` 為起點。只提交並推送新分支；沒有合併或推送 `main`。正式站既有部署紀錄見 README，本次不重新驗證 Production。
+
+### Phase 0 進度快照（2026-10-20）
 
 | 分支 | Commit | 狀態 |
 |---|---|---|
