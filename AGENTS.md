@@ -44,6 +44,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 程式入口為 `src/push-admin/components/RagWorkspace.tsx`，以 Shadow DOM 掛載 `src/push-admin/rag/`。先通過既有登入及角色檢查；登出即卸載，切換工作台保留記憶體狀態。
 - RAG 的匯入、試問、評測、審核、發布與回滾都是假資料流程，沒有接上解析、模型或儲存服務。推播管理仍使用既有真實後端。
 - 規格與本次分支範圍見 `openspec/changes/rag-admin-integration/`；使用與驗證方式見 README「推播與 RAG 整合工作台」。
+- 2026-10-24 的 UI/UX 修正（P0＋P1）見 `openspec/changes/rag-admin-ux-fixes/`：側欄依工作流程分組並顯示知識版本與草稿狀態、設定頁改為「RAG 設定」、手機版文件卡片、匯入逐列設定與焦點管理。`styles.css` 在 Shadow DOM 內以 `.rag-body` 取代 `body`，改樣式時不要再對含 `body` 字樣的 selector 做全域取代；`test/rag-preview.test.ts` 會檢查。
 - 本分支移除 `public/rag-preview/index.html`。下方 Phase 0 原型是歷史紀錄；其建置及驗證工具只適用原分支，不能拿來重建本分支的公開入口。
 
 ## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）

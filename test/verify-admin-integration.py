@@ -63,6 +63,9 @@ with sync_playwright() as p:
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
         assert not frame.evaluate('(host)=>host.scrollWidth>innerWidth')
         if width==390: page.screenshot(path=str(out/'rag-mobile.png'),full_page=True)
+        if width<=720:
+            view=frame.locator('#doc-rows tr').first.locator('[data-action="document"]').bounding_box()
+            assert view and view['x']+view['width']<=width, (width, view)
         page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
         page.get_by_role('heading',name='系統推播',exact=True).wait_for()
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
@@ -80,16 +83,24 @@ with sync_playwright() as p:
         frame.locator(f'#nav [data-id="{tab}"]').click()
         assert frame.locator('h1').is_visible()
     checks.append('All 12 RAG sections open')
+    frame.locator('#nav [data-id="import"]').click()
+    frame.locator('details[data-help="import"] > summary').click()
+    padding=lambda selector: frame.locator(selector).evaluate("e=>parseFloat(getComputedStyle(e).paddingLeft)")
+    assert padding('.help-body')>=16
+    checks.append('Help body keeps its padding inside the shadow root')
     frame.locator('#nav [data-id="playground"]').click()
     frame.locator('[data-action="question"][data-id="如何減少食物浪費？"]').click()
     frame.get_by_role('button',name='試問',exact=True).click()
     assert '[1]' in frame.locator('.answer').inner_text()
+    assert page.evaluate("()=>document.querySelector('.rag-workspace').shadowRoot.activeElement?.className")=='answer'
     frame.get_by_role('button',name='查看來源 →').click()
     assert frame.locator('dialog').is_visible()
+    assert padding('#dialog-body')>=16
     page.keyboard.press('Escape')
     assert not frame.locator('dialog').is_visible()
+    assert page.evaluate("()=>document.querySelector('.rag-workspace').shadowRoot.activeElement?.dataset.action")=='document'
     frame.locator('#nav [data-id="documents"]').click()
-    checks.append('RAG mock question, source dialog and Escape dismissal work after integration')
+    checks.append('RAG mock question focuses the answer; dialog keeps padding and Escape returns focus')
     frame.locator('#doc-search').fill('通勤')
     assert frame.locator('#doc-rows tr').count()==1
     page.get_by_role('button',name='推播管理 正式功能',exact=True).click()

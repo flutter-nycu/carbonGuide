@@ -19,7 +19,7 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo、側欄及操作說明。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、Gemini 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
 
-可操作匯入預檢、原文與段落示例、係數核定、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、檢索設定及互動紀錄。檔案選擇只讀取檔名和大小，URL 不會被擷取；所有解析、評測與服務狀態都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。
+可操作匯入預檢、原文與段落示例、係數核定、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、RAG 設定及互動紀錄。檔案選擇只讀取檔名和大小，URL 不會被擷取；所有解析、評測與服務狀態都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。側欄上方顯示目前使用的知識版本與草稿狀態；草稿與目前版本相同時不能審核或發布。RAG 設定分成可調整的回答方式與檢索，以及只顯示的索引設定（依 `rag-v1-implementation-plan.md` 的 OpenAI 候選）。2026-10-24 的 UI/UX 修正範圍見 `openspec/changes/rag-admin-ux-fixes/`。
 
 介面保留舊版的操作引導：首頁三步入門、可收合的頁面說明、設定旁的用途解釋，以及試問結果的來源與判斷原因。進階參數預設收合，手機使用功能下拉選單。
 
