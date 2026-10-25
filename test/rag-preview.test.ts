@@ -226,7 +226,7 @@ describe('RAG static preview', () => {
     nav('releases'); expect(disabled('review-release')).toBe(false)
     nav('settings')
     expect(document.querySelector('#chunk, #overlap, #dimension, #temperature')).toBeNull()
-    expect(document.querySelector('.with-guide')!.textContent).toContain('text-embedding-3-small · 1,536 維')
+    expect(document.querySelector('.with-guide')!.textContent).toContain('text-embedding-3-large · 1,536 維')
     expect([...document.querySelectorAll('#style option')].map(o => o.textContent)).toEqual(['精簡', '標準', '詳細'])
     value('#candidate', '8'); value('#context', '9'); submit('#settings-form')
     expect(document.querySelector('#settings-error')!.textContent).toContain('不可超過')

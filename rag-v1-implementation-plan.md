@@ -1,6 +1,6 @@
 # AI 氣候教練 RAG v1 實作規劃
 
-最後整理：2026-10-24。狀態 `candidate_only`：還沒有建立任何 migration、Edge Function 或解析 worker。
+最後整理：2026-10-25。狀態 `candidate_only`：還沒有建立任何 migration、Edge Function 或解析 worker。
 
 本文件接續 App repo `githyoung/carbon-navigation` 的 `docs/roadmap.md`「RAG 後台與文件導入候選規劃」，內容包括模型選擇、文件處理、向量處理、回答流程、評測、硬體與費用。和 roadmap 或 Phase 0 決策不同的地方會標「調整」，實作前再同步 App repo 的文件與 OpenSpec change。
 
@@ -9,6 +9,8 @@
 模型、規格與單價已在 2026-10-24 查核官方文件，但尚未驗證帳戶模型權限、API 限額、目標 DB extension 或真實負載。具體模型、worker 平台與硬體均為候選起點，採購或上線前須再確認。
 
 評估結論：方案可行，先用 CPU worker 解析文件、API 執行生成與 embedding，不需先購買 GPU。原規劃引用的 45 份文件、1,120 頁、1,500–3,000 段及係數盤點數字，本次未重新盤點；主要待驗證項目是文件品質、檢索召回、引用與數值正確性，以及發布一致性。
+
+2026-10-25 依合併前的規劃檢討調整，使用者已同意：先用腳本做真實資料驗證；embedding 預設改為 `text-embedding-3-large`（1,536 維）；額度改用每人每日計數加 OpenAI 專案硬上限；QA、人格、提示詞與設定在發布時存成快照；v1 解析以 CLI 批次執行，embedding 用 Supabase automatic embeddings（是否需要上傳後自動處理，待業主確認）；後台以 React 改寫並另計時程；計算工具 v1 收窄；Responses API 設 `store: false`。相關段落標「調整（10-25）」。
 
 ## 1. v1 範圍
 
@@ -20,7 +22,8 @@ v1 等於 roadmap 的 Phase 1，只在測試用 Supabase project 進行。完成
 - 解析、清理、分段、embedding、混合檢索（向量加中文關鍵字）。
 - 知識版本：草稿、審核、發布、回滾。
 - 回答依據分三種：通用 QA、文件段落、計算工具。回答一律附引用。
-- 後台：試問台、評測、互動紀錄、用量與總開關。
+- 計算工具 v1 只做兩項：已核定係數乘活動量的碳排計算，以及表燈非時間電價（累進級距、夏月／非夏月）的節電前後帳單差；水價、車型油耗與時間電價延到 v1.1（見 3.6）。
+- 後台：在推播管理台的 React 架構內改寫，原型只當互動規格。v1 先做 7 個畫面：文件與段落預覽、QA、人格與提示詞、試問、知識版本、互動紀錄、RAG 設定（含用量與總開關）；評測先用 CLI 報表加簡單列表，係數與電價級距先以 migration 或 CSV 匯入（見第 10 節）。
 - 安全：RLS、金鑰只在伺服器、每人每日上限、去識別化的執行紀錄。
 
 不做的事：
@@ -44,7 +47,7 @@ v1 等於 roadmap 的 Phase 1，只在測試用 Supabase project 進行。完成
 | 回答生成 | `gpt-6-luna`，Responses API；比較 `reasoning.effort` 的 `none`／`low` | 支援 function calling、structured outputs；先建立低成本基線 | 比較 `gpt-6.1-sol`，依相同題庫的品質與費用決定；不預設所有問題自動升級 |
 | 問題改寫、意圖分類、判斷要不要追問 | `gpt-6-luna` | 盡量合併成一次結構化輸出，減少模型往返 | 簡單規則能處理時直接處理，評測是否需要每題呼叫 |
 | 掃描頁 OCR、複雜表格轉 Markdown | Docling 主處理；失敗頁再試 OpenAI 視覺輸入 | 以 `gpt-6-luna` 做候選，對照原頁檢查數字、單位與表格欄位 | 品質不足時比較 `gpt-6.1-sol` 或人工修正；費用依實際影像／文件輸入計，不能沿用 Gemini 的每頁 token 假設 |
-| Embedding | `text-embedding-3-small`，1,536 維、cosine | 建立繁體中文與中英跨語檢索基線，使用獨立 embeddings API | `text-embedding-3-large` 設 `dimensions=1536`，作另一個 profile 比較召回品質 |
+| Embedding | `text-embedding-3-large`，設 `dimensions=1536`、cosine | 調整（10-25）：OpenAI 公布的多語檢索 MIRACL 分數 large 54.9%、small 44.0%，本案是繁中問題加中英文語料；維持 1,536 維，欄位與索引不變。OpenAI 目前沒有比 `-3` 更新的 embedding 模型 | `text-embedding-3-small` 作對照 profile；Step 0 驗證顯示表現相同時改用 small |
 | Rerank | v1 預設關閉 | 語料預估 1,500–3,000 段，先量混合檢索的基線 | 先檢查分段、來源覆蓋與候選召回；候選找得到但排名不足時，再試模型對前 20 筆排序 |
 | 離線評測裁判 | `gpt-6.1-sol` 作候選 | 只在評測時執行，另記 token、參數與費用 | 有爭議、核心數字與關鍵權限案例交人工判斷 |
 
@@ -55,7 +58,8 @@ v1 等於 roadmap 的 Phase 1，只在測試用 Supabase project 進行。完成
 - 接入 OpenAI 時須一併調整模型參數、tokenizer、文件／查詢格式、structured output 與 tool schema、用量解析、錯誤重試及 OCR 輸入方式，不只是替換模型名稱。
 - 生成模型與 embedding 可以分開選；文件和問題的向量必須使用相容的 profile。只換生成模型不重算向量；換 embedding 模型、維度或實際輸入格式則建立新 profile。
 - 模型 ID 與參數納入版本設定；有可用固定 snapshot 時優先採用，並記錄 API 回傳的模型資訊。單一模型名稱不保證供應商權重永不變動，仍需定期跑回歸題庫。
-- pgvector 維持主索引，讓文件版本、權限、中文關鍵字與逐段稽核由本系統管理；v1 不另加供應商 File Search 主索引。
+- pgvector 維持主索引，讓文件版本、權限、中文關鍵字與逐段稽核由本系統管理；v1 不另加供應商 File Search 主索引。File Search 每 1,000 次呼叫 US$2.50，高於 Luna 回答本身的成本，分段與排名不能自己控制，引用也沒有頁碼。
+- 調整（10-25）：Responses API 一律設 `store: false`。預設 `store=true` 會在 OpenAI 端保存回應 30 天；本系統自行保存 `rag_runs`，不使用 `previous_response_id` 串接對話，由伺服器帶入對話摘要。濫用監控的保存另計，是否申請 Zero Data Retention 另議。[資料控制](https://developers.openai.com/api/docs/guides/your-data)
 - 真實對話與未公開文件送出前，確認 API 專案的資料保存、分享及存取設定。費用與硬體見第 9 節。模型依據：[OpenAI 模型目錄](https://developers.openai.com/api/docs/models)、[Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[embeddings](https://developers.openai.com/api/docs/guides/embeddings)。
 
 ## 3. 文件處理
@@ -71,28 +75,26 @@ v1 等於 roadmap 的 Phase 1，只在測試用 Supabase project 進行。完成
 
 解析完成只代表系統讀得懂這份文件，要人工核准並發布後，教練才能引用。
 
-工作可靠性也要納入資料契約：
+工作可靠性（調整（10-25））：v1 文件數少、更新不頻繁，解析不做佇列、lease 與 outbox。
 
-- 建立 job 與 enqueue 使用同一個資料庫 transaction，或採可恢復的 outbox 機制，避免有工作卻沒有訊息。
-- 每個處理階段有冪等鍵與唯一限制；重試沿用工作身分，不能重複產生相同段落或向量。
-- Queues 的 visibility window 不是全流程只執行一次的保證。worker 須有 lease／續租、重試上限、永久失敗記錄，資料提交完成才 ack。
+- 解析以 CLI 批次執行，處理狀態為「待處理」的文件版本；每個階段以內容雜湊做冪等寫入，重跑不會產生重複段落或向量。
+- Embedding 採 Supabase 官方 automatic embeddings 模式（trigger、pgmq、pg_cron、pg_net 與 Edge Function）。後台修改 QA 或段落時自動重算；重試靠 pgmq 的 visibility timeout，另設重試上限與失敗紀錄。[官方說明](https://supabase.com/docs/guides/ai/automatic-embeddings)
 - 人工修改已向量化的段落要產生新段落版本，重算受影響的 embedding，並使原評測結果失效；已發布版本保持不可修改。
+- 若業主要求上傳後自動解析，或之後改成多個 worker 並行，再加入 job 與 enqueue 同一 transaction（或 outbox）、lease／續租、重試上限與永久失敗佇列，資料提交完成才 ack。
 
 ### 3.2 解析工具與執行位置
 
 Supabase Edge Functions 的限制是每個請求 CPU 2 秒、記憶體 256 MB、wall clock Free 150 秒／付費 400 秒，另有 request idle timeout 150 秒，不適合承載 Docling 版面分析與 OCR。非同步等待模型不計入 CPU 時間，仍受時間限制。工作因此拆成兩段：
 
-- Edge Function 負責授權、建立工作、產生 Storage 上傳網址，並把工作放進 Supabase Queues。
+- 後台負責上傳：經授權後簽發短效上傳網址，把檔案存進私有 Storage，建立文件版本，狀態為「待處理」。
 - Python worker 負責解析。主力用 Docling（MIT 授權），輸出標題層級、閱讀順序、頁碼與表格結構；文字層不足或表格解析失敗的頁面才送 OpenAI 視覺模型轉 Markdown，並檢查結果。
 
-Worker 的執行位置需要決定：
+調整（10-25）：v1 的 worker 以 CLI 批次執行，由開發者在本機執行，或用 GitHub Actions 手動觸發；後台顯示「待處理」與最近一次處理結果。這省下 Cloud Run、IAM 與觸發機制的設定，代價是業主上傳後不會自動解析。**是否要求上傳後自動處理，待業主確認**；若需要，改用下表的 Cloud Run Jobs，並補上 3.1 最後一項的可靠性機制。
 
 | 選項 | 優點 | 缺點 |
 |---|---|---|
+| CLI 批次（本機或 GitHub Actions 手動觸發），v1 預設 | 沿用 Step 0 的腳本，不需新增雲端服務 | 上傳後要有人觸發；需固定依賴／容器版本，確認 runner 資源與秘密管理 |
 | Google Cloud Run Jobs | 容器按執行時間計費，可建立上傳後自動處理流程 | 需要 GCP、IAM、映像與觸發機制；Queues 不會自行啟動 Job |
-| GitHub Actions 手動觸發，或管理員本機執行 CLI | 可先利用既有環境試跑同一個 worker | 上傳後要有人觸發；需固定依賴／容器版本，確認 runner 資源與秘密管理 |
-
-兩個選項用同一支 worker 程式，只是觸發方式不同。依目前 45 個檔案、更新不頻繁的假設，建議先用本機 CLI 跑代表文件，再決定自動化平台。若業主驗收要求上傳後自動處理，就需要雲端觸發與 worker；本機關機只應影響新文件處理，不影響已發布知識的回答。
 
 Cloud Run Job 可附加 service identity，以 ADC 存取 GCP；外部 GitHub Actions 觸發端可使用 Workload Identity Federation，不必下載長效服務帳號私鑰。OpenAI 與 Supabase 的憑證仍須獨立保管。Cloud Run 預設可寫檔案系統會消耗 RAM 且不持久，原始檔與結果放 Storage，分批處理並清理暫存，不能把本機 SSD 空間當成容器 `/tmp` 預算。硬體配置見 9.1。
 
@@ -145,7 +147,8 @@ Cloud Run Job 可附加 service identity，以 ADC 存取 GCP；外部 GitHub Ac
 - 模型不直接讀係數表講數字。計算工具查已核定的係數算出結果，模型只負責說明。
 - 係數名稱可以另外建 embedding，用來找候選項目，但最後採用哪一筆由規則決定：單位、年份、地域、邊界。
 - 省錢估算要用完整的費率函式算前後帳單差，不能只拿單一每度電價乘上節電量。
-- 已核定的係數、費率及油耗資料保存不可修改的版本；計算依本次 release 選取的資料版本及工具版本執行，回傳採用的來源 ID、單位、假設與結果。
+- 調整（10-25）：v1 的計算工具只做兩項：已核定係數乘活動量的碳排計算，以及表燈非時間電價（累進級距、夏月／非夏月）的節電前後帳單差。水價、車型油耗與時間電價延到 v1.1；使用者問到時先追問或說明尚未支援。
+- 發布時把本次用到的係數與電價級距寫進 release 快照（見 7.1），計算依該快照與工具版本執行，回傳採用的來源 ID、單位、假設與結果。
 
 ## 4. 向量處理
 
@@ -153,7 +156,7 @@ Cloud Run Job 可附加 service identity，以 ADC 存取 GCP；外部 GitHub Ac
 
 供應商、模型、維度、距離度量、文件／問題格式、tokenizer、分段器版本與正規化規則合起來稱為一個 embedding profile。每個知識版本固定使用一個 profile，問題和文件必須依該 profile 產生相容向量；同維度但不同模型的向量也不能混用。
 
-- v1 基線候選：OpenAI `text-embedding-3-small`、1,536 維、cosine；比較用 profile 為 `text-embedding-3-large`、`dimensions=1536`。
+- v1 基線候選（調整（10-25））：OpenAI `text-embedding-3-large`、`dimensions=1536`、cosine；對照 profile 為 `text-embedding-3-small`（1,536 維）。
 - 文件格式：依固定順序組合文件名、章節、適用對象、年份與正規化正文；標頭和正文均算入輸入 hash 與 token 預算。
 - 問題格式：正規化後的獨立問題文字。多輪問題先改寫；不預設加 Gemini 的 `task: ... | query: ...` 前綴。
 - 畫面與引用顯示原文；profile 與相應的門檻校準結果版本一併保存。
@@ -192,13 +195,13 @@ Cloud Run Job 可附加 service identity，以 ADC 存取 GCP；外部 GitHub Ac
 
 ## 5. 回答流程
 
-1. v1 由後台試問呼叫 Edge Function，Phase 2 再接 App。先驗證登入及權限、檢查總開關，以原子操作預留每人每日額度（Phase 0 預設 30 題）與全站預算；接著固定本次 `release_id`。草稿試問只允許管理員以獨立授權入口指定候選 manifest，不放寬公開回答的版本限制。
+1. v1 由後台試問呼叫 Edge Function，Phase 2 再接 App。先驗證登入及權限、檢查總開關，以一次原子 upsert 扣除每人每日題數（Phase 0 預設 30 題，未達上限才加一）；接著固定本次 `release_id`。草稿試問只允許管理員以獨立授權入口指定候選 manifest，不放寬公開回答的版本限制。
 2. `gpt-6-luna` 判斷問題是否離題、需不需要計算、缺不缺必要資料（地區、期間、用量），並在需要時改寫問題。缺資料就先追問。
 3. 查本次 release 的通用 QA 版本，語意比對達到校準門檻就採用，引用其核定來源。
 4. 對同一 release 的段落做混合檢索。需要計算時，由伺服器驗證 function calling 參數，呼叫限定的計算工具，使用該 release 固定的係數、費率與工具版本。
 5. 組合提示，順序為：全域 System Prompt、人格指令、引用規則、證據（每段加編號 S1、S2…）、對話摘要、使用者問題。文件內容放在獨立的資料區塊，並寫明這些是參考資料，不是指令。
-6. 用 Responses API 的 structured output 產生回答，欄位包括回答、引用編號、是否資料不足、追問。伺服器檢查引用編號是否都在本次證據、release 與授權範圍內；不符時在預算及重試上限內重試一次，仍不符就回覆資料不足。ID 合法只代表格式與來源範圍正確，是否支持主張仍須評測；工具數字與單位另做確定性驗證。
-7. 寫入 `rag_runs`：release／profile／模型與設定版本、工具與資料版本、入選段落與各種分數、耗時、tokens 與費用。以 request ID 冪等結算額度；失敗也記錄已發生成本，不能直接全額退回。問題文字先去識別化，保存期限依第 8 節。
+6. 用 Responses API（`store: false`）的 structured output 產生回答，欄位包括回答、引用編號、是否資料不足、追問。伺服器檢查引用編號是否都在本次證據、release 與授權範圍內；不符時在預算及重試上限內重試一次，仍不符就回覆資料不足。ID 合法只代表格式與來源範圍正確，是否支持主張仍須評測；工具數字與單位另做確定性驗證。
+7. 寫入 `rag_runs`：release／profile／模型與設定版本、工具與資料版本、入選段落與各種分數、耗時、tokens 與費用；以 request ID 冪等寫入，失敗也記錄已發生的 tokens。每日總預算由這些紀錄累計（見第 8 節）。問題文字先去識別化，保存期限依第 8 節。
 
 「只根據知識庫回答」開啟時，沒有證據就回覆後台設定的「查無資料時的回覆」，不讓模型用自己的知識補。
 
@@ -217,11 +220,11 @@ QA 命中時有兩種做法，需要業主決定：一是模型以 QA 標準回�
 - 要重跑的時機：換生成模型、profile、分段器、System Prompt、人格指令、工具／係數／費率或檢索參數，以及每次發布新知識版本之前。
 - 比較精確向量、中文關鍵字、混合檢索，以及 small／large embedding 的基線；紀錄來源覆蓋、Recall、MRR、拒答與引用支撐，避免只看模型裁判總分。
 - 量測代表文件的解析峰值 RSS、每頁時間與失敗率；以 1／5／10 並行量檢索 p50／p95、DB 負載與端到端延遲。檢索 p95 300 ms 可作討論目標，尚未實測或承諾。
-- 加入工作重送、lease 到期、發布途中有請求、回滾後計算數據一致性、並行額度扣除及預算耗盡的測試。
+- 加入匯入重跑、發布途中有請求、回滾後計算數據一致性、並行計數扣除、專案上限與預算耗盡的測試。
 
 ## 7. 資料表（候選）
 
-Migrations 放在 App repo `githyoung/carbon-navigation` 的 `supabase/migrations/`。每張表依用途設定 RLS、policy 與最小權限 GRANT，不假定新表會自動對 Data API 開放。一般使用者不能直接查段落、草稿 QA 或別人的紀錄，只能透過 Edge Function 取得回答。
+Migrations 放在 App repo `githyoung/carbon-navigation` 的 `supabase/migrations/`。每張表依用途設定 RLS、policy 與最小權限 GRANT，不假定新表會自動對 Data API 開放。調整（10-25）：QA、人格、提示詞這類小型可編輯內容不另開 `*_versions` 表，改在發布時寫入 release 快照（見 7.1）。一般使用者不能直接查段落、草稿 QA 或別人的紀錄，只能透過 Edge Function 取得回答。
 
 | 表 | 用途 | 重點欄位 |
 |---|---|---|
@@ -230,18 +233,18 @@ Migrations 放在 App repo `githyoung/carbon-navigation` 的 `supabase/migration
 | `chunk_sets`、`chunks` | 不可修改的段落集合與段落 | 文件版本、集合版本、頁碼、章節路徑、原文、正規化文字、tokens、完整輸入 hash、分段器版本 |
 | `embedding_profiles` | 向量設定 | provider、模型、維度、格式、tokenizer、正規化／分段器版本、門檻校準版本 |
 | `chunk_embeddings` | 段落向量 | 段落、profile、完整輸入 hash、向量；設定唯一限制 |
-| `ingestion_jobs` | 處理工作 | 冪等鍵、階段、狀態、lease、失敗原因、重試次數、可重試時間 |
-| `qa_entries`、`qa_versions` | 通用 QA 與不可修改版本 | 問題、其他問法、標準回答、核定來源與段落版本、狀態 |
-| `emission_factors`、`tariff_rules`、`vehicle_efficiencies` | 版本化結構資料 | 資料版本、單位、年份、地域、邊界、來源、核定人；核定列不可覆寫 |
-| `personas`、`persona_versions`、`prompt_versions` | 人格與提示詞 | 內容、不可修改版本號、狀態 |
-| `knowledge_releases`、`knowledge_release_items` | 知識版本與 manifest | 固定的文件／段落集合、QA、人格、提示詞、profile、係數／費率、工具版本、生成與檢索設定、評測結果 |
+| `ingestion_jobs` | 處理工作 | 冪等鍵（內容雜湊）、階段、狀態、失敗原因、重試次數；需要上傳後自動處理時再加 lease 與可重試時間 |
+| `qa_entries` | 通用 QA（可編輯草稿） | 問題、其他問法、標準回答、核定來源與段落版本、狀態 |
+| `emission_factors`、`tariff_rules` | 結構資料（v1 以 migration 或 CSV 匯入；車型油耗延到 v1.1） | 單位、年份、地域、邊界、來源、核定人；核定列不可覆寫 |
+| `personas`、`prompts` | 人格與提示詞（可編輯草稿） | 內容、狀態 |
+| `knowledge_releases`、`knowledge_release_items` | 知識版本與 manifest | 固定的文件版本／段落集合與 profile；QA、人格、提示詞、RAG 設定、用到的係數與電價級距、工具版本存成不可修改的 jsonb 快照；評測結果 |
 | `rag_service_state` | 服務目前設定 | active release 指標、總開關與預算設定 |
-| `rag_runs`、`usage_reservations` | 互動紀錄與原子額度預留／結算 | request ID、使用者識別、各項版本、段落與分數、耗時、tokens、預留／實際費用、結算狀態 |
+| `rag_runs`、`usage_daily` | 互動紀錄與每人每日題數 | request ID、使用者識別、各項版本、段落與分數、耗時、tokens、費用；每日計數以原子 upsert 更新 |
 | `evaluation_cases`、`evaluation_runs` | 版本化評測 | 題目與題庫版本、預期來源、受測 release、裁判版本、執行結果 |
 
 ### 7.1 發布與回滾契約
 
-- Release manifest 必須連到不可修改的內容版本或 snapshot，不只保存「已發布」狀態或指向可被覆寫的資料列。引用的段落、QA、係數、費率與設定保留供回滾。
+- Release manifest 連到不可修改的段落集合（以內容雜湊識別）；QA、人格、提示詞、RAG 設定、係數與電價級距在發布時整包寫進 jsonb 快照，之後不可修改。不能只保存「已發布」狀態或指向可被覆寫的資料列。回滾就是切換 active release 指標。調整（10-25）：保證和逐表版本化相同，但少 4–5 張版本表；要查某筆 QA 的歷史時，比對各 release 的快照。
 - 草稿可編輯；要試問或評測時先凍結候選 manifest。修改任何會影響回答的內容，建立新版本並重新評測，不能把舊通過結果套到新內容。
 - 發布前驗證所有必要向量可用、引用可解析、來源已核准且該 manifest 的評測通過；在 transaction 中切換 active release。回滾同樣只切換到完整、可用的既有 release。
 - 以受控 RPC／DB 權限限制寫入及發布操作，避免管理 API 可直接覆寫已發布內容。回滾會還原知識與設定；供應商未提供固定模型 snapshot 時，不承諾回答逐字重現。
@@ -252,9 +255,14 @@ Migrations 放在 App repo `githyoung/carbon-navigation` 的 `supabase/migration
 - Storage 原始檔使用私有 bucket，依角色產生短效下載／預覽權限。列明資料表、Storage、RPC 與 worker 權限；高權限後端仍須顯式驗證使用者、release 與內容範圍，不能假定 RLS 會替 service role 過濾草稿。
 - 後台角色：推播後台目前只允許一個管理員 Email，限制寫在三個地方（見 App repo `docs/push-operations.md` 與本 repo `AGENTS.md`）。v1 若要分出編輯者和審核者，就是權限變更，要另外確認。
 - 互動紀錄是個資。建議預設保存 90 天、只有 owner 能看全文，刪除帳號時一併刪除（`delete-account` 要擴充）。這幾項需要業主確認。
-- 費用控制有三層：每人每日上限、每日總預算、總開關。模型呼叫前以 transaction 原子預留額度，限制最大輸出、工具往返與重試，事後按 request ID 冪等結算。處理逾時或中斷時須保守保留已可能發生的費用並對帳，避免並行穿透上限。
-- 預算不足時只走無模型呼叫的核定 QA 選單／確定性比對，或回覆服務暫停；不能再花費 embedding、分類與生成成本做 fallback。後台顯示預留、已用與剩餘額度。
-- log 避免保存完整文件與秘密；使用者雜湊仍可能可識別，刪帳與保存期限要涵蓋相關紀錄。正式文件及對話送出前確認 OpenAI API 的資料控制設定。
+- 費用控制（調整（10-25））：
+  - 每人每日題數用一次原子 upsert 扣除，未達上限才加一。
+  - OpenAI 專案設硬性月上限，再加花費警示；達到上限時請求回 429，服務改走下一項的無模型回覆。官方說明上限不是即時生效，可能略為超出。[Spend limits](https://developers.openai.com/api/docs/guides/spend-limits.md)
+  - 每日總預算由 `rag_runs` 累計的實際 tokens 計算，超過就切總開關。
+  - 每次請求仍限制最大輸出、工具往返與重試次數。
+  - 不做呼叫前預留與事後結算：以 Luna 每題約 US$0.00115 計，並行時多跑 1,000 題也只多約 US$1.15。若主力改用 `gpt-6.1-sol`（每題約 US$0.02），再加回預留機制。
+- 預算不足時只走無模型呼叫的核定 QA 選單／確定性比對，或回覆服務暫停；不能再花費 embedding、分類與生成成本做 fallback。後台顯示當日用量、OpenAI 專案上限狀態與總開關。
+- log 避免保存完整文件與秘密；使用者雜湊仍可能可識別，刪帳與保存期限要涵蓋相關紀錄。正式文件及對話送出前確認 OpenAI API 的資料控制設定；呼叫 Responses API 一律設 `store: false`。
 - Phase 2 對外提供 App 對話前，須更新隱私權政策與商店隱私標示，並評估 MAS 標章影響；v1 管理員試問與文件匯入也須先確認內容可提供給 API。
 
 ## 9. 硬體、雲端資源與費用
@@ -266,7 +274,7 @@ Migrations 放在 App repo `githyoung/carbon-navigation` 的 `supabase/migration
 | 用途 | 建議起點 | 何時調整 |
 |---|---|---|
 | 開發電腦兼偶爾解析 | 4–8 核 CPU、16 GB RAM、額外 20–50 GB SSD 空間 | 同時執行 Docker、IDE、瀏覽器與解析時，32 GB RAM 較有餘裕；先利用現有電腦試跑 |
-| 自動化解析 worker | Cloud Run Jobs 候選：2 vCPU、8 GiB RAM、一次處理 1 件 | 限制 Docling threads 與頁面緩衝；複雜文件再比較 4 vCPU／16 GiB |
+| 自動化解析 worker（需要上傳後自動處理時） | Cloud Run Jobs 候選：2 vCPU、8 GiB RAM、一次處理 1 件 | 限制 Docling threads 與頁面緩衝；複雜文件再比較 4 vCPU／16 GiB |
 | Supabase 試作 | Free：共享 CPU、最多 0.5 GB RAM | 注意 500 MB DB、1 GB Storage、50 MB 單檔限制與閒置暫停；原檔大小未知，不能保證 Free 足夠 |
 | 業主驗收／初期服務 | Pro + Micro：共享 CPU、1 GB RAM | 依 DB CPU、RAM、連線與檢索 p95 判斷是否調為 Small 2 GB |
 | GPU | 暫不採購 | 生成及 embedding 都呼叫 API；只有決定自架模型或解析實測顯示必要時才重估 |
@@ -286,7 +294,7 @@ Luna 每百萬 input／output tokens 為 US$0.10／0.50；Sol 為 US$2／10。�
 
 「每月 9 萬題」沿用 1,000 位活躍使用者、每人每天 3 題的示例，並非實際需求或通過壓測的容量。表內未含查詢 embedding、OCR、重試、多輪工具、評測、Supabase、worker、超額儲存、傳輸及稅；不能把平均每題成本當成單題最大費用。
 
-初次 embedding 若實際輸入 70 萬–100 萬 tokens，small 約 US$0.014–0.020，large 約 US$0.091–0.130。實際 tokens 須依新 tokenizer 納入標頭、overlap 與表格展開後重算。[small 單價](https://developers.openai.com/api/docs/models/text-embedding-3-small)、[large 單價](https://developers.openai.com/api/docs/models/text-embedding-3-large)
+初次 embedding 若實際輸入 70 萬–100 萬 tokens，small 約 US$0.014–0.020，large 約 US$0.091–0.130。實際 tokens 須依新 tokenizer 納入標頭、overlap 與表格展開後重算。查詢 embedding 以每月 9 萬題、每題約 50 tokens 計約 450 萬 tokens：large 約 US$0.59／月，small 約 US$0.09／月。[small 單價](https://developers.openai.com/api/docs/models/text-embedding-3-small)、[large 單價](https://developers.openai.com/api/docs/models/text-embedding-3-large)
 
 OCR 費用依實際頁面／影像輸入與輸出量試跑；不再沿用原 Gemini「100 頁不到 US$1」的估算。
 
@@ -299,16 +307,20 @@ OCR 費用依實際頁面／影像輸入與輸出量試跑；不再沿用原 Gem
 
 ## 10. 實作順序與驗收
 
-先做一條涵蓋 M1–M3 的最小流程：挑 5 份代表文件（文字 PDF、雙欄論文、複雜表格、掃描頁、最長文件）→ 解析／預覽 → OpenAI embedding → 凍結候選版本並評測 → 發布 → 後台 20 題試問與引用。記錄解析峰值 RAM、品質、每頁時間、檢索 p95、端到端延遲與實際費用，再擴大功能與語料。這段試跑包含在下列候選工時內，不另宣稱已完成。
+調整（10-25）：先用 2–3 天驗證真實資料，再開始蓋後台與版本機制。最大風險是中文 PDF 解析、檢索召回與引用正確性；資料不合格的話，後面的工作都要重做。
+
+**Step 0 真實資料驗證**：只寫腳本，不做後台、不做版本機制。挑 5 份代表文件（文字 PDF、雙欄論文、複雜表格、掃描頁、最長文件），跑 Docling 解析 → 分段 → embedding（large 與 small 各一份 profile）→ 精確向量與 PGroonga 混合檢索 → `gpt-6-luna` 回答 20 題，人工評分。記錄解析峰值 RAM、每頁時間、Recall@5、引用支撐、端到端延遲與實際費用。結果不合格就先調整解析與分段，不往下做。這些腳本之後沿用為匯入 CLI 與評測執行器。
 
 | 里程碑 | 內容 | 驗收 | 粗估 |
 |---|---|---|---|
-| M1 資料層與匯入 | migrations、GRANT／RLS、Storage、Queues；CPU worker；代表文件與居家節電、飲食惜食、日常交通的試點文件；段落預覽 API | 可以解析、分段、預覽；重送不重複寫入；權限測試通過；有解析資源紀錄 | 4–6 工作天 |
-| M2 檢索與評測 | small／large profile 比較、精確／混合檢索、PGroonga RPC、版本化評測與門檻校準 | Recall@5、MRR@10、篩選後召回與 1／5／10 並行延遲可重測；保留驗收題 | 3–4 工作天 |
-| M3 回答與後台 | OpenAI 回答、QA／人格／提示詞／結構數據版本、release manifest、發布／回滾、互動紀錄與原子額度控制；後台接真實資料 | 評測達標；同一請求版本一致；回滾後引用及計算一致；費用可追查 | 4–6 工作天 |
-| M4 收尾 | 惡意指令與權限測試、worker 失敗恢復、並行預算測試、監控、文件更新 | 必要測試通過；未驗證項目明列；文件與實際行為一致 | 2–3 工作天 |
+| Step 0 真實資料驗證 | 如上 | 20 題人工評分與量測完成，決定 embedding profile 與是否繼續 | 2–3 工作天 |
+| M1 資料層與匯入 | migrations、GRANT／RLS、私有 Storage；CLI 批次解析（沿用 Step 0 腳本）；Supabase automatic embeddings；居家節電、飲食惜食、日常交通的試點文件；段落預覽 API | 重跑不重複寫入；權限測試通過；後台修改段落會自動重算向量 | 3–4 工作天 |
+| M2 檢索與評測 | profile 比較、精確／混合檢索 RPC、版本化評測（沿用 Step 0 執行器）與門檻校準 | Recall@5、MRR@10、篩選後召回與 1／5／10 並行延遲可重測；保留驗收題 | 2–3 工作天 |
+| M3a 回答與版本（後端） | 回答 Edge Function（`store: false`、structured output、引用檢查）、QA 優先、兩項計算工具、release 快照與發布／回滾、互動紀錄、每人每日計數與總開關 | 評測達標；同一請求版本一致；回滾後引用及計算一致 | 3–4 工作天 |
+| M3b 後台（React） | 在推播管理台內改寫 7 個畫面：文件與段落預覽、QA、人格與提示詞、試問、知識版本、互動紀錄、RAG 設定；評測顯示 CLI 報表結果 | 畫面有 loading、錯誤、空資料與權限狀態；元件測試與瀏覽器驗證通過 | 5–7 工作天 |
+| M4 收尾 | 惡意指令與權限測試、計數與上限測試、監控、文件更新 | 必要測試通過；未驗證項目明列；文件與實際行為一致 | 2–3 工作天 |
 
-原候選合計 13–19 個工作天可作熟悉現有系統、文件品質可控時的工程估計，不是交付承諾。版本契約與代表文件試跑後須重估，另列資料清理、業主審核、模型比較、部署／權限設定的等待時間。App 對話仍屬 Phase 2。
+合計約 17–24 個工作天，比原估 13–19 天多，主要是補上原本沒有算進去的後台 React 改寫；計算工具收窄、版本改快照、額度簡化與 v1 不上雲共可省約 3–5 天，已反映在上表。以上是熟悉現有系統、文件品質可控時的工程估計，不是交付承諾；另列資料清理、業主審核、模型比較、部署與權限設定的等待時間。App 對話仍屬 Phase 2。
 
 ## 11. 後台畫面要配合的調整
 
@@ -319,17 +331,17 @@ OCR 費用依實際頁面／影像輸入與輸出量試跑；不再沿用原 Gem
 - 相似度門檻與 QA 門檻旁邊顯示校準建議值，以及調整後評測結果的變化。
 - 文件列表把處理狀態和內容狀態分成兩欄。
 - 試問台顯示正在測的 release／候選 manifest、改寫後問題、向量與關鍵字各自的候選、合併排名、入選與排除原因、引用、耗時與費用；cosine 與 RRF 分數分開標示。
-- 用量頁加上每日預算、預留／結算金額與總開關；工作列表顯示可重試階段與永久失敗原因。
+- RAG 設定頁顯示當日用量、OpenAI 專案上限狀態與總開關；文件列表顯示「待處理」與最近一次處理的結果和失敗原因。
 
 ## 12. 需要確認的事
 
-已確認：使用者有 OpenAI Platform API key，產品回答採 OpenAI API 方向；向量資料庫保留 Supabase pgvector。本次授權更新規劃文件，不代表已授權採購、建立付費專案或開始實作。
+已確認：使用者有 OpenAI Platform API key，產品回答採 OpenAI API 方向；向量資料庫保留 Supabase pgvector。2026-10-25 使用者同意合併前檢討的調整：Step 0 真實資料驗證、embedding 預設 large、每人每日計數加專案硬上限、發布快照、後台 React 改寫、計算工具收窄、`store: false`。本規劃不代表已授權採購、建立付費專案或開始實作。
 
 待決定或驗證：
 
-1. 解析 worker：先用本機 CLI 試跑的候選建議是否符合操作需求；業主是否需要上傳後自動處理，以及 Cloud Run／Actions 的最終選擇。
-2. OpenAI API 專案可用模型、RPM／TPM 額度、資料控制設定與每月模型／基礎設施預算；不需把 key 寫入文件。
-3. Luna／Sol、small／large embedding 的題庫比較結果、OCR 模型與品質，以及最終模型參數。
+1. 業主是否要求上傳後自動解析。不需要的話 v1 用 CLI 批次；需要的話改用 Cloud Run Jobs，並補上 3.1 的可靠性機制。
+2. OpenAI API 專案可用模型、RPM／TPM 額度、資料控制設定、專案硬上限金額與每月模型／基礎設施預算；不需把 key 寫入文件。
+3. Step 0 的結果：large／small embedding、Luna 的繁中回答品質、OCR 品質與最終模型參數；Luna 與 Sol 的比較。
 4. 現有電腦規格、文件總大小、更新頻率、預期尖峰同時請求數與端到端延遲目標。
 5. 「回答風格」提示詞選項，以及 QA 命中時逐字回覆或依人格改寫。
 6. 是否開放多位管理員與審核角色，及對應三處帳號限制的變更範圍。
@@ -346,6 +358,7 @@ OCR 費用依實際頁面／影像輸入與輸出量試跑；不再沿用原 Gem
 - [OpenAI 認證與計費方式](https://learn.chatgpt.com/docs/auth)、[API 資料控制](https://developers.openai.com/api/docs/guides/your-data)
 - [pgvector](https://github.com/pgvector/pgvector)（維度上限、HNSW、iterative scan）
 - [Supabase PGroonga](https://supabase.com/docs/guides/database/extensions/pgroonga)、[Edge Functions 限制](https://supabase.com/docs/guides/functions/limits)、[Hybrid search](https://supabase.com/docs/guides/ai/hybrid-search)
+- [Supabase automatic embeddings](https://supabase.com/docs/guides/ai/automatic-embeddings)、[OpenAI spend limits](https://developers.openai.com/api/docs/guides/spend-limits.md)、[MIRACL 分數整理](https://www.pinecone.io/learn/openai-embeddings-v3/)
 - [Supabase Queues](https://supabase.com/docs/guides/queues/pgmq)、[Compute and Disk](https://supabase.com/docs/guides/platform/compute-and-disk)、[價格](https://supabase.com/pricing)
 - [Docling](https://github.com/docling-project/docling)、[資源控制](https://github.com/docling-project/docling/blob/main/docs/usage/advanced_options.md#limit-resource-usage)
 - [Cloud Run service identity](https://docs.cloud.google.com/run/docs/securing/service-identity)、[WIF](https://docs.cloud.google.com/iam/docs/workload-identity-federation)、[容器檔案系統](https://docs.cloud.google.com/run/docs/container-contract#file_system)、[計費](https://cloud.google.com/run/pricing)

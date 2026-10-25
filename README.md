@@ -17,7 +17,7 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 唯一管理入口為 `/push-admin`，沿用 Google OAuth、帳號白名單及 `admin_users` 角色驗證。登入後可切換推播管理與 RAG 知識工作台；`/push-admin#rag` 可直接選取 RAG，舊 `/rag-preview/` 路徑由 Vercel 導向同一登入入口。推播功能仍呼叫既有後端，viewer 只可查看紀錄與用量。
 
-RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo、側欄及操作說明。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、Gemini 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
+RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo、側欄及操作說明。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、OpenAI 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
 
 可操作匯入預檢、原文與段落示例、係數核定、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、RAG 設定及互動紀錄。檔案選擇只讀取檔名和大小，URL 不會被擷取；所有解析、評測與服務狀態都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。側欄上方顯示目前使用的知識版本與草稿狀態；草稿與目前版本相同時不能審核或發布。RAG 設定分成可調整的回答方式與檢索，以及只顯示的索引設定（依 `rag-v1-implementation-plan.md` 的 OpenAI 候選）。2026-10-24 的 UI/UX 修正範圍見 `openspec/changes/rag-admin-ux-fixes/`。
 
