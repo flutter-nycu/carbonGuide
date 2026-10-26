@@ -15,19 +15,21 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 ## 推播與 RAG 整合工作台
 
-唯一管理入口為 `/push-admin`，沿用 Google OAuth、帳號白名單及 `admin_users` 角色驗證。登入後可切換推播管理與 RAG 知識工作台；`/push-admin#rag` 可直接選取 RAG，舊 `/rag-preview/` 路徑由 Vercel 導向同一登入入口。推播功能仍呼叫既有後端，viewer 只可查看紀錄與用量。
+唯一管理入口為 `/push-admin`；`/push-admin#rag` 直接選取 RAG。沿用 Google OAuth、既有帳號白名單及 `admin_users` 角色驗證。推播仍使用原有後端。
 
-RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo、側欄及操作說明。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、OpenAI 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
+RAG 七個畫面已採原生 React。v1 包含私有原始檔上傳、列管 URL 快照、本機解析／OCR、固定 profile 的 Gemini embedding、段落修訂、QA／人格／提示詞／計算草稿、不可變版本、有限輪次、評測、逐步流程及成本、人工審核、發布與回滾。詳細操作、模型及限制見 [RAG 使用說明](docs/rag-pilot-user-guide.zh-TW.md)，開發範圍見 [OpenSpec](openspec/changes/rag-v1-review-ready/)。
 
-可操作匯入預檢、原文與段落示例、係數核定、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、RAG 設定及互動紀錄。檔案選擇只讀取檔名和大小，URL 不會被擷取；所有解析、評測與服務狀態都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。側欄上方顯示目前使用的知識版本與草稿狀態；草稿與目前版本相同時不能審核或發布。RAG 設定分成可調整的回答方式與檢索，以及只顯示的索引設定（依 `rag-v1-implementation-plan.md` 的 OpenAI 候選）。2026-10-24 的 UI/UX 修正範圍見 `openspec/changes/rag-admin-ux-fixes/`。
+內容維持待人工審核，一般回答服務關閉，Flutter 最後接入。ready 代表處理可用，並非人工核准。維護者使用 App repo 的 `scripts/rag/` 執行批次解析／文件 embedding；本階段沒有常駐雲端 worker。
 
-介面保留舊版的操作引導：首頁三步入門、可收合的頁面說明、設定旁的用途解釋，以及試問結果的來源與判斷原因。進階參數預設收合，手機使用功能下拉選單。
+本輪核准的文件準備及評測上限合計 US$5，與舊三題 pilot 額度分開。模型 key 只在伺服器／指定本機環境檔。未知結果保留預留，不重試、不退還配額；Google 帳單另行對帳，預留不等於扣款。
 
-原有氣候教練與通勤原型保留於 `src/push-admin/rag/prototype.html` 作為設計來源，不部署獨立公開頁面，未將舊版通勤分類評估混入 RAG 評測。
+來源原始清單的 45 份已上傳私有 `rag-originals` 並下載驗證 SHA-256；bucket 限制維持 20 MiB。解析與評測結果、尚待修復的來源及線上部署以本輪驗收紀錄為準，不能從功能列表推定全部文件已通過。
 
-使用 `npm run dev` 後開啟 `/push-admin.html`。`npm test` 包含登入、角色、過期權限查詢、RAG 狀態與模擬發布邊界檢查。`test/verify-admin-integration.py` 提供 Chromium 整合、正式 CSP、五種寬度、草稿保留與登出驗證；所有 Supabase 請求均攔截為 mock，不發送通知。先以 `VITE_SUPABASE_URL=https://admin-test.supabase.co`、`VITE_SUPABASE_ANON_KEY=mock-publishable-key` 建置並在 4185 port 預覽，再執行該腳本。舊 `test/verify-rag-preview.py` 是獨立原型時期的測試，整合版改以上述腳本驗證。這些檢查不代表真實 Google OAuth、手機送達或模型能力已驗收。
+公開連線值見 `.env.example`。只有 `VITE_RAG_ENABLED=true` 且 `VITE_RAG_PROJECT_REF` 與 `VITE_SUPABASE_URL` 相符才送出 RAG 請求。測試目標 `hxsrineeirmxpoovcrba` 已由使用者確認；既有 App／推播資料與管理員限制維持原範圍。
 
-2026-10-24 既有部署紀錄：整合版曾部署至 `https://carbon-guide.vercel.app/push-admin`，記錄的 Vercel deployment 為 `dpl_Dxz4RAjuMsoHYnxJMTyFcckbUUfR`（READY）。本次工作只將本機版本提交至從 `preview/rag-phase0` 建立的 `preview/rag-admin-20261024`，不推送 `main`，也不執行 Production 部署；上述既有部署狀態未於本次重新驗證。真實 Google 登入及推播送達仍待另外驗收。
+後端 RAG migrations、Edge Functions、SQL 權限測試及文件 CLI 位於 [`githyoung/carbon-navigation`](https://github.com/githyoung/carbon-navigation)。瀏覽器只持有公開設定，Supabase JWT／角色／RPC／RLS 獨立保護資料及付費端點。
+
+歷史 `rag-pilot` 已完成兩次真實試問，紀錄與有限額度保留；它不是新版 v1 的評測成績。舊 HTML 原型只作設計與回歸來源，不部署獨立公開入口。
 
 ## Local development
 
@@ -37,9 +39,9 @@ npm install
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-If `npm ci` refuses to install because `package-lock.json` is out of sync
-(seen with npm 12), use `npm install --package-lock=false` for local checks and
-fix the lock file in a separate change.
+Use the committed lockfile with `npm ci`. On Windows PowerShell, use `npm.cmd`
+if script execution policy blocks `npm.ps1`. The branch lockfile includes the
+patched PostCSS selector parser override; main may have a different lockfile.
 
 Open `http://127.0.0.1:5173/push-admin`. Only the Supabase URL and anon or
 publishable key belong in `VITE_*` variables. OneSignal and Supabase
@@ -98,8 +100,31 @@ The integrated workspace is documented in
 ## Verification
 
 ```powershell
-npm run type-check
-npm test
-npm run build
-npm audit --audit-level=moderate
+npm.cmd run type-check
+npm.cmd test
+npm.cmd run build
+npm.cmd audit --audit-level=moderate
 ```
+
+`test/verify-rag-react.py` uses mocked Supabase authentication and requests to
+check the production build at multiple widths. It does not validate real OAuth,
+model calls, delivery of push notifications, or content correctness. A normal
+authenticated Chrome session is used separately for protected Preview checks;
+Deployment Protection remains enabled.
+
+Backend Node tests cover request replay, paid-call journaling, strict model
+contracts, source windows, numeric units, exact decimal calculations and
+evaluation scoring. Python tests cover ingestion, embedding, segmented page
+coverage and safe URL snapshots. SQL fixtures use synthetic data in rollback
+transactions; they never approve real content.
+
+The current implementation and acceptance scope are tracked in
+[rag-v1-review-ready tasks](openspec/changes/rag-v1-review-ready/tasks.md).
+Private source documents, raw model diagnostics, credentials and local reports
+are excluded from Git and Vercel uploads. Public documentation records aggregate
+results; local evidence remains in `reports/`.
+
+Earlier prototype, sample parsing, pilot and trace experiments remain historical
+evidence under `openspec/changes/` and local `reports/`; their sample scores are
+not the full-corpus v1 acceptance result. The Orca Windows MCP workflow is
+recorded in [AGENTS.md](AGENTS.md).

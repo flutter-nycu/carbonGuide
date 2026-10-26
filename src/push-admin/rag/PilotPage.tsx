@@ -5,10 +5,14 @@ import { type PilotDetail, type PilotRepository, type PilotResult, type PilotRun
 import { PageHeading, dateLabel } from './ui'
 import { duration, usd } from './traces'
 import './pilot.css'
+import { TrialsPanel } from './TrialsPanel'
 
-export function PlaygroundPage({repo,role}:{repo:RagRepository|null;role:AdminRole}) {
-  return <><PageHeading title="試問" description="使用固定的待審樣本，檢查真實回答、引用與每個步驟的費用。" />
-    {role!=='owner'?<p className="rag-notice">只有 owner 可以執行與查看試問。</p>:repo?.pilot?<OwnerPilot key={role} api={repo.pilot}/>:<p className="rag-notice">試問服務尚未連線。</p>}
+export function PlaygroundPage({repo,role,active=true}:{repo:RagRepository|null;role:AdminRole;active?:boolean}) {
+  return <><PageHeading title="試問" description="在有限預算內測試知識版本，核對回答、引用與每個步驟的費用。" />
+    {role!=='owner'?<p className="rag-notice">只有 owner 可以執行與查看試問。</p>:<>
+      {repo?.v1?.trials && <TrialsPanel api={repo.v1} active={active} />}
+      {repo?.pilot ? repo.v1?.trials ? <details className="rag-panel"><summary>舊版 24 段落小量測試與紀錄</summary><OwnerPilot key={role} api={repo.pilot}/></details> : <OwnerPilot key={role} api={repo.pilot}/> : !repo?.v1?.trials && <p className="rag-notice">試問服務尚未連線。</p>}
+    </>}
   </>
 }
 function OwnerPilot({api}:{api:PilotRepository}) {

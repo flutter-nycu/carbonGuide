@@ -1,4 +1,4 @@
-export interface DocumentRecord { id: string; title: string; source_type: string; purpose: string; domain: string; created_at: string }
+export interface DocumentRecord { id: string; title: string; source_type: string; purpose: string; domain: string; citation_scope?: string; created_at: string }
 export interface DocumentVersion { id: string; document_id: string; version: number; processing_status: string; content_status: string; failure_reason: string | null; created_at: string }
 export interface Chunk { id: string; document_version_id: string; ordinal: number; page_start: number | null; page_end: number | null; section_path: string; original_text: string }
 export interface ChunkSet { id: string; document_version_id: string; content_hash: string; chunker_version: string; sealed: boolean; created_at: string }
@@ -21,10 +21,11 @@ export type DraftInput = { question: string; answer: string; source_note: string
   { name: string; instruction: string; example: string; enabled: boolean } | { name: string; content: string }
 export type SettingsInput = Pick<Settings, 'answer_style' | 'daily_question_limit' | 'retrieval_candidates' | 'context_chunks' | 'similarity_threshold' | 'qa_threshold' | 'fallback_reply'>
 export interface RagRepository {
+  v1?: import('./v1').RagV1Repository
   pilot?: import('./pilot').PilotRepository
   listTraces(cursor: import('./traces').TraceCursor | null, signal: AbortSignal): Promise<import('./traces').Trace[]>
   getTrace(id: string, signal: AbortSignal): Promise<import('./traces').TraceDetail | null>
-  list<K extends keyof EntityMap>(kind: K, filter?: { column: string; value: string }): Promise<EntityMap[K][]>
+  list<K extends keyof EntityMap>(kind: K, filter?: { column: string; value: string }, page?: { offset: number; limit: number }): Promise<EntityMap[K][]>
   saveDraft(kind: DraftKind, input: DraftInput, previous?: { id: string; updated_at: string }): Promise<void>
   saveSettings(input: SettingsInput, updatedAt: string): Promise<void>
 }

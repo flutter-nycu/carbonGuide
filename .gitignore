@@ -11,5 +11,6 @@ reports/rag-*/
 outputs/
 .rag-*-stage/
 .release-check/
+supabase/.temp/
 *.pem
 *.key

@@ -1,6 +1,14 @@
 # AI 氣候教練 RAG v1 實作規劃
 
-最後整理：2026-10-25。狀態 `candidate_only`：還沒有建立任何 migration、Edge Function 或解析 worker。
+**2026-10-27 實作更新：** 本輪依使用者授權完成非 Flutter RAG 管理流程，準備上傳程式、文件及受保護 Preview，最後由使用者人工審閱。實作採 Gemini embedding-001 768 維與 Gemini 3.1 Flash-Lite；下方 OpenAI 比較與採購內容保留為原始規劃，不代表本輪配置。
+
+目前已實作私有上傳、URL 快照、本機批次解析／OCR、profile-bound embedding、段落修訂、QA 引用、人格／提示詞／設定／計算草稿、不可變快照、有限輪次、逐步流程與費用、評測、人工審核、發布／回滾、清理排程及帳單匯入。真實資料仍待人工核准，公開服務關閉，Flutter 最後接入。程式完成、雲端部署與語料驗收是三個分開的狀態，詳見 [OpenSpec tasks](openspec/changes/rag-v1-review-ready/tasks.md) 與本輪驗收紀錄。
+
+使用者已核准 **US$5 總模型費用上限**，文件 embedding 和自動評測共用一個 campaign。既有 pilot 的兩次試問及其預留保持原樣；未知結果不自動重送，不清空用量、不建立替代 campaign。Google 帳單尚需真實資料對帳，不能將預留或新台幣預付款視為使用費用。
+
+本輪調整：解析與文件 embedding 均由有界本機 CLI 執行；管理介面負責登記、進度、品質與操作，沒有常駐 automatic embeddings worker。URL 只允許指定官方網域，固定 IP 連線及 TLS 驗證。新回答契約讓模型逐句選原文窗口 ID，伺服器編引用並檢查數量與單位。原始版本、失敗評測與未知結果保留可追溯紀錄。
+
+完整操作、模型流程、電費適用範圍、保存及人工審閱步驟以 [使用說明](docs/rag-pilot-user-guide.zh-TW.md) 為準。以下為原規劃與歷史決策；有衝突時以上述已授權實作及程式契約為準，未執行項目不得宣稱驗收完成。
 
 本文件接續 App repo `githyoung/carbon-navigation` 的 `docs/roadmap.md`「RAG 後台與文件導入候選規劃」，內容包括模型選擇、文件處理、向量處理、回答流程、評測、硬體與費用。和 roadmap 或 Phase 0 決策不同的地方會標「調整」，實作前再同步 App repo 的文件與 OpenSpec change。
 
@@ -38,7 +46,7 @@ v1 等於 roadmap 的 Phase 1，只在測試用 Supabase project 進行。完成
 - App repo `githyoung/carbon-navigation`：`supabase/migrations/`、RLS、Edge Functions 與後端文件。
 - 網站 repo `flutter-nycu/carbonGuide`：推播管理台內的 RAG 後台；本規劃目前位於此 repo。
 - 解析 worker：建議隨後端放在 App repo，獨立容器與執行入口；實作時在 OpenSpec 指定實際目錄，執行平台見 3.2。
-- 實作前在負責的 repo 建立 OpenSpec change，執行 `openspec validate --strict`。本次只更新候選規劃，尚未開始後端實作。
+- 實作前在負責的 repo 建立 OpenSpec change，執行 `openspec validate --strict`。第一階段已建立網站 `rag-react-foundation` 與 App repo `rag-admin-foundation`，兩者嚴格驗證通過；後續階段另開 change。
 
 ## 2. 模型建議
 
@@ -239,6 +247,30 @@ QA 命中時有兩種做法，需要業主決定：一是模型以 QA 標準回�
 - 多次重試迴圈（例如最多 5 次）：手機上的延遲與費用不可預期，評測與稽核也難以重現。
 - 每題執行 LLM 答案評估：成本與延遲加倍；維持離線評測，上線後抽查。
 
+### 5.2 每次詢問／測試的流程與成本視覺化（2026-10-25 追加規劃）
+
+使用者要求在管理介面透明呈現「這次經過哪些步驟、為何走這條路、花多久、花多少」。入口放在試問結果、評測每一題與互動紀錄的「查看流程」，共用同一個執行詳情元件；不另造一份與真實執行紀錄不同的展示流程。
+
+預計主路徑：權限與額度 → QA／快取 → 問題向量 → 向量及關鍵字並行檢索 → RRF／來源門檻 → 模型生成 → 引文及規則驗證 → 回答或拒答。問題改寫與工具呼叫依實際分支展開，改寫／工具仍遵守5.1上限。QA直接命中、被額度擋下、檢索不足及模型失敗都應保留可追蹤的終點。
+
+| 區域 | 顯示內容 |
+|---|---|
+| 執行摘要 | query／test／evaluation來源、request與trace ID、attempt、開始時間、端到端耗時、完成／拒答／失敗、知識版本、模型／提示詞版本 |
+| 流程圖／時間軸 | 實際節點與分支、進行中／成功／失敗／略過／重用、耗時與成本狀態；並行節點不把時間相加當成端到端延遲 |
+| 節點詳情 | 安全的輸入輸出摘要、入選及排除來源與原因、排名／分數、token用量、錯誤碼、重用來源run、重試原因 |
+| 成本明細 | 問題embedding、改寫、生成、工具與其他可歸屬費用；保留provider、模型、價格版本、單位、幣別及估算依據 |
+| 比較與匯出 | 同題不同attempt／提示詞／知識版本並排；受權限限制的去識別化JSON／CSV，不公開原始個資或金鑰 |
+
+成本欄位必須區分四件事：provider回報的用量、以版本化單價計算的費用估算、執行前保守預留、供應商對帳確認金額。目前只能可靠取得部分用量與預留，不能把它們標成實際扣款。缺少用量或單價顯示「未取得／尚無法估算」，不能顯示0。USD作主幣別；若顯示TWD，必須標明匯率與時間，不能假裝是帳單匯率。失敗或取消請求也可能計費，未收到用量時保留未知狀態。
+
+共用的文件解析／embedding費用歸到匯入run；多題評測共用準備步驟只計一次，可另顯示明確標示的攤提值。費用帳本以provider request／attempt去重；父span顯示子項加總時不能再次入帳。快取或重用只說明本次沒有重送該步驟，不抹除原run費用。
+
+後端契約採 `trace_id`、`span_id`、`parent_span_id`、`attempt`、`node_type`、狀態、起訖時間、版本、用量、成本來源與錯誤碼。沿用 `rag_runs` 作執行索引，新增明細儲存方案須以migration與RLS另外驗證；一般App使用者不可讀別人的trace。頁面預設只顯示去識別化摘要，限制原始內容大小與保存期限；金鑰、authorization headers、隱藏模型思考內容不進trace。後台不把模型輸出當HTML執行。
+
+分三階段：①本機回答診斷與trace雛形，保存失敗證據並標示重用；②服務端各節點埋點、費用帳本、權限／保存與讀取API；③React流程圖、節點詳情、成本明細及手機直向時間軸。第一階段不代表管理介面已實作。規格與待辦見 `openspec/changes/rag-run-visualization/`。
+
+驗收須覆蓋成功、拒答、403／429／timeout、引文失敗、QA直接命中、重用、手動新attempt、改寫與工具分支；每題有可追蹤終點，圖與實際紀錄一致，未知成本不變成0，共用費用不重複計算。另驗證角色隔離、鍵盤操作、手機版及敏感資訊遮蔽。進行中狀態由事件更新；缺少遙測時明示中斷／未知，不能補畫假成功。
+
 ## 6. 評測
 
 - 題庫先用 40–60 題，和 QA 分開維護並版本化，保留不參與調參的驗收題。題型包括：一般建議、換句話問、用中文問英文論文的內容、跨年度費率、單位混淆、缺必要資料、沒有答案、文件內含惡意指令、試圖讀取未發布的內容。
@@ -368,7 +400,7 @@ OCR 費用依實際頁面／影像輸入與輸出量試跑；不再沿用原 Gem
 
 ## 12. 需要確認的事
 
-已確認：使用者有 OpenAI Platform API key，產品回答採 OpenAI API 方向；向量資料庫保留 Supabase pgvector。2026-10-25 使用者同意合併前檢討的調整：Step 0 真實資料驗證、embedding 預設 large、每人每日計數加專案硬上限、發布快照、後台 React 改寫、計算工具收窄、`store: false`；同日也同意採用 5.1 的兩項有限 agentic 機制。本規劃不代表已授權採購、建立付費專案或開始實作。
+已確認：使用者有 OpenAI Platform API key，產品回答採 OpenAI API 方向；向量資料庫保留 Supabase pgvector。2026-10-25 使用者同意合併前檢討的調整：Step 0 真實資料驗證、embedding 預設 large、每人每日計數加專案硬上限、發布快照、後台 React 改寫、計算工具收窄、`store: false`；同日也同意採用 5.1 的兩項有限 agentic 機制。之後授權先實作 React 與 Supabase 基礎，並確認 hxsrineeirmxpoovcrba 可用於 RAG；再指示繼續本機工作，OpenAI API 設定與 embedding 比較先跳過。採購、付費專案與部署尚未授權。
 
 待決定或驗證：
 

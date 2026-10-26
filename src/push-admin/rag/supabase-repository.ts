@@ -1,11 +1,12 @@
 import { supabase } from '../lib/supabase'
 import { createPilotRepository } from './supabase-pilot'
+import { createV1Repository } from './supabase-v1'
 import { ragConfiguration } from './config'
 import { parseTraceDetail, parseTraceList, TRACE_PAGE_SIZE } from './traces'
 import { validateSettings, type EntityMap, type RagRepository } from './repository'
 
 const columns: Record<keyof EntityMap, string> = {
-  documents: 'id,title,source_type,purpose,domain,created_at',
+  documents: 'id,title,source_type,purpose,domain,citation_scope,created_at',
   document_versions: 'id,document_id,version,processing_status,content_status,failure_reason,created_at',
   chunks: 'id,document_version_id,ordinal,page_start,page_end,section_path,original_text',
   chunk_sets: 'id,document_version_id,content_hash,chunker_version,sealed,created_at',
@@ -26,6 +27,7 @@ function fail(error: { code?: string } | null) {
 export function createRagRepository(): RagRepository {
   if (!ragConfiguration(import.meta.env).enabled) throw new Error('RAG 測試環境尚未啟用。')
   return {
+    v1: createV1Repository(),
     pilot: createPilotRepository(),
     async listTraces(cursor, signal) {
       const { data, error } = await supabase.rpc('rag_list_traces', {
@@ -41,13 +43,15 @@ export function createRagRepository(): RagRepository {
       if (detail && detail.trace.id !== id) throw new Error('追蹤識別碼不符，請重新載入。')
       return detail
     },
-    async list<K extends keyof EntityMap>(kind: K, filter?: { column: string; value: string }): Promise<EntityMap[K][]> {
+    async list<K extends keyof EntityMap>(kind: K, filter?: { column: string; value: string }, page?: { offset: number; limit: number }): Promise<EntityMap[K][]> {
       if (kind === 'usage_daily') {
         const { data, error } = await supabase.rpc('rag_usage_today')
         fail(error)
         return (data ?? []) as EntityMap[K][]
       }
-      let query = supabase.from(kind).select(columns[kind]).order(order[kind] ?? 'created_at', { ascending: kind === 'chunks' }).limit(200)
+      const offset = page?.offset ?? 0, limit = page?.limit ?? 200
+      if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('分頁範圍不正確。')
+      let query = supabase.from(kind).select(columns[kind]).order(order[kind] ?? 'created_at', { ascending: kind === 'chunks' }).order('id', { ascending: true }).range(offset, offset + limit - 1)
       if (filter) query = query.eq(filter.column, filter.value)
       // Imported evaluation parents are displayed by the trace reader, not as empty conversations.
       if (kind === 'rag_runs') query = query.is('diagnostic_expires_at', null)

@@ -69,7 +69,7 @@ export default function Dashboard({ role, onLogout }: Props) {
           </section>
         </main>
       </div>
-      <div hidden={workspace !== 'rag'}>{ragVisited && <RagWorkspace role={role} />}</div>
+      <div hidden={workspace !== 'rag'}>{ragVisited && <RagWorkspace role={role} active={workspace === 'rag'} />}</div>
     </div>
   </div>
 }

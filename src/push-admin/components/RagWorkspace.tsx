@@ -13,7 +13,7 @@ const pages = [
 ] as const
 type Page = typeof pages[number][0]
 
-export default function RagWorkspace({ role, repository }: { role: AdminRole; repository?: RagRepository }) {
+export default function RagWorkspace({ role, repository, active = true }: { role: AdminRole; repository?: RagRepository; active?: boolean }) {
   const [page, setPage] = useState<Page>('documents')
   const [visited, setVisited] = useState<Set<Page>>(new Set(['documents']))
   const [repo, setRepo] = useState<RagRepository | null>(repository ?? null)
@@ -42,16 +42,16 @@ export default function RagWorkspace({ role, repository }: { role: AdminRole; re
         {(index === 0 || pages[index - 1][2] !== group) && <p className="rag-nav-group">{group}</p>}
         <button aria-current={page === key ? 'page' : undefined} onClick={() => navigate(key)}>{label}</button>
       </div>)}</nav>
-        <p className="rag-side-note">管理員小量試問已接通<br />使用待審樣本，公開服務尚未啟用。</p>
+        <p className="rag-side-note">文件準備、版本試問與評測<br />內容待人工審閱，公開服務尚未啟用。</p>
     </aside>
     <main ref={main} tabIndex={-1} className="rag-main">
       {!repo && <div className="rag-notice" role="status"><strong>{connectionError || (configuration.enabled ? '正在建立資料連線…' : 'RAG 資料尚未連線')}</strong><p>{configuration.message}</p></div>}
       {role === 'viewer' && <p className="rag-notice">目前為唯讀權限。可檢視知識內容，無法儲存草稿。</p>}
-      {visited.has('documents') && <section hidden={page !== 'documents'}><DocumentsPage repo={repo} /></section>}
+      {visited.has('documents') && <section hidden={page !== 'documents'}><DocumentsPage repo={repo} role={role} /></section>}
       {visited.has('qa') && <section hidden={page !== 'qa'}><DraftsPage repo={repo} role={role} kind="qa_entries" /></section>}
       {visited.has('personas') && <section hidden={page !== 'personas'}><DraftsPage repo={repo} role={role} kind="personas" /><DraftsPage repo={repo} role={role} kind="prompts" secondary /></section>}
-      {visited.has('playground') && <section hidden={page !== 'playground'}><PlaygroundPage repo={repo} role={role} /></section>}
-      {visited.has('releases') && <section hidden={page !== 'releases'}><ReleasesPage repo={repo} /></section>}
+      {visited.has('playground') && <section hidden={page !== 'playground'}><PlaygroundPage repo={repo} role={role} active={active && page === 'playground'} /></section>}
+      {visited.has('releases') && <section hidden={page !== 'releases'}><ReleasesPage repo={repo} role={role} /></section>}
       {visited.has('logs') && <section hidden={page !== 'logs'}><LogsPage repo={repo} role={role} /></section>}
       {visited.has('settings') && <section hidden={page !== 'settings'}><SettingsPage repo={repo} role={role} /></section>}
     </main>

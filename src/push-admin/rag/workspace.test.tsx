@@ -76,7 +76,7 @@ describe('React RAG foundation', () => {
     render(<RagWorkspace role="owner" repository={repo} />)
     fireEvent.click(await screen.findByRole('button', { name: '檢視 節電指南' }))
     await screen.findByText('<script>bad()</script>')
-    expect(repo.list).toHaveBeenCalledWith('chunks', { column: 'chunk_set_id', value: 'set' })
+    expect(repo.list).toHaveBeenCalledWith('chunks', { column: 'chunk_set_id', value: 'set' }, { offset: 0, limit: 26 })
     expect(document.querySelector('.rag-workspace script')).toBeNull()
     expect(screen.getAllByText('可用').length).toBeGreaterThan(0)
     expect(screen.getAllByText('草稿').length).toBeGreaterThan(0)
@@ -90,6 +90,25 @@ describe('React RAG foundation', () => {
     await waitFor(() => expect(repo.saveSettings).toHaveBeenCalled())
     expect(vi.mocked(repo.saveSettings).mock.calls[0][0].daily_question_limit).toBe(30)
     expect((screen.getByLabelText('工具呼叫（每題最多 3 次）') as HTMLInputElement).disabled).toBe(true)
+  })
+  it('can inspect chunks beyond the former 200-row limit without rendering them all at once', async () => {
+    const repo = repository({ documents: [{ id: 'doc', title: '長文件', source_type: 'pdf', purpose: '指引', domain: '居家', created_at: '' }], document_versions: [{ id: 'version', document_id: 'doc', version: 1, processing_status: 'ready', content_status: 'in_review', failure_reason: null, created_at: '2026-10-25' }] })
+    const list = repo.list
+    repo.list = vi.fn(async (kind, filter, page) => {
+      if (kind === 'chunk_sets') return [{ id: 'set', document_version_id: 'version', content_hash: 'abc', chunker_version: 'v2', sealed: true, created_at: '2026-10-25' }]
+      if (kind === 'chunks') return Array.from({ length: 240 }, (_, i) => ({ id: String(i), document_version_id: 'version', ordinal: i + 1, page_start: 1, page_end: 1, section_path: '', original_text: `段落內容 ${i + 1}` })).slice(page?.offset ?? 0, (page?.offset ?? 0) + (page?.limit ?? 200))
+      return list(kind, filter, page)
+    }) as RagRepository['list']
+    render(<RagWorkspace role="viewer" repository={repo} />)
+    fireEvent.click(await screen.findByRole('button', { name: '檢視 長文件' }))
+    await screen.findByText('段落內容 1')
+    expect(document.querySelectorAll('.rag-chunk').length).toBe(25)
+    for (let page = 1; page <= 8; page++) {
+      fireEvent.click(screen.getByRole('button', { name: '下一頁' }))
+      await screen.findByText(`段落內容 ${page * 25 + 1}`)
+    }
+    expect(screen.getByText('段落內容 201')).toBeTruthy()
+    expect(document.querySelectorAll('.rag-chunk').length).toBe(25)
   })
 })
 

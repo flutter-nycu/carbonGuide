@@ -40,12 +40,13 @@ it('verifies detail identity and distinguishes missing detail from server failur
   await expect(repo.listTraces(null, signal)).rejects.toThrow('migration')
 })
 it('keeps imported trace parents out of the ordinary conversation list', async () => {
-  const query = { select: vi.fn(), order: vi.fn(), limit: vi.fn(), is: vi.fn(async () => ({ data: [], error: null })) }
-  query.select.mockReturnValue(query); query.order.mockReturnValue(query); query.limit.mockReturnValue(query)
+  const query = { select: vi.fn(), order: vi.fn(), range: vi.fn(), is: vi.fn(async () => ({ data: [], error: null })) }
+  query.select.mockReturnValue(query); query.order.mockReturnValue(query); query.range.mockReturnValue(query)
   from.mockReturnValue(query)
   await createRagRepository().list('rag_runs')
   expect(from).toHaveBeenCalledWith('rag_runs')
   expect(query.is).toHaveBeenCalledWith('diagnostic_expires_at', null)
+  expect(query.range).toHaveBeenCalledWith(0, 199)
 })
 it('does not create a client when the target project guard is disabled', () => {
   vi.stubEnv('VITE_RAG_ENABLED', 'false')

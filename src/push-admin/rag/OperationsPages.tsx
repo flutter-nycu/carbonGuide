@@ -4,8 +4,15 @@ import { validateSettings, type RagRepository, type Settings, type SettingsInput
 import { useResource } from './use-resource'
 import { contentLabels, dateLabel, PageHeading, ResourceState } from './ui'
 import { TraceHistory } from './TraceHistory'
+import { VersionsPanel } from './VersionsPanel'
+import { CalculationPanel } from './CalculationPanel'
+import { CostPanel } from './CostPanel'
 
-export function ReleasesPage({ repo }: { repo: RagRepository | null }) {
+export function ReleasesPage({ repo, role = 'viewer' }: { repo: RagRepository | null; role?: AdminRole }) {
+  if (repo?.v1?.versions) return <><PageHeading title="知識版本" description="固定內容、執行評測，再由管理者核准並發布。" /><VersionsPanel repo={repo} role={role} /></>
+  return <LegacyReleases repo={repo} />
+}
+function LegacyReleases({ repo }: { repo: RagRepository | null }) {
   const releases = useResource(repo, 'knowledge_releases')
   const evaluations = useResource(repo, 'evaluation_runs')
   const state = useResource(repo, 'rag_service_state')
@@ -61,6 +68,8 @@ export function SettingsPage({ repo, role }: { repo: RagRepository | null; role:
     <button disabled={!repo || settings.loading} onClick={() => { settings.reload(); profiles.reload(); usage.reload(); setSaved(false) }}>重新讀取設定</button>
     {saved && <p role="status" className="rag-notice">設定草稿已儲存，尚未發布。</p>}
     <ResourceState resource={settings} empty="尚無服務設定，請確認基礎 migration 已完成。">{settings.data[0] && <SettingsForm key={settings.data[0].updated_at} value={settings.data[0]} repo={repo} role={role} reload={() => { setSaved(true); settings.reload() }} />}</ResourceState>
+    {repo?.v1?.editorial && <CalculationPanel api={repo.v1.editorial} role={role} />}
+    {role === 'owner' && repo?.v1?.operations && <CostPanel api={repo.v1} />}
     <section className="rag-panel"><h2>索引設定（唯讀）</h2><ResourceState resource={profiles} empty="尚無 embedding profile。">{profiles.data.map(profile => <p key={profile.id}>{profile.model} · {profile.dimensions.toLocaleString()} 維 · {profile.distance_metric} · {profile.chunker_version}</p>)}</ResourceState><p className="rag-muted">更換 profile 須建立新版本、重算向量並重新評測。生成模型尚未核定。</p></section>
     <section className="rag-panel"><h2>進階回答能力</h2><label className="rag-check"><input type="checkbox" disabled checked={settings.data[0]?.rewrite_enabled ?? false} readOnly />檢索不足時改寫重查（最多一次）</label><label className="rag-check"><input type="checkbox" disabled checked={settings.data[0]?.tools_enabled ?? false} readOnly />工具呼叫（每題最多 3 次）</label><p className="rag-muted">兩項預設關閉，須通過比較評測後才可開啟。</p></section>
   </>

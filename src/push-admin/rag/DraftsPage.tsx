@@ -3,6 +3,7 @@ import type { AdminRole } from '../auth'
 import type { DraftInput, DraftKind, EntityMap, RagRepository } from './repository'
 import { useResource } from './use-resource'
 import { dateLabel, PageHeading, ResourceState } from './ui'
+import { QaCitationsForm } from './EditorialForms'
 
 const definitions = {
   qa_entries: { title: '通用 QA', fields: [['question', '問題', 500], ['answer', '標準回答', 10000], ['source_note', '來源說明（尚待核定）', 2000]] },
@@ -51,6 +52,7 @@ export function DraftsPage({ repo, role, kind, secondary = false }: { repo: RagR
       <div className="rag-row"><h3>{'question' in row ? row.question : row.name}</h3><span className="rag-tag">{'enabled' in row ? row.enabled ? '候選草稿' : '停用草稿' : '草稿'}</span></div>
       <p className="rag-preserve">{'answer' in row ? row.answer : 'instruction' in row ? row.instruction : row.content}</p>
       {'source_note' in row && <p className="rag-muted">來源：{row.source_note}</p>}
+      {'question' in row && repo?.v1?.editorial && <QaCitationsForm api={repo.v1.editorial} qa={row} writable={write} saved={resource.reload} />}
       {'example' in row && <blockquote>{row.example}</blockquote>}
       <div className="rag-row"><small>{dateLabel(row.updated_at)}</small><button disabled={!write || Boolean(editing)} onClick={() => { setEditing({ row }); setMessage('') }}>編輯 {'question' in row ? row.question : row.name}</button></div>
     </article>)}</ResourceState>
