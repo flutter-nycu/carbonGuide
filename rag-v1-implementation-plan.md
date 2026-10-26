@@ -2,7 +2,7 @@
 
 **2026-10-27 實作更新：** 本輪依使用者授權完成非 Flutter RAG 管理流程，準備上傳程式、文件及受保護 Preview，最後由使用者人工審閱。實作採 Gemini embedding-001 768 維與 Gemini 3.1 Flash-Lite；下方 OpenAI 比較與採購內容保留為原始規劃，不代表本輪配置。
 
-目前已實作私有上傳、URL 快照、本機批次解析／OCR、profile-bound embedding、段落修訂、QA 引用、人格／提示詞／設定／計算草稿、不可變快照、有限輪次、逐步流程與費用、評測、人工審核、發布／回滾、清理排程及帳單匯入。真實資料仍待人工核准，公開服務關閉，Flutter 最後接入。程式完成、雲端部署與語料驗收是三個分開的狀態，詳見 [OpenSpec tasks](openspec/changes/rag-v1-review-ready/tasks.md) 與本輪驗收紀錄。
+目前已實作私有上傳、URL 快照、本機批次解析／OCR、profile-bound embedding、段落修訂、QA 引用、人格／提示詞／設定／計算草稿、不可變快照、有限輪次、逐步流程與費用、評測、人工審核、發布／回滾、清理排程及帳單匯入。真實資料仍待人工核准，公開服務關閉，Flutter 最後接入。程式完成、雲端部署與語料驗收是三個分開的狀態，詳見 [OpenSpec tasks](openspec/changes/rag-v1-review-ready/tasks.md) 與[本輪驗收紀錄](docs/rag-v1-delivery.zh-TW.md)。
 
 使用者已核准 **US$5 總模型費用上限**，文件 embedding 和自動評測共用一個 campaign。既有 pilot 的兩次試問及其預留保持原樣；未知結果不自動重送，不清空用量、不建立替代 campaign。Google 帳單尚需真實資料對帳，不能將預留或新台幣預付款視為使用費用。
 

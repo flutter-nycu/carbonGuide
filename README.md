@@ -23,7 +23,7 @@ RAG 七個畫面已採原生 React。v1 包含私有原始檔上傳、列管 URL
 
 本輪核准的文件準備及評測上限合計 US$5，與舊三題 pilot 額度分開。模型 key 只在伺服器／指定本機環境檔。未知結果保留預留，不重試、不退還配額；Google 帳單另行對帳，預留不等於扣款。
 
-來源原始清單的 45 份已上傳私有 `rag-originals` 並下載驗證 SHA-256；bucket 限制維持 20 MiB。解析與評測結果、尚待修復的來源及線上部署以本輪驗收紀錄為準，不能從功能列表推定全部文件已通過。
+來源原始清單的 45 份已上傳私有 `rag-originals` 並下載驗證 SHA-256；bucket 限制維持 20 MiB。解析與評測結果、尚待修復的來源及線上部署以[本輪驗收紀錄](docs/rag-v1-delivery.zh-TW.md)為準，不能從功能列表推定全部文件已通過。
 
 公開連線值見 `.env.example`。只有 `VITE_RAG_ENABLED=true` 且 `VITE_RAG_PROJECT_REF` 與 `VITE_SUPABASE_URL` 相符才送出 RAG 請求。測試目標 `hxsrineeirmxpoovcrba` 已由使用者確認；既有 App／推播資料與管理員限制維持原範圍。
 

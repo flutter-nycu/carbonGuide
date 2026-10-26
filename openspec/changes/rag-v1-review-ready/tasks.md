@@ -3,7 +3,7 @@
 ## 1. Scope and baselines
 - [x] Confirm current repository/cloud state and preserve unrelated changes.
 - [x] Record the approved model spend cap; user approved US$5 for this corpus embedding and automated evaluation campaign on 2026-10-26. The prior pilot remains separate and unchanged.
-- [ ] Review and version the existing backend implementation on a dedicated branch.
+- [x] Review and version the backend on `preview/rag-v1-review-20261027`; `c1b487a` plus reviewed parser/quality fixes `b14cb09` are pushed. Flutter and main are unchanged.
 
 ## 2. Originals and ingestion
 - [x] Implement private upload registration, file integrity, processing jobs and bounded worker coordination.
