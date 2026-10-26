@@ -1,0 +1,22 @@
+# Git integration is the deployment source. Keep CLI uploads equally bounded.
+.env*
+.git
+.vercel
+node_modules
+dist
+reports
+outputs
+test
+scripts
+openspec
+.agents
+.codex
+.codebase-memory
+.rag-*-stage
+.release-check
+*.log
+*.pem
+*.key
+*.pdf
+*.docx
+*.base64

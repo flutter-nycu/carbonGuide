@@ -48,7 +48,7 @@ export default function Dashboard({ role, onLogout }: Props) {
     </header>
     <nav className="workspace-tabs" aria-label="切換工作台">
       <button aria-current={workspace === 'push' ? 'page' : undefined} onClick={() => switchWorkspace('push')}>推播管理 <span>正式功能</span></button>
-      <button aria-current={workspace === 'rag' ? 'page' : undefined} onClick={() => switchWorkspace('rag')}>RAG 知識工作台 <span>假資料示範</span></button>
+      <button aria-current={workspace === 'rag' ? 'page' : undefined} onClick={() => switchWorkspace('rag')}>RAG 知識工作台 <span>第一階段</span></button>
     </nav>
     <div id="workspace-content" tabIndex={-1}>
       <div className="push-shell" hidden={workspace !== 'push'}>
@@ -69,7 +69,7 @@ export default function Dashboard({ role, onLogout }: Props) {
           </section>
         </main>
       </div>
-      <div hidden={workspace !== 'rag'}>{ragVisited && <RagWorkspace />}</div>
+      <div hidden={workspace !== 'rag'}>{ragVisited && <RagWorkspace role={role} />}</div>
     </div>
   </div>
 }

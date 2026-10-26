@@ -5,3 +5,11 @@ dist/
 .env.*.local
 *.log
 .vercel
+
+# Local RAG evidence contains real execution metadata and browser screenshots.
+reports/rag-*/
+outputs/
+.rag-*-stage/
+.release-check/
+*.pem
+*.key

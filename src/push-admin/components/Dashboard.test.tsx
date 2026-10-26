@@ -12,14 +12,15 @@ vi.mock('./UsageTab', () => ({ default: () => <div>usage panel</div> }))
 afterEach(() => { cleanup(); window.history.replaceState(null, '', '/') })
 
 describe('Dashboard role navigation', () => {
-  it('only mounts the isolated RAG demo when selected and preserves it on return', () => {
+  it('only mounts the React RAG workspace when selected and preserves it on return', () => {
     const { container } = render(<Dashboard role="viewer" onLogout={() => undefined} />)
     expect(container.querySelector('.rag-workspace')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 假資料示範' }))
-    const frame = screen.getByLabelText('RAG 知識工作台（假資料示範）')
-    expect(frame.shadowRoot?.querySelector('#nav')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 第一階段' }))
+    const frame = screen.getByLabelText('RAG 知識工作台')
+    expect(frame.querySelector('nav[aria-label="RAG 功能"]')).toBeTruthy()
+    expect(frame.shadowRoot).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '推播管理 正式功能' }))
-    expect(screen.getByLabelText('RAG 知識工作台（假資料示範）')).toBe(frame)
+    expect(screen.getByLabelText('RAG 知識工作台')).toBe(frame)
     expect(frame.parentElement?.hidden).toBe(true)
   })
   it('keeps viewer accounts on read-only tabs', () => {

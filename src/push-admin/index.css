@@ -39,7 +39,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .push-panel{background:white;border:1px solid #dceae6;border-radius:14px;padding:28px}
 .push-panel input:not([type=checkbox]),.push-panel select,.push-panel textarea{min-height:44px;border-color:#dceae6;background:#fcfefd}
 .push-panel button{min-height:40px}
-.rag-workspace{display:block;min-width:0}
+.rag-workspace{min-width:0}
 .admin-skip{position:fixed;top:-100px;left:12px;padding:12px;background:white;z-index:50}
 .admin-skip:focus{top:8px}
 .login-page{min-height:100dvh;display:grid;place-items:center;padding:24px;background:#f7fcfb}
