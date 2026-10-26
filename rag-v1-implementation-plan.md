@@ -1,10 +1,12 @@
 # AI 氣候教練 RAG v1 實作規劃
 
-**2026-10-27 實作更新：** 本輪依使用者授權完成非 Flutter RAG 管理流程，準備上傳程式、文件及受保護 Preview，最後由使用者人工審閱。實作採 Gemini embedding-001 768 維與 Gemini 3.1 Flash-Lite；下方 OpenAI 比較與採購內容保留為原始規劃，不代表本輪配置。
+**2026-10-27 實作更新：** 本輪依使用者授權完成非 Flutter RAG 管理流程，程式及文件上傳至受保護 Preview 分支，最後由使用者人工審閱。實作採 Gemini embedding-001 768 維與 Gemini 3.1 Flash-Lite；下方 OpenAI 比較與採購內容保留為原始規劃，不代表本輪配置。
 
 目前已實作私有上傳、URL 快照、本機批次解析／OCR、profile-bound embedding、段落修訂、QA 引用、人格／提示詞／設定／計算草稿、不可變快照、有限輪次、逐步流程與費用、評測、人工審核、發布／回滾、清理排程及帳單匯入。真實資料仍待人工核准，公開服務關閉，Flutter 最後接入。程式完成、雲端部署與語料驗收是三個分開的狀態，詳見 [OpenSpec tasks](openspec/changes/rag-v1-review-ready/tasks.md) 與[本輪驗收紀錄](docs/rag-v1-delivery.zh-TW.md)。
 
 使用者已核准 **US$5 總模型費用上限**，文件 embedding 和自動評測共用一個 campaign。既有 pilot 的兩次試問及其預留保持原樣；未知結果不自動重送，不清空用量、不建立替代 campaign。Google 帳單尚需真實資料對帳，不能將預留或新台幣預付款視為使用費用。
+
+最終候選含 47 份 PDF、1,834 個物理頁、9,271 個 ready 段落，193 個原始段落整段隔離。真實 development 19/20、獨立 acceptance 36/40；檢索逾時及引用窗口誤拒已修正，原失敗報告保留，未重跑付費驗收。保守費用預留 US$3.64471875，非實際帳單。交付為 candidate_only，另備五題 owner 人工試問輪次；最新 Preview 登入後複核及內容審核仍待使用者進行。
 
 本輪調整：解析與文件 embedding 均由有界本機 CLI 執行；管理介面負責登記、進度、品質與操作，沒有常駐 automatic embeddings worker。URL 只允許指定官方網域，固定 IP 連線及 TLS 驗證。新回答契約讓模型逐句選原文窗口 ID，伺服器編引用並檢查數量與單位。原始版本、失敗評測與未知結果保留可追溯紀錄。
 
