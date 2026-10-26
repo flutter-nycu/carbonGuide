@@ -72,22 +72,32 @@ Development 報告：`395142e4-81fe-45d2-b2f2-0ff764669ade`；Acceptance 報告�
 | 後端 | Node 共用邏輯 37 tests PASS；Python 100 tests PASS | Node 測試非 Deno runtime 實測 |
 | 資料庫 | 測試專案 rollback fixtures 驗證權限、預算、快照、評測、URL、重處理、排序與留存 | 合成核准／發布回滾，未核准真實內容 |
 | 瀏覽器 | 1440、1024、768、390、375 寬度情境通過，含流程、品質警示、草稿及登出 | mock 後端；Safari、真機未測 |
-| 真實雲端 | Preview Ready、Edge 部署；未登入 Preview／Edge／私有表皆 401；2026-10-27 已在最新分支網址確認 owner 登入，讀取 53 份來源、最終快照、品質警示、評測及費用 | 新題的瀏覽器送出仍未完成；自動操作核准審查擋下付費送出，已請使用者手動按一次 |
+| 真實雲端 | Preview Ready、Edge 部署；未登入 Preview／Edge／私有表皆 401；2026-10-27 已確認 owner 登入及真實資料讀取，並完成使用者手動送出的單題端到端測試；回應、引用、流程與費用帳均可從歷史紀錄開啟 | 單題連線驗證通過；不取代 36/40 的獨立驗收或人工語意審核 |
 | 邊界檢查 | npm audit 零漏洞；來源及實際 build 秘密掃描零命中；14 個 build artifacts 通過發布檢查 | 非整個既有 App／推播系統稽核 |
 
 全量檢索只縮小排序前資料投影，先選候選再取完整文字，RRF 維持 `k=50`。20 筆完整結果 JSON 與參考查詢相同；read-only 查詢約 11.154 → 5.677 秒，真實 RPC fixture 約 13.649 → 6.255 秒，排序與權限回歸通過，未增加 8 秒上限。這是單次測量，尚未做併發負載驗收。
 
 DDL 後 security advisors：三項 RLS 無 policy 為刻意封閉的私有控制表；六個既有 authenticated SECURITY DEFINER 入口及密碼外洩保護未啟用仍列為既有專案檢查項目，沒有擴大 RAG 權限。[函式檢查說明](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)、[密碼保護說明](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)。
 
-本機私有證據在 `reports/rag-v1-delivery/`：`final-corpus-evidence.json`、`retrieval-fix-verification.json`、`frontend-final-tests.log`、`backend-final-tests.log`、`citation-boundary-tests.log`、`browser/results.json`、`authenticated-browser-followup.json`、`negative-http.json`、`secret-scan.json`、`final-security-advisors.json`、匯入／向量／快照／評測回條。該目錄刻意不推公開 Git。
+本機私有證據在 `reports/rag-v1-delivery/`：`final-corpus-evidence.json`、`retrieval-fix-verification.json`、`frontend-final-tests.log`、`backend-final-tests.log`、`citation-boundary-tests.log`、`browser/results.json`、`authenticated-browser-followup.json`、`live-browser-smoke.json`、`negative-http.json`、`secret-scan.json`、`final-security-advisors.json`、匯入／向量／快照／評測回條。該目錄刻意不推公開 Git。
+
+### 2026-10-27 真實瀏覽器單題驗證
+
+使用者於 07:49（臺灣時間）在受保護 Preview 手動送出 IPCC 需求面減量問題。請求 `76c16511-87e1-4b5c-8e1d-e459bdd47db9` 完成為 `answered / validated`，伺服器執行約 **11.5 秒**。已從歷史紀錄重開結果，展開原文引用、選取流程節點及展開模型費用帳；這些讀取沒有新增模型呼叫。
+
+流程共 **8 個節點**：版本與權限 → 通用 QA（無精確命中，略過）→ 問句向量化 → 混合檢索 → 問句改寫（已有證據，略過）→ 引用內容選擇 → 模型回答 → 引用與數值驗證。混合檢索約 6.601 秒；選入 6 段內容，最後回答附 8 段原文引用。機械驗證通過，回答語意仍待人審。
+
+資料庫確認本輪只有 **1 筆問題、2 次模型呼叫**，均收到 HTTP 200，沒有重送。本題保守預留 **US$0.0130565**；回答生成使用 3,143 input／380 output tokens，用量估算 **US$0.00135575**。問題 embedding 沒有可用 token usage，因此整題用量估算與 Google 實際帳單仍為未知。此單題不修改既有 36/40 驗收報告。
 
 ## 費用與人工試問
 
-2026-10-27 04:48（臺灣時間）核對，同一 **US$5** campaign 共 **569** 個模型呼叫紀錄，保守預留 **US$3.64471875**，尚餘 **US$1.35528125**。其中文件 embedding 427、問題 embedding 88、回答 54；3 個結果不確定，保留預留，不自動重送。
+2026-10-27 07:49 單題完成後核對，同一 **US$5** campaign 共 **571** 個模型呼叫紀錄，保守預留 **US$3.65777525**，尚餘 **US$1.34222475**。其中文件 embedding 427、問題 embedding 89、回答 55；3 個結果不確定，保留預留，不自動重送。04:48 的全量評測回條保留當時的 569 次／US$3.64471875，不覆寫歷史紀錄。
 
-只有 51 個呼叫有可用 provider token usage，按本次價格版本可算小計 **US$0.055123**；另 518 個缺可用 usage，包含全部 embedding 及部分不確定結果。**這個小計不是整輪總成本，預留也不是 Google 扣款。** 帳單尚未匯入。舊 pilot 的兩次試問、US$0.06 預留另存，沒有重設。
+只有 52 個呼叫有可用 provider token usage，按本次價格版本可算小計 **US$0.05647875**；另 519 個缺可用 usage，包含全部 embedding 及部分不確定結果。**這個小計不是整輪總成本，預留也不是 Google 扣款。** 帳單尚未匯入。舊 pilot 的兩次試問、US$0.06 預留另存，沒有重設。
 
 已建立 owner 輪次 **「人工審閱：全量 PDF 候選（5 題）」**，固定上述 snapshot：最多 5 題、US$0.15，仍計入同一 US$5 campaign；截止 **2026-11-02 18:35（臺灣時間）**。建立輪次沒有模型呼叫。輪次 ID：`a2cc1c3f-ac22-413a-a2a1-f00eaf91fae2`。
+
+上述單題已使用 **1/5 題**，還可送出 **4 題**；輪次預留 US$0.0130565／US$0.15。這是現況，與建立輪次時的零用量回條分開保存。
 
 1. 登入後，在「文件與段落」查看品質隔離、原文、頁碼及範圍。
 2. 到「知識版本」確認 **47 PDF 全量候選 v4** 與上述 hash，閱讀兩份評測及失敗案例。
@@ -97,7 +107,6 @@ DDL 後 security advisors：三項 RLS 無 policy 為刻意封閉的私有控制
 
 ## 尚未完成
 
-- 最新 Preview 的新題送出與回應複核：登入及真實讀取已確認；付費送出被自動操作核准審查擋下，尚待使用者手動送出。檢查時輪次為 0/5、campaign 569 次，沒有透過其他工具繞過送出限制。
 - 人工內容核准、缺字／OCR／標題修正及三個 TLS 失敗來源：保持待審／失敗狀態。
 - 真實知識發布／回滾及公開服務啟用：本輪僅驗證 rollback fixtures，未對真實內容操作。
 - Google 帳單對帳、Safari／真機、併發負載：缺少帳單或尚未安排測試。
