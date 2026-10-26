@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-10-26（分支 `preview/rag-admin-20261024`，owner 小量試問階段；本輪尚未 commit／push）
+最後核對：2026-10-27（分支 `preview/rag-admin-20261024`，非 Flutter RAG v1 管理流程；程式已推送並有受保護 Preview，實際資料覆蓋與評測以本輪收尾證據為準）
 
 這份文件給 Codex、Claude 與其他 AI agent 接手時先讀。內容以本 repo 的程式碼、設定與 Git／部署紀錄為準；和程式碼不一致時，先確認實際行為，再在同一個變更裡修正文件。
 
@@ -10,7 +10,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 | Repo | 負責 | 文件入口 |
 |---|---|---|
-| `flutter-nycu/carbonGuide`（本 repo） | 公開網站、推播管理前端、AI 氣候教練的靜態原型 | 本檔 |
+| `flutter-nycu/carbonGuide`（本 repo） | 公開網站、推播管理前端、React RAG 管理工作台 | 本檔 |
 | `githyoung/carbon-navigation` | Flutter App、Supabase migrations 與 Edge Functions、專案文件中心 | 該 repo 的 `AGENTS.md` 與 `docs/README.md` |
 
 產品、App 架構、MAS 檢測、後端角色矩陣和推播後端都在 App repo 維護。本 repo 只放瀏覽器端的頁面，不放任何 service role key 或 OneSignal REST key。

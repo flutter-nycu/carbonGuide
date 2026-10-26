@@ -4,6 +4,7 @@ import type { RagRepository } from './repository'
 import type { Snapshot, SnapshotSelection, VersionData, VersionRepository } from './v1'
 import { useResource } from './use-resource'
 import { dateLabel } from './ui'
+import { QualityNotice } from './QualityNotice'
 
 const initialSelection: SnapshotSelection = { chunk_set_ids: [], qa_ids: [], persona_ids: [], calculation_ids: [], prompt_id: '', rewrite_enabled: false, tools_enabled: false }
 function toggled(list: string[], id: string) { return list.includes(id) ? list.filter(value => value !== id) : [...list, id] }
@@ -20,7 +21,7 @@ function SnapshotContent({ snapshot, repository }: { snapshot: Snapshot; reposit
   const documents = Array.isArray(manifest?.documents) ? manifest.documents as Record<string, unknown>[] : []
   return <section aria-label="固定版本內容"><p>SHA-256：<code>{snapshot.manifest_hash}</code></p>
     {error && <p role="alert">{error}</p>}{!manifest && !error && <p role="status">讀取快照…</p>}
-    {manifest && <><h3>包含的來源</h3><ul>{documents.map((doc, i) => <li key={i}><strong>{String(doc.title)}</strong> · {String(doc.chunk_count)} 段 · {String(doc.content_status)}<br /><small>內容指紋 {String(doc.content_hash)}</small></li>)}</ul>
+    {manifest && <><h3>包含的來源</h3><ul>{documents.map((doc, i) => <li key={i}><strong>{String(doc.title)}</strong> · {String(doc.chunk_count)} 段 · {String(doc.content_status)}<br /><small>內容指紋 {String(doc.content_hash)}</small>{doc.quality && typeof doc.quality === 'object' && !Array.isArray(doc.quality) ? <QualityNotice quality={doc.quality as Record<string, unknown>} /> : null}</li>)}</ul>
       <p>QA：{Array.isArray(manifest.qa) ? manifest.qa.length : 0} 則；人格：{Array.isArray(manifest.personas) ? manifest.personas.length : 0} 個；計算資料：{Array.isArray(manifest.calculations) ? manifest.calculations.length : 0} 組。</p>
       <details><summary>檢查完整內容、設定與計算來源</summary><pre>{JSON.stringify(manifest, null, 2)}</pre></details></>}
   </section>
@@ -88,7 +89,7 @@ export function VersionsPanel({ repo, role }: { repo: RagRepository; role: Admin
       <label>版本名稱<input value={name} onChange={event => setName(event.target.value)} required maxLength={100} /></label>
       <label>System Prompt<select value={selection.prompt_id} required onChange={event => setSelection({ ...selection, prompt_id: event.target.value })}><option value="">請選擇已儲存的提示詞</option>{prompts.data.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       {(qa.error || personas.error || prompts.error) && <p role="alert">部分草稿讀取失敗，請重新進入頁面後再建立版本。</p>}
-      <fieldset><legend>已完成 embedding 的段落集合（每份文件選一個）</legend>{data?.sets.filter(set => set.embedding_state === 'ready').map(set => <label className="rag-check" key={set.chunk_set_id}><input type="checkbox" checked={selection.chunk_set_ids.includes(set.chunk_set_id)} onChange={() => setSelection({ ...selection, chunk_set_ids: toggled(selection.chunk_set_ids, set.chunk_set_id) })} /><span>{data.originals.find(o => o.id === set.original_id)?.source_name ?? set.original_id}<small>{set.chunk_count} 段 · 集合 {set.chunk_set_id.slice(0, 8)} · profile {set.profile_id.slice(0, 8)}</small></span></label>)}</fieldset>
+      <fieldset><legend>已完成 embedding 的段落集合（每份文件選一個）</legend>{data?.sets.filter(set => set.embedding_state === 'ready').map(set => <div key={set.chunk_set_id}><label className="rag-check"><input type="checkbox" checked={selection.chunk_set_ids.includes(set.chunk_set_id)} onChange={() => setSelection({ ...selection, chunk_set_ids: toggled(selection.chunk_set_ids, set.chunk_set_id) })} /><span>{data.originals.find(o => o.id === set.original_id)?.source_name ?? set.original_id}<small>{set.chunk_count} 段 · 集合 {set.chunk_set_id.slice(0, 8)} · profile {set.profile_id.slice(0, 8)}</small></span></label><QualityNotice quality={set.quality} /></div>)}</fieldset>
       <fieldset><legend>納入的 QA</legend>{qa.data.filter(q => q.enabled).map(q => <label className="rag-check" key={q.id}><input type="checkbox" checked={selection.qa_ids.includes(q.id)} onChange={() => setSelection({ ...selection, qa_ids: toggled(selection.qa_ids, q.id) })} />{q.question}</label>)}<small>每則 QA 都需要已核對、且屬於所選段落的引用。</small></fieldset>
       <fieldset><legend>納入的人格</legend>{personas.data.filter(p => p.enabled).map(p => <label className="rag-check" key={p.id}><input type="checkbox" checked={selection.persona_ids.includes(p.id)} onChange={() => setSelection({ ...selection, persona_ids: toggled(selection.persona_ids, p.id) })} />{p.name}</label>)}</fieldset>
       <fieldset><legend>納入的計算資料</legend>{data?.calculations.map(c => <label className="rag-check" key={c.id}><input type="checkbox" checked={selection.calculation_ids.includes(c.id)} onChange={() => setSelection({ ...selection, calculation_ids: toggled(selection.calculation_ids, c.id) })} />{String(c.definition.name)} · {c.kind === 'electricity' ? '電費級距' : '排碳係數'}</label>)}</fieldset>

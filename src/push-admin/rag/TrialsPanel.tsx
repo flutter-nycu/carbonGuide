@@ -47,6 +47,7 @@ export function TrialsPanel({ api, active = true }: { api: RagV1Repository; acti
   const [calculations, setCalculations] = useState<CalculationDraft[]>([]), [calculationId, setCalculationId] = useState('')
   const [toolInput, setToolInput] = useState<Record<string, string>>({ quantity: '', before_kwh: '', after_kwh: '', months: '1', as_of: '', period_start: '' })
   const [name, setName] = useState('管理員內容審閱'), [budget, setBudget] = useState(0.5), [limit, setLimit] = useState(20)
+  const [dailyLimit, setDailyLimit] = useState(20)
   const [result, setResult] = useState<TrialResult | null>(null), [busy, setBusy] = useState(false), [loading, setLoading] = useState(false)
   const [error, setError] = useState(''), [revision, setRevision] = useState(0), [offset, setOffset] = useState(0)
   const questionKey = useRef({ value: '', key: '' }), roundKey = useRef({ value: '', key: '', expiresAt: '' })
@@ -74,10 +75,10 @@ export function TrialsPanel({ api, active = true }: { api: RagV1Repository; acti
   async function create(event: FormEvent) {
     event.preventDefault(); if (!campaign || busy) return
     setBusy(true); setError('')
-    const fingerprint = JSON.stringify({ name, releaseId, campaignId: campaign.id, budget, limit })
+    const fingerprint = JSON.stringify({ name, releaseId, campaignId: campaign.id, budget, limit, dailyLimit })
     if (roundKey.current.value !== fingerprint) roundKey.current = { value: fingerprint, key: crypto.randomUUID(), expiresAt: new Date(Math.min(Date.now() + 24 * 3600000, Date.parse(campaign.expires_at))).toISOString() }
     try {
-      const id = await trials.create({ requestKey: roundKey.current.key, name, releaseId, campaignId: campaign.id, budgetUsd: budget, requestLimit: limit, dailyLimit: limit, expiresAt: roundKey.current.expiresAt })
+      const id = await trials.create({ requestKey: roundKey.current.key, name, releaseId, campaignId: campaign.id, budgetUsd: budget, requestLimit: limit, dailyLimit, expiresAt: roundKey.current.expiresAt })
       if (mounted.current) { setRoundId(id); roundKey.current = { value: '', key: '', expiresAt: '' }; setRevision(n => n + 1) }
     } catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : '建立結果未知，請用相同設定重試查詢。') }
     finally { if (mounted.current) setBusy(false) }
@@ -116,8 +117,8 @@ export function TrialsPanel({ api, active = true }: { api: RagV1Repository; acti
     <details className="rag-panel"><summary>建立有限試問輪次</summary><form onSubmit={create}><fieldset disabled={busy || !campaign || !snapshots.length}>
       <label>輪次名稱<input required maxLength={100} value={name} onChange={e => setName(e.target.value)} /></label>
       <label>知識版本<select required value={releaseId} onChange={e => setReleaseId(e.target.value)}><option value="">選擇已凍結快照</option>{snapshots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <div className="rag-form-grid"><label>本輪上限（USD）<input type="number" min="0.01" max={campaign ? Math.max(0, Number(campaign.budget_usd) - Number(campaign.reserved_usd)) : 0} step="0.01" required value={budget} onChange={e => setBudget(e.target.valueAsNumber)} /></label><label>本輪與個人每日題數<input type="number" min="1" max="100" required value={limit} onChange={e => setLimit(e.target.valueAsNumber)} /></label></div>
-      <p className="rag-muted">僅開放給目前登入的管理員，最長 24 小時。新輪次不會清空今天已用題數或增加共用預算。</p><button>建立本輪試問</button>
+      <div className="rag-form-grid"><label>本輪上限（USD）<input type="number" min="0.01" max={campaign ? Math.max(0, Number(campaign.budget_usd) - Number(campaign.reserved_usd)) : 0} step="0.01" required value={budget} onChange={e => setBudget(e.target.valueAsNumber)} /></label><label>本輪題數上限<input type="number" min="1" max="100" required value={limit} onChange={e => setLimit(e.target.valueAsNumber)} /></label><label>個人每日總題數上限（UTC，含其他輪次）<input type="number" min="1" max="200" required value={dailyLimit} onChange={e => setDailyLimit(e.target.valueAsNumber)} /></label></div>
+      <p className="rag-muted">僅開放給目前登入的管理員，最長 24 小時。每日總數包含今天所有輪次與評測已占用的題數；若已用數超過設定，本輪也不能送出。新輪次不會清空已用題數或增加共用預算。</p><button>建立本輪試問</button>
     </fieldset></form>{!snapshots.length && <p>請先至「知識版本」凍結一個可測試的快照。</p>}</details>
     <form className="rag-panel" onSubmit={ask}><label>試問輪次<select value={roundId} disabled={busy} onChange={e => setRoundId(e.target.value)}><option value="">選擇輪次</option>{rounds.map(r => <option key={r.id} value={r.id}>{r.name} · {states[r.state] ?? r.state}</option>)}</select></label>
       {round && <p>{round.request_count} / {round.request_limit} 題 · 預留 {usd(Number(round.reserved_usd))} / {usd(Number(round.budget_usd))} · 截止 {dateLabel(round.expires_at)}</p>}

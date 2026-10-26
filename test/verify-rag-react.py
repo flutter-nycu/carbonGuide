@@ -20,6 +20,7 @@ token = encode({'alg': 'HS256', 'typ': 'JWT'}) + '.' + encode({'sub': 'test-admi
 session = {'access_token': token, 'refresh_token': 'test-refresh', 'expires_at': int(time.time()) + 3600, 'expires_in': 3600, 'token_type': 'bearer', 'user': {'id': 'test-admin', 'email': 'j20692091@gmail.com', 'aud': 'authenticated', 'role': 'authenticated'}}
 stamp = '2026-10-25T00:00:00Z'
 pilot_fixture = json.loads(Path('test/fixtures/rag-pilot.synthetic.json').read_text(encoding='utf-8'))
+v1_fixture = json.loads(Path('test/fixtures/rag-v1.synthetic.json').read_text(encoding='utf-8'))
 data = {
     'documents': [{'id': 'doc', 'title': '居家節電指南（測試資料）', 'source_type': 'pdf', 'purpose': '生活指引', 'domain': '居家', 'created_at': stamp}],
     'document_versions': [{'id': 'version', 'document_id': 'doc', 'version': 1, 'processing_status': 'ready', 'content_status': 'draft', 'failure_reason': None, 'created_at': stamp}],
@@ -28,8 +29,17 @@ data = {
     'qa_entries': [], 'personas': [], 'prompts': [], 'knowledge_releases': [], 'evaluation_runs': [], 'rag_runs': [],
     'embedding_profiles': [{'id': 'profile', 'model': 'text-embedding-3-large', 'dimensions': 1536, 'distance_metric': 'cosine', 'chunker_version': 'structure-v1'}],
     'rag_service_state': [{'id': True, 'service_enabled': False, 'active_release_id': None, 'answer_style': 'standard', 'daily_question_limit': 20, 'retrieval_candidates': 20, 'context_chunks': 6, 'similarity_threshold': .72, 'qa_threshold': .9, 'fallback_reply': '目前沒有足夠的已核定資料。', 'rewrite_enabled': False, 'tools_enabled': False, 'updated_at': stamp}],
+    **{key: [] for key in ('rag_v1_originals', 'rag_v1_jobs', 'rag_v1_urls', 'rag_v1_sets', 'rag_v1_reviews', 'rag_v1_activations', 'rag_v1_evaluations', 'rag_v1_calculation_drafts', 'rag_v1_datasets', 'rag_v1_evaluation_batches', 'rag_v1_evaluation_receipts', 'rag_v1_qa_citations')},
+    'rag_v1_campaigns': [v1_fixture['campaign']], 'rag_v1_rounds': [v1_fixture['round']],
+    'rag_v1_requests': [v1_fixture['request']],
+    'rag_v1_run_calls': [{'rag_v1_model_calls': call} for call in v1_fixture['result']['calls']],
 }
 errors, writes, unexpected, checks = [], [], [], []
+data['rag_v1_originals'] = [{'id': 'original', 'document_version_id': 'version', 'sha256': 'a' * 64, 'byte_size': 1000,
+    'source_name': '居家節電指南（測試資料）.pdf', 'upload_state': 'verified', 'created_at': stamp}]
+data['rag_v1_jobs'] = [{'id': 'parse-job', 'original_id': 'original', 'stage': 'parse', 'status': 'completed', 'attempt': 1,
+    'output_set_id': 'set1', 'failure_reason': None, 'updated_at': stamp,
+    'quality': {'human_approved': False, 'quarantine': {'count': 2, 'physical_pages': [3, 7], 'chunk_ordinals': [4, 9]}}}]
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
     context = browser.new_context(viewport={'width': 1440, 'height': 1000})
@@ -63,6 +73,14 @@ with sync_playwright() as playwright:
             result = [item['run'] for item in pilot_fixture['details']]
         elif entity == 'rag_pilot_detail':
             result = next((item for item in pilot_fixture['details'] if item['run']['id'] == request.post_data_json['p_id']), None)
+        elif entity == 'rag-v1':
+            action = request.post_data_json.get('action')
+            if action == 'request_read': result = v1_fixture['result']
+            elif action == 'operations': result = v1_fixture['operations']
+            else:
+                unexpected.append('Unexpected v1 action: ' + str(action))
+                route.abort()
+                return
         elif entity == 'logout':
             result = {}
         elif entity in data:
@@ -88,10 +106,15 @@ with sync_playwright() as playwright:
     checks.append('Signed-out deep link is protected')
     page.evaluate('([key, value]) => localStorage.setItem(key, JSON.stringify(value))', [f'sb-{ref}-auth-token', session])
     page.reload()
-    page.get_by_role('button', name='檢視 居家節電指南（測試資料）').wait_for()
+    try:
+        page.get_by_role('button', name='檢視 居家節電指南（測試資料）').wait_for()
+    except Exception:
+        page.screenshot(path=str(out / 'failure.png'), full_page=True)
+        (out / 'failure.json').write_text(json.dumps({'errors': errors, 'unexpected': unexpected, 'body': page.locator('body').inner_text()}, ensure_ascii=False, indent=2), encoding='utf-8')
+        raise
     assert page.locator('.rag-workspace').evaluate('(node) => node.shadowRoot === null')
     page.get_by_role('button', name='檢視 居家節電指南（測試資料）').click()
-    page.get_by_text('先記錄用電量，再比較改善前後的差異。').wait_for()
+    page.get_by_role('paragraph').filter(has_text='先記錄用電量，再比較改善前後的差異。').wait_for()
     checks.append('Native React document/version/chunk-set preview with production CSP')
     page.get_by_role('button', name='關閉詳情').click()
     navigation = page.get_by_role('navigation', name='RAG 功能')
@@ -107,10 +130,29 @@ with sync_playwright() as playwright:
                 assert sidebar['width'] <= 250 and main['x'] >= sidebar['x'] + sidebar['width'], (width, sidebar, main)
                 assert abs(main['y'] - sidebar['y']) <= 1, (width, 'main must align with sidebar top')
             if width in (1440, 390) and title in ('文件與段落', '人格與提示詞', 'RAG 設定'):
+                if title == '文件與段落':
+                    for summary in ('查看逐檔處理進度與下載原檔', '已隔離 2 個原始段落，內容不完整'):
+                        element = page.get_by_text(summary, exact=True)
+                        if not element.evaluate('(node) => node.parentElement.open'): element.click()
+                    page.get_by_text('受影響物理頁：3、7', exact=True).wait_for()
+                    assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (width, 'quality notice')
                 page.evaluate('window.scrollTo(0, 0)')
                 page.screenshot(path=str(out / f'{width}-{title}.png'), full_page=True)
     checks.append('All seven screens fit 1440/1024/768/390/375px without page overflow')
     navigation.get_by_role('button', name='試問', exact=True).click()
+    for width in [1440, 1024, 768, 390, 375]:
+        page.set_viewport_size({'width': width, 'height': 1000 if width > 720 else 844})
+        page.get_by_role('button', name='查看 syntheti 流程', exact=True).click()
+        result = page.get_by_role('region', name='版本試問結果')
+        result.wait_for()
+        expect(result.locator('.rag-pilot-flow button')).to_have_count(5)
+        result.get_by_role('button', name=re.compile('模型回答')).click()
+        result.get_by_role('heading', name='模型回答').wait_for()
+        assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (width, 'v1 history')
+        if width in (1440, 390):
+            page.screenshot(path=str(out / f'{width}-v1-flow.png'), full_page=True)
+    checks.append('Synthetic v1 history renders immutable answer/citations, selectable executed nodes and separate cost amounts at five widths; no live requests')
+    page.get_by_text('舊版 24 段落小量測試與紀錄', exact=True).click()
     for width in [1440, 1024, 768, 390, 375]:
         page.set_viewport_size({'width': width, 'height': 1000 if width > 720 else 844})
         for detail in pilot_fixture['details']:

@@ -16,4 +16,6 @@ Use Gemini 768-dimensional document/query embeddings with profile/hash/norm guar
 Automated tests establish contracts, access isolation, idempotency, quotas, lifecycle, citations and calculation arithmetic. They do not establish factual correctness or legal/current tariff validity. Full corpus can remain in_review even when processing succeeds. Real publication and public service activation await the user.
 
 ## Delivery
+An explicit trusted-worker quarantine option excludes entire chunks containing undecoded control or replacement glyphs. It never edits a character or infers a numeric sign. Original artifacts remain unchanged; candidate quality records original parser fingerprint, excluded chunk ordinals and physical pages. The quarantine policy produces a separate immutable candidate identity, leaves clean evidence bytes unchanged, and requires human review. Default imports reject undecoded evidence. Navigation-only snapshots remain source records outside answer snapshots.
+
 Split implementation and review by data ingestion, versioning/rounds, answer/evaluation, and UI/operations. Save precise machine-readable progress and evidence under ignored reports. Preserve unrelated work. Use protected branches for code handoff; do not weaken hosting protection to automate checks.

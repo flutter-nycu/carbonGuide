@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { IngestionPanel } from './IngestionPanel'
 import { validateFile, type RagV1Repository } from './v1'
+import { QualityNotice } from './QualityNotice'
 
 afterEach(cleanup)
 function repository(): RagV1Repository {
@@ -10,6 +11,13 @@ function repository(): RagV1Repository {
     download: vi.fn(), campaigns: vi.fn(), stopCampaign: vi.fn() }
 }
 describe('private ingestion controls', () => {
+  it('shows excluded whole chunks as incomplete evidence with review locations', () => {
+    render(<QualityNotice quality={{ quarantine: { count: 2, physical_pages: [3, 7], chunk_ordinals: [4, 9], review_required: true } }} />)
+    expect(screen.getByText('已隔離 2 個原始段落，內容不完整')).toBeTruthy()
+    expect(screen.getByText('受影響物理頁：3、7')).toBeTruthy()
+    expect(screen.getByText('原始段落序號：4、9')).toBeTruthy()
+    expect(screen.getByText(/原檔與解析紀錄仍保留/)).toBeTruthy()
+  })
   it('rejects empty, oversize, unsupported and path-like filenames', () => {
     expect(validateFile({ name: '知識.pdf', size: 20 * 1024 * 1024 })).toBeNull()
     for (const file of [{ name: '知識.pdf', size: 0 }, { name: '知識.pdf', size: 20 * 1024 * 1024 + 1 },

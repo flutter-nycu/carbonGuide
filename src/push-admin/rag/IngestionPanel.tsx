@@ -4,6 +4,7 @@ import type { RagV1Repository, Original, IngestionJob } from './v1'
 import { validateFile } from './v1'
 import { dateLabel } from './ui'
 import { UrlPanel } from './UrlPanel'
+import { QualityNotice } from './QualityNotice'
 
 const statuses: Record<string, string> = { pending: '待批次處理', running: '處理中', completed: '完成', failed: '失敗', uncertain: '結果待確認' }
 export function IngestionPanel({ repository, role, changed }: { repository: RagV1Repository; role: AdminRole; changed: () => void }) {
@@ -53,7 +54,7 @@ export function IngestionPanel({ repository, role, changed }: { repository: RagV
       const jobs = data.jobs.filter(job => job.original_id === original.id)
       return <tr key={original.id}><td data-label="檔案">{original.source_name}<small>{(original.byte_size / 1024 / 1024).toFixed(2)} MiB · {dateLabel(original.created_at)}</small></td>
         <td data-label="原檔">{original.upload_state === 'verified' ? '雜湊核對完成' : '待上傳核對'}</td>
-        <td data-label="解析 / 向量">{jobs.length ? jobs.map(job => <div key={job.id}>{job.stage === 'parse' ? '解析' : '向量'}：{statuses[job.status] ?? job.status}{job.failure_reason && <small>{job.failure_reason}</small>}{job.quality.human_approved === false && <small>內容待人工審核</small>}</div>) : '核對後建立工作'}</td>
+        <td data-label="解析 / 向量">{jobs.length ? jobs.map(job => <div key={job.id}>{job.stage === 'parse' ? '解析' : '向量'}：{statuses[job.status] ?? job.status}{job.failure_reason && <small>{job.failure_reason}</small>}{job.quality.human_approved === false && <small>內容待人工審核</small>}<QualityNotice quality={job.quality} /></div>) : '核對後建立工作'}</td>
         <td data-label="操作">{download?.id === original.id ? <a href={download.url} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">下載原檔（短效授權）</a> : <button onClick={() => prepareDownload(original.id)}>取得下載授權</button>}</td></tr>
     })}</tbody></table></div></details>
     {repository.urls && <UrlPanel repository={repository.urls} role={role} />}

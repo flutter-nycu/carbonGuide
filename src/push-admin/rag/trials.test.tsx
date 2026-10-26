@@ -18,6 +18,27 @@ function api(): RagV1Repository {
   }
 }
 describe('bounded version trials', () => {
+  it('keeps per-round questions separate from the finite cross-round daily cap', async () => {
+    const repository = api()
+    repository.versions = { versions: vi.fn().mockResolvedValue({ snapshots: [{ id: 'snapshot', name: 'Candidate' }], sets: [], originals: [], calculations: [], reviews: [], publications: [], evaluations: [] }), snapshotDetail: vi.fn().mockResolvedValue({}), createSnapshot: vi.fn(), reviewSnapshot: vi.fn(), activateSnapshot: vi.fn() }
+    vi.mocked(repository.trials!.create).mockRejectedValue(new Error('temporary failure'))
+    render(<TrialsPanel api={repository} />)
+    await screen.findByRole('option', { name: 'Candidate' })
+    fireEvent.change(screen.getByLabelText('知識版本'), { target: { value: 'snapshot' } })
+    fireEvent.change(screen.getByLabelText('本輪題數上限'), { target: { value: '10' } })
+    const daily = screen.getByLabelText('個人每日總題數上限（UTC，含其他輪次）')
+    expect(daily.getAttribute('max')).toBe('200')
+    fireEvent.change(daily, { target: { value: '180' } })
+    fireEvent.click(screen.getByRole('button', { name: '建立本輪試問', hidden: true }))
+    await waitFor(() => expect(repository.trials!.create).toHaveBeenCalledTimes(1))
+    const first = vi.mocked(repository.trials!.create).mock.calls[0][0]
+    expect(first).toMatchObject({ requestLimit: 10, dailyLimit: 180, budgetUsd: 0.5, campaignId: 'campaign' })
+    await screen.findByRole('alert')
+    fireEvent.change(daily, { target: { value: '181' } })
+    fireEvent.click(screen.getByRole('button', { name: '建立本輪試問', hidden: true }))
+    await waitFor(() => expect(repository.trials!.create).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(repository.trials!.create).mock.calls[1][0].requestKey).not.toBe(first.requestKey)
+  })
   it('reuses the request identity after an unknown result and only changes it with the input', async () => {
     const repository = api(); render(<TrialsPanel api={repository} />)
     const question = screen.getByLabelText('問題')
