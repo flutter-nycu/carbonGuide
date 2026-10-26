@@ -72,14 +72,14 @@ Development 報告：`395142e4-81fe-45d2-b2f2-0ff764669ade`；Acceptance 報告�
 | 後端 | Node 共用邏輯 37 tests PASS；Python 100 tests PASS | Node 測試非 Deno runtime 實測 |
 | 資料庫 | 測試專案 rollback fixtures 驗證權限、預算、快照、評測、URL、重處理、排序與留存 | 合成核准／發布回滾，未核准真實內容 |
 | 瀏覽器 | 1440、1024、768、390、375 寬度情境通過，含流程、品質警示、草稿及登出 | mock 後端；Safari、真機未測 |
-| 真實雲端 | Preview Ready、Edge 部署；未登入 Preview／Edge／私有表皆 401；先前版本 owner 登入、讀取及歷史流程已檢查 | 最新分支網址仍停在管理員登入頁 |
+| 真實雲端 | Preview Ready、Edge 部署；未登入 Preview／Edge／私有表皆 401；2026-10-27 已在最新分支網址確認 owner 登入，讀取 53 份來源、最終快照、品質警示、評測及費用 | 新題的瀏覽器送出仍未完成；自動操作核准審查擋下付費送出，已請使用者手動按一次 |
 | 邊界檢查 | npm audit 零漏洞；來源及實際 build 秘密掃描零命中；14 個 build artifacts 通過發布檢查 | 非整個既有 App／推播系統稽核 |
 
 全量檢索只縮小排序前資料投影，先選候選再取完整文字，RRF 維持 `k=50`。20 筆完整結果 JSON 與參考查詢相同；read-only 查詢約 11.154 → 5.677 秒，真實 RPC fixture 約 13.649 → 6.255 秒，排序與權限回歸通過，未增加 8 秒上限。這是單次測量，尚未做併發負載驗收。
 
 DDL 後 security advisors：三項 RLS 無 policy 為刻意封閉的私有控制表；六個既有 authenticated SECURITY DEFINER 入口及密碼外洩保護未啟用仍列為既有專案檢查項目，沒有擴大 RAG 權限。[函式檢查說明](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable)、[密碼保護說明](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)。
 
-本機私有證據在 `reports/rag-v1-delivery/`：`final-corpus-evidence.json`、`retrieval-fix-verification.json`、`frontend-final-tests.log`、`backend-final-tests.log`、`citation-boundary-tests.log`、`browser/results.json`、`negative-http.json`、`secret-scan.json`、`final-security-advisors.json`、匯入／向量／快照／評測回條。該目錄刻意不推公開 Git。
+本機私有證據在 `reports/rag-v1-delivery/`：`final-corpus-evidence.json`、`retrieval-fix-verification.json`、`frontend-final-tests.log`、`backend-final-tests.log`、`citation-boundary-tests.log`、`browser/results.json`、`authenticated-browser-followup.json`、`negative-http.json`、`secret-scan.json`、`final-security-advisors.json`、匯入／向量／快照／評測回條。該目錄刻意不推公開 Git。
 
 ## 費用與人工試問
 
@@ -97,7 +97,7 @@ DDL 後 security advisors：三項 RLS 無 policy 為刻意封閉的私有控制
 
 ## 尚未完成
 
-- 最新 Preview 登入後的真實瀏覽器複核：需要使用者在目前分支網址完成管理員登入，不擷取或搬移 session。
+- 最新 Preview 的新題送出與回應複核：登入及真實讀取已確認；付費送出被自動操作核准審查擋下，尚待使用者手動送出。檢查時輪次為 0/5、campaign 569 次，沒有透過其他工具繞過送出限制。
 - 人工內容核准、缺字／OCR／標題修正及三個 TLS 失敗來源：保持待審／失敗狀態。
 - 真實知識發布／回滾及公開服務啟用：本輪僅驗證 rollback fixtures，未對真實內容操作。
 - Google 帳單對帳、Safari／真機、併發負載：缺少帳單或尚未安排測試。

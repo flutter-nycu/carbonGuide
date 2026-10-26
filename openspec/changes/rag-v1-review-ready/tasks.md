@@ -27,7 +27,7 @@
 ## 5. Operations and UI
 - [x] Implement React upload/progress, candidate editing, review/version, rounds/evaluation and cost controls.
 - [x] Add bounded retention jobs, operational health/errors and actionable budget warnings.
-- [x] Complete applicable automated dependency/security checks, secret scanning and mock browser acceptance. Latest Preview authenticated browser verification remains pending the user's login; Safari/real mobile/concurrency testing is not claimed.
+- [x] Complete applicable automated dependency/security checks, secret scanning and mock browser acceptance. On 2026-10-27 the user logged into the latest Preview: real source, snapshot, evaluation, quality and cost reads passed. A fresh paid browser submission remains pending user action after automatic approval rejected the agent's click; Safari/real mobile/concurrency testing is not claimed.
 - [x] Update usage/maintenance docs and original implementation-plan status to the actual final state.
-- [x] Review, commit/push protected branches, deploy protected Preview/backend and verify deployment status and unauthenticated denial. Website code `548e23d` has a Ready Preview; backend `65e2f43` is pushed and `rag-v1` v4 is ACTIVE with JWT verification. Final documentation follows on the same Preview branches; authenticated latest-browser acceptance is explicitly pending user login.
+- [x] Review, commit/push protected branches, deploy protected Preview/backend and verify deployment status and unauthenticated denial. Website `15d54e7` has a successful Preview (frontend code `548e23d`); backend `65e2f43` is pushed and `rag-v1` v4 is ACTIVE with JWT verification. Authenticated read checks passed; fresh browser answer submission is not yet verified.
 - [x] Prepare the human-review checklist and evidence, including an owner-only five-request US$0.15 round within the same US$5 campaign. Real content remains unapproved and public answering disabled; overall delivery is candidate_only.
