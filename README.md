@@ -19,6 +19,8 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 RAG 七個畫面已採原生 React。v1 包含私有原始檔上傳、列管 URL 快照、本機解析／OCR、固定 profile 的 Gemini embedding、段落修訂、QA／人格／提示詞／計算草稿、不可變版本、有限輪次、評測、逐步流程及成本、人工審核、發布與回滾。詳細操作、模型及限制見 [RAG 使用說明](docs/rag-pilot-user-guide.zh-TW.md)，開發範圍見 [OpenSpec](openspec/changes/rag-v1-review-ready/)。
 
+技術交接另提供 [15 頁繁體中文 PDF](output/pdf/CarbonGuide-RAG-Technical-Reference-zh-TW.pdf)（2026-10-27 版本），包含架構、資料管線、模型方法、API、安全、成本、評測與維運；[內容來源](docs/rag-technical-reference.zh-TW.json)可用 `python scripts/build-rag-technical-pdf.py` 重建，需 ReportLab 與 Windows 微軟正黑體。PDF 是固定版本紀錄，不會自動更新線上額度。
+
 內容維持待人工審核，一般回答服務關閉，Flutter 最後接入。ready 代表處理可用，並非人工核准。維護者使用 App repo 的 `scripts/rag/` 執行批次解析／文件 embedding；本階段沒有常駐雲端 worker。
 
 本輪核准的文件準備及評測上限合計 US$5，與舊三題 pilot 額度分開。模型 key 只在伺服器／指定本機環境檔。未知結果保留預留，不重試、不退還配額；Google 帳單另行對帳，預留不等於扣款。
