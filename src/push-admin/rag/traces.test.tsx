@@ -62,7 +62,7 @@ describe('trace history', () => {
     fireEvent.click(opener)
     await screen.findByRole('region', { name: '節點明細' })
     expect(repo.getTrace).toHaveBeenCalledWith(first.trace.id, expect.any(AbortSignal))
-    expect(screen.getByRole('heading', { name: '流程詳情' })).toBe(document.activeElement)
+    expect(screen.getByRole('heading', { name: '歷史評測流程詳情' })).toBe(document.activeElement)
     const cost = within(screen.getByLabelText('本次費用明細'))
     expect(cost.getAllByText('未知')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: /01重用文件向量/ }))

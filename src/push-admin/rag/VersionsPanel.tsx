@@ -21,7 +21,7 @@ function SnapshotContent({ snapshot, repository }: { snapshot: Snapshot; reposit
   const documents = Array.isArray(manifest?.documents) ? manifest.documents as Record<string, unknown>[] : []
   return <section aria-label="固定版本內容"><p>SHA-256：<code>{snapshot.manifest_hash}</code></p>
     {error && <p role="alert">{error}</p>}{!manifest && !error && <p role="status">讀取快照…</p>}
-    {manifest && <><h3>包含的來源</h3><ul>{documents.map((doc, i) => <li key={i}><strong>{String(doc.title)}</strong> · {String(doc.chunk_count)} 段 · {String(doc.content_status)}<br /><small>內容指紋 {String(doc.content_hash)}</small>{doc.quality && typeof doc.quality === 'object' && !Array.isArray(doc.quality) ? <QualityNotice quality={doc.quality as Record<string, unknown>} /> : null}</li>)}</ul>
+    {manifest && <><details><summary>包含的來源（{documents.length} 份）與品質警示</summary><ul>{documents.map((doc, i) => <li key={i}><strong>{String(doc.title)}</strong> · {String(doc.chunk_count)} 段 · {String(doc.content_status)}<br /><small>內容指紋 {String(doc.content_hash)}</small>{doc.quality && typeof doc.quality === 'object' && !Array.isArray(doc.quality) ? <QualityNotice quality={doc.quality as Record<string, unknown>} /> : null}</li>)}</ul></details>
       <p>QA：{Array.isArray(manifest.qa) ? manifest.qa.length : 0} 則；人格：{Array.isArray(manifest.personas) ? manifest.personas.length : 0} 個；計算資料：{Array.isArray(manifest.calculations) ? manifest.calculations.length : 0} 組。</p>
       <details><summary>檢查完整內容、設定與計算來源</summary><pre>{JSON.stringify(manifest, null, 2)}</pre></details></>}
   </section>

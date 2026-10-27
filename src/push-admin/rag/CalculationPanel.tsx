@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { AdminRole } from '../auth'
 import type { CalculationDraft, CoefficientRow, EditorialRepository } from './v1'
+import { DetailDialog } from './DetailDialog'
 
 type Citation = { chunk_id: string; quote: string } | { coefficient_id: string; raw_sha256: string }
 type Tier = { up_to_kwh: number | null; rate: number }
 const decimal = (value: string) => /^(0|[1-9]\d*)(\.\d{1,8})?$/.test(value) && Number(value) <= 1000000
 
-function CalculationEditor({ api, draft, seed, done }: { api: EditorialRepository; draft: CalculationDraft | null; seed: CoefficientRow | null; done: () => void }) {
+function CalculationEditor({ api, draft, seed, done, onBusy }: { api: EditorialRepository; draft: CalculationDraft | null; seed: CoefficientRow | null; done: () => void; onBusy: (busy: boolean) => void }) {
   const d = draft?.definition ?? {}
   const [kind, setKind] = useState<'coefficient' | 'electricity'>(draft?.kind ?? 'coefficient')
   const [fields, setFields] = useState<Record<string, string>>(() => Object.fromEntries(['name', 'region', 'scope', 'notes', 'valid_from', 'valid_until', 'input_unit', 'value'].map(key => [key, String(d[key] ?? (key === 'name' ? seed?.name ?? '' : key === 'value' ? seed?.value ?? '' : ''))])))
@@ -20,10 +21,10 @@ function CalculationEditor({ api, draft, seed, done }: { api: EditorialRepositor
     const definition = { name: fields.name, region: fields.region, scope: fields.scope, notes: fields.notes,
       valid_from: fields.valid_from, valid_until: fields.valid_until, citations,
       ...(kind === 'coefficient' ? { value: Number(fields.value), input_unit: fields.input_unit, output_unit: 'kgCO2e' } : { currency: 'TWD', period: 'month', tiers }) }
-    setBusy(true); setError('')
+    setBusy(true); onBusy(true); setError('')
     try { await api.saveCalculation(draft?.id ?? null, draft?.updated_at ?? null, kind, definition); done() }
     catch (reason) { setError(reason instanceof Error ? reason.message : '無法儲存。') }
-    finally { setBusy(false) }
+    finally { setBusy(false); onBusy(false) }
   }
   return <form onSubmit={save} aria-label="計算資料草稿"><fieldset disabled={busy}><h3>{draft ? '編輯' : '新增'}計算草稿</h3>
     <label>計算方式<select disabled={!!seed} value={kind} onChange={e => { setKind(e.target.value as typeof kind); setCitations([{ chunk_id: '', quote: '' }]) }}><option value="coefficient">活動量 × 排放係數</option><option value="electricity">非時間電價級距</option></select></label>
@@ -46,6 +47,7 @@ export function CalculationPanel({ api, role }: { api: EditorialRepository; role
   const [drafts, setDrafts] = useState<CalculationDraft[]>([]), [rows, setRows] = useState<CoefficientRow[]>([])
   const [offset, setOffset] = useState(0), [draftOffset, setDraftOffset] = useState(0), [search, setSearch] = useState(''), [query, setQuery] = useState(''), [revision, setRevision] = useState(0)
   const [editing, setEditing] = useState<{ draft: CalculationDraft | null; seed: CoefficientRow | null } | null>(null)
+  const [editorBusy, setEditorBusy] = useState(false)
   const [error, setError] = useState(''), [loading, setLoading] = useState(false), [showRows, setShowRows] = useState(false)
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError('')
@@ -58,13 +60,13 @@ export function CalculationPanel({ api, role }: { api: EditorialRepository; role
   useEffect(() => { if (!writable) setEditing(null) }, [writable])
   return <section className="rag-panel"><h2>排放係數與電價草稿</h2><p>建立有來源、有效期間和單位的候選計算資料，再於知識版本中選取。儲存不代表核准或發布。</p>
     {error && <p role="alert" className="rag-error">{error}</p>}
-    <div className="rag-actions"><button disabled={!writable || !!editing} onClick={() => setEditing({ draft: null, seed: null })}>新增計算資料</button><button disabled={loading} onClick={() => setRevision(n => n + 1)}>重新讀取計算資料</button></div>
-    {writable && editing && <CalculationEditor key={editing.draft?.id ?? editing.seed?.id ?? 'new'} api={api} {...editing} done={() => { setEditing(null); setRevision(n => n + 1) }} />}
-    {drafts.map(d => <article className="rag-subsection" key={d.id}><h3>{String(d.definition.name)}</h3><p>{d.kind === 'electricity' ? '電價級距' : '排放係數'} · {String(d.definition.region)} · {String(d.definition.valid_from)} 至 {String(d.definition.valid_until)}</p><p>{String(d.definition.scope)}</p><button disabled={!writable || !!editing} onClick={() => setEditing({ draft: d, seed: null })}>編輯 {String(d.definition.name)}</button><details><summary>查看計算資料與來源</summary><pre>{JSON.stringify(d.definition, null, 2)}</pre></details></article>)}
+    <div className="rag-actions"><button disabled={!writable} onClick={() => setEditing({ draft: null, seed: null })}>新增計算資料</button><button disabled={loading} onClick={() => setRevision(n => n + 1)}>重新讀取計算資料</button></div>
+    {writable && editing && <DetailDialog title="計算資料草稿" closeDisabled={editorBusy} onClose={() => setEditing(null)}><p className="rag-muted">關閉會捨棄尚未儲存的修改。</p><CalculationEditor key={editing.draft?.id ?? editing.seed?.id ?? 'new'} api={api} {...editing} onBusy={setEditorBusy} done={() => { setEditing(null); setRevision(n => n + 1) }} /></DetailDialog>}
+    {drafts.map(d => <article className="rag-subsection" key={d.id}><h3>{String(d.definition.name)}</h3><p>{d.kind === 'electricity' ? '電價級距' : '排放係數'} · {String(d.definition.region)} · {String(d.definition.valid_from)} 至 {String(d.definition.valid_until)}</p><p>{String(d.definition.scope)}</p><button disabled={!writable} onClick={() => setEditing({ draft: d, seed: null })}>編輯 {String(d.definition.name)}</button><details><summary>查看計算資料與來源</summary><pre>{JSON.stringify(d.definition, null, 2)}</pre></details></article>)}
     {!loading && !drafts.length && <p>尚無計算草稿。</p>}<div className="rag-actions"><button disabled={loading || draftOffset === 0} onClick={() => setDraftOffset(n => Math.max(0, n - 50))}>上一頁計算草稿</button><button disabled={loading || drafts.length < 50} onClick={() => setDraftOffset(n => n + 50)}>下一頁計算草稿</button></div>
     <details onToggle={e => setShowRows(e.currentTarget.open)}><summary>瀏覽匯入的原始係數（尚未核准）</summary>
       <form onSubmit={e => { e.preventDefault(); setOffset(0); setQuery(search.trim()) }}><label>搜尋係數名稱<input maxLength={100} value={search} onChange={e => setSearch(e.target.value)} /></label><button disabled={loading}>搜尋係數</button></form>
-      {rows.map(row => <article className="rag-subsection" key={row.id}><h4>{row.name ?? `第 ${row.ordinal} 列`}</h4><p>{row.value ?? '未能解析數值'} {row.unit ?? '單位未明'}</p><details><summary>原始欄位與問題</summary><pre>{JSON.stringify({ raw: row.raw, issues: row.issues }, null, 2)}</pre></details><button disabled={!writable || !!editing || row.value === null} onClick={() => setEditing({ draft: null, seed: row })}>以這筆原始資料建立草稿</button></article>)}
+      {rows.map(row => <article className="rag-subsection" key={row.id}><h4>{row.name ?? `第 ${row.ordinal} 列`}</h4><p>{row.value ?? '未能解析數值'} {row.unit ?? '單位未明'}</p><details><summary>原始欄位與問題</summary><pre>{JSON.stringify({ raw: row.raw, issues: row.issues }, null, 2)}</pre></details><button disabled={!writable || row.value === null} onClick={() => setEditing({ draft: null, seed: row })}>以這筆原始資料建立草稿</button></article>)}
       <div className="rag-actions"><button disabled={loading || offset === 0} onClick={() => setOffset(n => Math.max(0, n - 50))}>上一頁係數</button><button disabled={loading || rows.length < 50} onClick={() => setOffset(n => n + 50)}>下一頁係數</button></div>
     </details>
   </section>

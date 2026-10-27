@@ -31,7 +31,8 @@ data = {
     'rag_service_state': [{'id': True, 'service_enabled': False, 'active_release_id': None, 'answer_style': 'standard', 'daily_question_limit': 20, 'retrieval_candidates': 20, 'context_chunks': 6, 'similarity_threshold': .72, 'qa_threshold': .9, 'fallback_reply': '目前沒有足夠的已核定資料。', 'rewrite_enabled': False, 'tools_enabled': False, 'updated_at': stamp}],
     **{key: [] for key in ('rag_v1_originals', 'rag_v1_jobs', 'rag_v1_urls', 'rag_v1_sets', 'rag_v1_reviews', 'rag_v1_activations', 'rag_v1_evaluations', 'rag_v1_calculation_drafts', 'rag_v1_datasets', 'rag_v1_evaluation_batches', 'rag_v1_evaluation_receipts', 'rag_v1_qa_citations')},
     'rag_v1_campaigns': [v1_fixture['campaign']], 'rag_v1_rounds': [v1_fixture['round']],
-    'rag_v1_requests': [v1_fixture['request']],
+    'rag_v1_requests': [{**v1_fixture['request'], 'origin': 'query', 'rag_v1_request_details': {'question': '如何減少生活碳排放？', 'answer': '先核對來源資料。', 'expires_at': '2099-01-01T00:00:00Z'}}],
+    'rag_v1_request_details': {'question': '如何減少生活碳排放？', 'expires_at': '2099-01-01T00:00:00Z'},
     'rag_v1_run_calls': [{'rag_v1_model_calls': call} for call in v1_fixture['result']['calls']],
 }
 errors, writes, unexpected, checks = [], [], [], []
@@ -128,10 +129,10 @@ with sync_playwright() as playwright:
                 sidebar = page.locator('.rag-sidebar').bounding_box()
                 main = page.locator('.rag-main').bounding_box()
                 assert sidebar['width'] <= 250 and main['x'] >= sidebar['x'] + sidebar['width'], (width, sidebar, main)
-                assert abs(main['y'] - sidebar['y']) <= 1, (width, 'main must align with sidebar top')
+                assert sidebar['y'] >= -1, (width, 'sticky sidebar must remain accessible')
             if width in (1440, 390) and title in ('文件與段落', '人格與提示詞', 'RAG 設定'):
                 if title == '文件與段落':
-                    for summary in ('查看逐檔處理進度與下載原檔', '已隔離 2 個原始段落，內容不完整'):
+                    for summary in ('匯入文件與查看處理進度', '查看逐檔處理進度與下載原檔', '已隔離 2 個原始段落，內容不完整'):
                         element = page.get_by_text(summary, exact=True)
                         if not element.evaluate('(node) => node.parentElement.open'): element.click()
                     page.get_by_text('受影響物理頁：3、7', exact=True).wait_for()
@@ -151,6 +152,7 @@ with sync_playwright() as playwright:
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth'), (width, 'v1 history')
         if width in (1440, 390):
             page.screenshot(path=str(out / f'{width}-v1-flow.png'), full_page=True)
+        page.get_by_role('dialog').get_by_role('button', name='關閉詳情', exact=True).click()
     checks.append('Synthetic v1 history renders immutable answer/citations, selectable executed nodes and separate cost amounts at five widths; no live requests')
     page.get_by_text('舊版 24 段落小量測試與紀錄', exact=True).click()
     for width in [1440, 1024, 768, 390, 375]:
@@ -188,13 +190,14 @@ with sync_playwright() as playwright:
     editor.get_by_label('問題', exact=True).fill('瀏覽器測試草稿')
     editor.get_by_label('標準回答', exact=True).fill('草稿保存測試')
     editor.get_by_label('來源說明（尚待核定）', exact=True).fill('測試來源')
-    page.get_by_role('button', name='推播管理 正式功能', exact=True).click()
-    page.get_by_role('button', name='RAG 知識工作台 第一階段', exact=True).click()
     assert editor.get_by_label('問題', exact=True).input_value() == '瀏覽器測試草稿'
     page.get_by_role('button', name='儲存草稿', exact=True).click()
     page.get_by_text('草稿已儲存，尚未發布。', exact=True).wait_for()
     page.get_by_role('heading', name='瀏覽器測試草稿', exact=True).wait_for()
-    checks.append('Draft survives workspace switching and saves through repository (mock)')
+    page.get_by_role('button', name='推播管理 正式功能', exact=True).click()
+    page.get_by_role('button', name='RAG 知識工作台 第一階段', exact=True).click()
+    page.get_by_role('heading', name='瀏覽器測試草稿', exact=True).wait_for()
+    checks.append('Modal draft saves through repository and remains after workspace switching (mock)')
     navigation.get_by_role('button', name='試問', exact=True).click()
     assert page.get_by_role('button', name='送出一次試問').is_disabled()
     page.get_by_role('button', name='登出', exact=True).click()

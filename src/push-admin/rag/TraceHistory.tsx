@@ -3,6 +3,7 @@ import type { RagRepository } from './repository'
 import { duration, nodeLabels, outcomeLabels, reasonLabels, statusLabels, TRACE_PAGE_SIZE, usd, type Trace, type TraceCursor, type TraceDetail } from './traces'
 import { dateLabel } from './ui'
 import './traces.css'
+import { DetailDialog } from './DetailDialog'
 
 // Drop both aborted and late results, including a repository change during a request.
 function useTraceRead<T>(repo: RagRepository, read: (repo: RagRepository, signal: AbortSignal) => Promise<T>) {
@@ -39,8 +40,8 @@ function ConnectedHistory({ repo }: { repo: RagRepository }) {
   function close() { setSelected(null) }
   useEffect(() => { if (!selected) opener.current?.focus() }, [selected])
   return <>
-    <div hidden={selected !== null}><TraceList repo={repo} open={open} /></div>
-    {selected && <TraceView key={selected} repo={repo} id={selected} close={close} />}
+    <TraceList repo={repo} open={open} />
+    {selected && <DetailDialog title="歷史評測流程詳情" onClose={close}><TraceView key={selected} repo={repo} id={selected} close={close} /></DetailDialog>}
   </>
 }
 function TraceList({ repo, open }: { repo: RagRepository; open: (trace: Trace, button: HTMLButtonElement) => void }) {

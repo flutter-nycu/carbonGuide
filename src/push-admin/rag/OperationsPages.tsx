@@ -7,6 +7,7 @@ import { TraceHistory } from './TraceHistory'
 import { VersionsPanel } from './VersionsPanel'
 import { CalculationPanel } from './CalculationPanel'
 import { CostPanel } from './CostPanel'
+import { InteractionHistory } from './InteractionHistory'
 
 export function ReleasesPage({ repo, role = 'viewer' }: { repo: RagRepository | null; role?: AdminRole }) {
   if (repo?.v1?.versions) return <><PageHeading title="知識版本" description="固定內容、執行評測，再由管理者核准並發布。" /><VersionsPanel repo={repo} role={role} /></>
@@ -23,10 +24,11 @@ function LegacyReleases({ repo }: { repo: RagRepository | null }) {
     <section className="rag-panel"><h2>CLI 評測結果</h2><ResourceState resource={evaluations} empty="尚無評測報表。這不代表評測已通過。">{evaluations.data.map(run => <details key={run.id}><summary>{dateLabel(run.created_at)} · {contentLabels[run.status] ?? run.status}</summary><pre>{JSON.stringify(run.report, null, 2)}</pre></details>)}</ResourceState></section>
   </>
 }
-export function LogsPage({ repo, role }: { repo: RagRepository | null; role: AdminRole }) {
+export function LogsPage({ repo, role, active = true }: { repo: RagRepository | null; role: AdminRole; active?: boolean }) {
   const runs = useResource(role === 'owner' ? repo : null, 'rag_runs')
   return <><PageHeading title="互動紀錄" description="查看試問的版本、處理結果與耗時。" />{role !== 'owner' ? <p className="rag-notice">只有管理者可查看互動紀錄。這項限制也由資料庫權限執行。</p> : <>
-    <TraceHistory repo={repo} />
+    {repo?.v1?.trials && <InteractionHistory api={repo.v1.trials} active={active} />}
+    {repo?.v1?.trials ? <details className="rag-subsection"><summary>舊版評測追蹤（只有代碼與流程）</summary><TraceHistory repo={repo} /></details> : <TraceHistory repo={repo} />}
     <details className="rag-subsection"><summary>一般互動紀錄（不含歷史評測）</summary>
     <button onClick={runs.reload} disabled={!repo || runs.loading}>重新整理</button>
     <ResourceState resource={runs} empty="目前沒有互動紀錄。">{runs.data.map(run => <article className="rag-panel" key={run.id}><h2>{run.question}</h2><p className="rag-preserve">{run.answer ?? '沒有回答內容'}</p><small>{dateLabel(run.created_at)} · {contentLabels[run.status] ?? run.status} · {run.duration_ms === null ? '耗時未記錄' : `${run.duration_ms} ms`}</small><p className="rag-muted">知識版本：{run.release_id ?? '未指定'}</p></article>)}</ResourceState></details></>}</>

@@ -61,10 +61,12 @@ export interface CoefficientRow { id: string; original_id: string; ordinal: numb
 export interface TrialRound { id: string; name: string; release_id: string; campaign_id: string; budget_usd: number; reserved_usd: number;
   request_limit: number; request_count: number; per_user_daily_limit: number; state: string; expires_at: string }
 export interface TrialRequest { id: string; round_id: string; state: string; reason: string | null; created_at: string }
+export interface InteractionRecord extends TrialRequest { origin: 'query' | 'evaluation'; question: string | null; answer: string | null; details_expired: boolean }
 export interface TrialEvent { node: string; state: string; duration_ms: number; [key: string]: unknown }
 export interface TrialCall { id: string; model: string; purpose: string; status: string; reserved_usd: number; usage: Record<string, number>; duration_ms: number | null }
-export interface TrialResult { id: string; state: string; reason?: string; output?: Record<string, unknown> | null; trace?: TrialEvent[]; calls?: TrialCall[]; replayed?: boolean; details_expired?: boolean }
+export interface TrialResult { id: string; state: string; reason?: string; input?: { question: string } | null; output?: Record<string, unknown> | null; trace?: TrialEvent[]; calls?: TrialCall[]; replayed?: boolean; details_expired?: boolean }
 export interface TrialRepository {
+  history?(signal: AbortSignal, offset: number, origin: 'query' | 'evaluation' | 'all'): Promise<InteractionRecord[]>
   abandon?(id: string): Promise<TrialResult>
   list(signal: AbortSignal, offset: number): Promise<{ rounds: TrialRound[]; requests: TrialRequest[] }>
   create(input: { requestKey: string; name: string; releaseId: string; campaignId: string; budgetUsd: number; requestLimit: number; dailyLimit: number; expiresAt: string }): Promise<string>

@@ -4,6 +4,7 @@ import { ragConfiguration } from '../rag/config'
 import type { RagRepository } from '../rag/repository'
 import { DocumentsPage, DraftsPage, LogsPage, PlaygroundPage, ReleasesPage, SettingsPage } from '../rag/pages'
 import '../rag/workspace.css'
+import { DetailVisibility } from '../rag/DetailDialog'
 
 const pages = [
   ['documents', '文件與段落', '知識內容'], ['qa', '通用 QA', '知識內容'],
@@ -47,13 +48,13 @@ export default function RagWorkspace({ role, repository, active = true }: { role
     <main ref={main} tabIndex={-1} className="rag-main">
       {!repo && <div className="rag-notice" role="status"><strong>{connectionError || (configuration.enabled ? '正在建立資料連線…' : 'RAG 資料尚未連線')}</strong><p>{configuration.message}</p></div>}
       {role === 'viewer' && <p className="rag-notice">目前為唯讀權限。可檢視知識內容，無法儲存草稿。</p>}
-      {visited.has('documents') && <section hidden={page !== 'documents'}><DocumentsPage repo={repo} role={role} /></section>}
-      {visited.has('qa') && <section hidden={page !== 'qa'}><DraftsPage repo={repo} role={role} kind="qa_entries" /></section>}
-      {visited.has('personas') && <section hidden={page !== 'personas'}><DraftsPage repo={repo} role={role} kind="personas" /><DraftsPage repo={repo} role={role} kind="prompts" secondary /></section>}
-      {visited.has('playground') && <section hidden={page !== 'playground'}><PlaygroundPage repo={repo} role={role} active={active && page === 'playground'} /></section>}
-      {visited.has('releases') && <section hidden={page !== 'releases'}><ReleasesPage repo={repo} role={role} /></section>}
-      {visited.has('logs') && <section hidden={page !== 'logs'}><LogsPage repo={repo} role={role} /></section>}
-      {visited.has('settings') && <section hidden={page !== 'settings'}><SettingsPage repo={repo} role={role} /></section>}
+      {visited.has('documents') && <DetailVisibility.Provider value={active && page === 'documents'}><section hidden={page !== 'documents'}><DocumentsPage repo={repo} role={role} /></section></DetailVisibility.Provider>}
+      {visited.has('qa') && <DetailVisibility.Provider value={active && page === 'qa'}><section hidden={page !== 'qa'}><DraftsPage repo={repo} role={role} kind="qa_entries" /></section></DetailVisibility.Provider>}
+      {visited.has('personas') && <DetailVisibility.Provider value={active && page === 'personas'}><section hidden={page !== 'personas'}><DraftsPage repo={repo} role={role} kind="personas" /><DraftsPage repo={repo} role={role} kind="prompts" secondary /></section></DetailVisibility.Provider>}
+      {visited.has('playground') && <DetailVisibility.Provider value={active && page === 'playground'}><section hidden={page !== 'playground'}><PlaygroundPage repo={repo} role={role} active={active && page === 'playground'} /></section></DetailVisibility.Provider>}
+      {visited.has('releases') && <DetailVisibility.Provider value={active && page === 'releases'}><section hidden={page !== 'releases'}><ReleasesPage repo={repo} role={role} /></section></DetailVisibility.Provider>}
+      {visited.has('logs') && <DetailVisibility.Provider value={active && page === 'logs'}><section hidden={page !== 'logs'}><LogsPage repo={repo} role={role} active={active && page === 'logs'} /></section></DetailVisibility.Provider>}
+      {visited.has('settings') && <DetailVisibility.Provider value={active && page === 'settings'}><section hidden={page !== 'settings'}><SettingsPage repo={repo} role={role} /></section></DetailVisibility.Provider>}
     </main>
   </div>
 }
