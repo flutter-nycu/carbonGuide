@@ -3,8 +3,17 @@
 更新：2026-10-28。基準提交 `028db7d`，範圍限 `preview/rag-admin-20261024`。
 
 - **Task**：把使用者提出的技術名詞整合進技術文件，提供獨立後台使用指南，並改善按鈕後果、拒答顯示與版面。
-- **Status**：`mock_verified`（本機實作與文件完成；此版記錄上傳前驗證，部署結果於後續補記）。
-- **Mode**：真實檔案／PDF 產出；瀏覽器為合成資料及 mock 驗證，沒有真實資料修改或付費呼叫。
+- **Status**：`complete`（本次 UI／文件交付及 Preview 部署完成；線上已登入畫面未重驗，限制列於 Not run）。
+- **Mode**：真實檔案／PDF／Git 上傳與 Preview 部署；瀏覽器操作驗證為合成資料及 mock，沒有真實知識內容修改或付費呼叫。
+
+## 上傳與部署證據
+
+- 程式與文件提交 [`b00c726737a20bda73f551a82f904002ac60bd90`](https://github.com/flutter-nycu/carbonGuide/commit/b00c726737a20bda73f551a82f904002ac60bd90)，已推送既有 Preview 分支。
+- GitHub commit status 的 Vercel context 回報 `success`：[該提交部署紀錄](https://vercel.com/fluttermans-projects/carbon-guide/9BuXJYYKk2NcoC2KR9MQcVvSAfgB)。
+- [受保護 Preview 入口](https://carbon-guide-git-preview-rag-admin-f1f550-fluttermans-projects.vercel.app/push-admin#rag)。沒有推 main、沒有變更 Vercel 保護設定。
+- 未帶登入憑證的 HTTP 讀取回傳 `302`，轉址至 `vercel.com/sso-api`，確認 Preview 保護仍在；這不是已登入 UI 驗證。
+- `node scripts/check-release.mjs --staged` 檢查 31 個提交檔案通過；`git diff --cached --check` 通過。兩份 PDF 的抽出文字另經 verifier 檢查。
+- 已停止本次測試的 Vite／靜態 server，並僅清除已確認在 workspace 內的本次 PDF 渲染、一次性作者工具及 mock build 暫存；保留 `reports/rag-guidance/` 驗證紀錄與 contact sheets。
 
 ## Changed files
 
@@ -45,4 +54,4 @@
 
 ## Risk / Next
 
-設定頁仍保留不控制 v1 的 QA 門檻、fallback_reply 和一般日額度欄位，現在已明示。短段落修訂仍有 1,800-byte 後端限制，長內容需維護者批次處理。歷史 acceptance 36/40 沒有重跑或被改寫。完成 Preview 上傳後，建議管理員先閱讀指南第 5／7／10／15 頁，核對排除、引用、拒答與設定；連線恢復後補一次只讀的真實瀏覽器檢查。
+設定頁仍保留不控制 v1 的 QA 門檻、fallback_reply 和一般日額度欄位，現在已明示。短段落修訂仍有 1,800-byte 後端限制，長內容需維護者批次處理。歷史 acceptance 36/40 沒有重跑或被改寫。建議管理員先閱讀指南第 5／7／10／15 頁，核對排除、引用、拒答與設定；連線恢復後補一次只讀的真實瀏覽器檢查。

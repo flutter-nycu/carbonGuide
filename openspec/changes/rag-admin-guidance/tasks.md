@@ -6,5 +6,5 @@
 ## Verification and delivery
 - [x] Run type checks, tests, build, OpenSpec and secret checks.
 - [x] Verify synthetic browser layouts and render/inspect both PDFs.
-- [ ] Review final changes and upload the authorized Preview branch.
-- [ ] Record evidence, deployment status and any live verification limitations.
+- [x] Review final changes and upload the authorized Preview branch.
+- [x] Record evidence, deployment status and any live verification limitations.
