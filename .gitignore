@@ -14,3 +14,6 @@ outputs/
 supabase/.temp/
 *.pem
 *.key
+
+# Rendered manual pages are temporary visual-QA outputs.
+/tmp/pdfs/

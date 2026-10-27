@@ -18,3 +18,16 @@
 .rag-chunk-toolbar{position:sticky;top:-20px;z-index:1;padding:12px 0;background:#f7fcfb;border-bottom:1px solid var(--rag-line);scroll-margin-top:20px}.rag-chunk-toolbar .rag-pagination{margin:8px 0}
 @media(min-width:721px){.rag-sidebar{position:sticky;top:0;align-self:start;max-height:100dvh;overflow:auto}}
 @media(max-width:720px){.rag-v1 .rag-detail-dialog{width:100vw;height:100dvh;border-radius:0;border:0}.rag-detail-header{padding:16px;gap:12px}.rag-detail-header h2{font-size:17px}.rag-detail-body{padding:16px 16px 28px}.rag-detail-body .rag-panel{padding:16px}.rag-pagination{align-items:flex-start}}
+
+/* Keep short actions readable, long identifiers bounded, and explanations next to their action. */
+.rag-v1 :is(small,code,dd,legend){overflow-wrap:anywhere}.rag-v1 .rag-row>*,.rag-v1 .rag-actions>*{min-width:0}
+.rag-v1 .rag-check{align-items:flex-start}.rag-v1 input[type=checkbox]{flex:0 0 18px;height:18px;margin-top:3px;padding:0}.rag-check small{display:block}
+.rag-v1 .rag-table td:last-child{min-width:88px}.rag-v1 .rag-table td:last-child button{white-space:nowrap;overflow-wrap:normal;max-width:none}
+.rag-v1 .rag-page-help{border:1px solid var(--rag-line);border-radius:12px;background:#fff;margin:18px 0 0;padding:12px 18px}
+.rag-page-help summary{font-weight:600;display:list-item;align-content:center}.rag-page-help ol{padding-left:22px;list-style:decimal}.rag-page-help li{margin:10px 0;line-height:1.8}.rag-page-help a{text-decoration:underline;text-underline-offset:3px}
+.rag-v1 .rag-explanation{padding:14px 16px;background:#eff7f4;border-left:3px solid #619c8f;border-radius:0 8px 8px 0;margin:16px 0;font-size:13px;line-height:1.8}.rag-explanation p{margin:8px 0}
+.rag-v1 .rag-response-note{font-size:12px;color:var(--rag-muted);margin:16px 0 24px}.rag-outcome-label{display:block;margin-top:16px;font-size:12px;color:#886023}
+.rag-v1 .rag-citation-editor{padding:18px;border:1px solid var(--rag-line);border-radius:10px;margin:18px 0;background:#f7fcfb}.rag-v1 .rag-citation-editor h3{margin:0 0 14px}.rag-v1 .rag-draft-notice{padding:10px 14px;background:#fff3da;border-radius:8px;color:#795b1c;font-size:13px}
+.rag-v1 fieldset>legend{font-weight:600;margin:16px 0 8px}.rag-v1 .rag-pilot-node details{margin-bottom:0}
+.rag-v1 .rag-table-scroll{overflow:auto;margin:20px 0;border:1px solid var(--rag-line);border-radius:10px}.rag-table-scroll table{width:100%;border-collapse:collapse;text-align:left;min-width:600px}.rag-table-scroll :is(td,th){padding:14px 16px;border-bottom:1px solid var(--rag-line);vertical-align:top}.rag-table-scroll th{background:#eff7f4;font-size:12px}
+@media(max-width:720px){.rag-v1 .rag-table td:last-child{min-width:0}.rag-v1 .rag-citation-editor{padding:14px}.rag-v1 .rag-actions>button{flex:1 1 auto;text-align:center}.rag-v1 .rag-explanation{padding:12px 14px}.rag-page-help{font-size:13px}}

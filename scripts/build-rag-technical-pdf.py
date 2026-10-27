@@ -2,6 +2,7 @@
 from pathlib import Path
 from html import escape
 import json
+import argparse
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Flowable
 from reportlab.lib import colors
@@ -12,8 +13,14 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / 'output/pdf/CarbonGuide-RAG-Technical-Reference-zh-TW.pdf'
-SOURCE = ROOT / 'docs/rag-technical-reference.zh-TW.json'
+args = argparse.ArgumentParser(description=__doc__)
+args.add_argument('--guide', action='store_true', help='Build the beginner admin guide instead of the technical reference')
+options = args.parse_args()
+slug = 'rag-admin-guide' if options.guide else 'rag-technical-reference'
+TITLE = 'CarbonGuide RAG 後台使用指南' if options.guide else 'CarbonGuide RAG 技術文件'
+RUNNING = 'CARBONGUIDE / RAG ADMIN GUIDE' if options.guide else 'CARBONGUIDE / RAG TECHNICAL REFERENCE'
+OUT = ROOT / ('output/pdf/CarbonGuide-RAG-Admin-Guide-zh-TW.pdf' if options.guide else 'output/pdf/CarbonGuide-RAG-Technical-Reference-zh-TW.pdf')
+SOURCE = ROOT / f'docs/{slug}.zh-TW.json'
 FONT_ROOT = Path('C:/Windows/Fonts')
 pdfmetrics.registerFont(TTFont('JH', str(FONT_ROOT / 'msjh.ttc'), subfontIndex=0))
 pdfmetrics.registerFont(TTFont('JHB', str(FONT_ROOT / 'msjhbd.ttc'), subfontIndex=0))
@@ -110,13 +117,13 @@ class Doc(SimpleDocTemplate):
             self.canv.addOutlineEntry(flowable.section_title,flowable.section_key,0,False)
 
 def decorate(c,doc):
-    c.saveState();c.setTitle('CarbonGuide RAG 技術文件 | 2026-10-27')
+    c.saveState();c.setTitle(TITLE + ' | 2026-10-28')
     c.setAuthor('CarbonGuide');c.setSubject('RAG v1 架構、資料管線、模型方法、安全與維運')
     if doc.page>1:
-        c.setFillColor(TEAL);c.setFont('JHB',8);c.drawString(M,H-31,'CARBONGUIDE / RAG TECHNICAL REFERENCE')
+        c.setFillColor(TEAL);c.setFont('JHB',8);c.drawString(M,H-31,RUNNING)
         c.setStrokeColor(LINE);c.line(M,H-40,W-M,H-40)
     c.setStrokeColor(LINE);c.line(M,38,W-M,38);c.setFont('JH',8);c.setFillColor(MUTED)
-    c.drawString(M,23,'2026-10-27  |  v1 / protected Preview')
+    c.drawString(M,23,'2026-10-28  |  v1 / protected Preview')
     c.drawRightString(W-M,23,f'{doc.page:02d} / {total:02d}')
     c.restoreState()
 
@@ -145,6 +152,22 @@ for index,section in enumerate(sections):
 
 OUT.parent.mkdir(parents=True,exist_ok=True)
 doc=Doc(str(OUT),pagesize=A4,rightMargin=M,leftMargin=M,topMargin=58,bottomMargin=50,
-    title='CarbonGuide RAG 技術文件',author='CarbonGuide',pageCompression=1)
+    title=TITLE,author='CarbonGuide',pageCompression=1)
 doc.build(story,onFirstPage=decorate,onLaterPages=decorate)
+# The browser-readable manual and PDF share one authored source.
+md = [f'# {TITLE}', '', '更新：2026-10-28。由同名 JSON 來源產生，與 PDF 內容同步。', '', f'[下載 PDF](../output/pdf/{OUT.name})', '']
+for i, section in enumerate(sections):
+    md.extend(['## ' + section['title'].replace('\n', ' · '), '', section.get('subtitle', ''), ''])
+    for block in section['blocks']:
+        kind = block['type']
+        if kind == 'table':
+            rows = block['rows']
+            def row(values): return '| ' + ' | '.join(v.replace('|', '\\|').replace('\n', '<br>') for v in values) + ' |'
+            md.extend([row(rows[0]), row(['---'] * len(rows[0])), *[row(r) for r in rows[1:]], ''])
+        elif kind == 'link': md.extend([f"[{block['text']}]({block['url']})", ''])
+        elif kind == 'diagram':
+            line = 'A[React 管理前端] --> B[Supabase 身份與權限]\n B --> C[固定版本與資料庫]\n B --> D[Gemini]\n E[本機解析與 OCR] --> C' if block['kind'] == 'architecture' else 'A[身份 輪次 快照] --> B[範圍檢查 QA 或計算]\n B --> C[向量與混合檢索]\n C --> D[選證據及生成]\n D --> E[引用數值驗證]\n E --> F[保存回覆或拒答]'
+            md.extend(['```mermaid', 'flowchart TD', ' ' + line, '```', ''])
+        else: md.extend([('### ' if kind == 'h2' else '> ' if kind == 'note' else '') + block['text'].replace('\n', '\n> ' if kind == 'note' else '\n'), ''])
+(ROOT / f'docs/{slug}.zh-TW.md').write_text('\n'.join(line.rstrip() for line in '\n'.join(md).splitlines()) + '\n', encoding='utf-8')
 print(json.dumps({'path':str(OUT),'expected_pages':total,'bytes':OUT.stat().st_size}))

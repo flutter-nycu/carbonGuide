@@ -1,0 +1,2 @@
+# Versioned manuals are binary artifacts, never line-normalize their PDF streams.
+output/pdf/*.pdf binary

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { DetailDialog, DetailVisibility } from './DetailDialog'
 import { TrialFlow } from './TrialFlow'
+import { missingResponse } from './response-guidance'
 import { dateLabel } from './ui'
 import type { InteractionRecord, TrialRepository, TrialResult } from './v1'
 
@@ -56,7 +57,8 @@ export function InteractionHistory({ api, active = true }: { api: TrialRepositor
     {!loading && !error && (rows.length ? <div className="rag-interaction-list">{rows.slice(0, pageSize).map(row => <article key={row.id} className="rag-panel rag-interaction-card">
       <div className="rag-row"><small>{dateLabel(row.created_at)} · {row.origin === 'evaluation' ? '自動評測' : '人工試問'}</small><span className="rag-tag">{statusLabels[row.state] ?? row.state}</span></div>
       <h3 className="rag-text-preview">{row.question || (row.details_expired ? '問題內容已過保留期限或無法讀取' : '未取得問題正文')}</h3>
-      <p className="rag-text-preview rag-preserve">{row.answer || (row.details_expired ? '正文已無法讀取；仍可查看保留的結果與費用。' : row.state === 'answered' ? '請開啟詳情查看回答或計算結果。' : row.state === 'running' || row.state === 'reserved' ? '這筆問題尚未完成。' : '沒有可顯示的回答；開啟詳情查看處理原因。')}</p>
+      {row.state === 'abstained' && !row.details_expired && row.answer && <strong className="rag-outcome-label">實際回覆 · 拒答</strong>}
+      <p className="rag-text-preview rag-preserve">{row.answer || (row.details_expired ? '正文已無法讀取；仍可查看保留的結果與費用。' : row.state === 'answered' ? '請開啟詳情查看回答或計算結果。' : missingResponse(row.state))}</p>
       <button aria-label={`查看問答 ${row.id.slice(0, 8)}`} onClick={() => setSelected(row.id)}>查看完整問答與流程</button>
     </article>)}</div> : <p className="rag-empty">目前沒有這類問答紀錄。可切換紀錄來源或前往「試問」。</p>)}
     {selected && <TrialDetailDialog key={selected} api={api} id={selected} close={() => setSelected(null)} />}

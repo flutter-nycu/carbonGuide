@@ -54,7 +54,7 @@ export function DraftsPage({ repo, role, kind, secondary = false }: { repo: RagR
       <div className="rag-row"><h3>{'question' in row ? row.question : row.name}</h3><span className="rag-tag">{'enabled' in row ? row.enabled ? '候選草稿' : '停用草稿' : '草稿'}</span></div>
       <p className="rag-preserve">{'answer' in row ? row.answer : 'instruction' in row ? row.instruction : row.content}</p>
       {'source_note' in row && <p className="rag-muted">來源：{row.source_note}</p>}
-      {'question' in row && repo?.v1?.editorial && <QaCitationsForm api={repo.v1.editorial} qa={row} writable={write} saved={resource.reload} />}
+      {'question' in row && repo?.v1?.editorial && <QaCitationsForm api={repo.v1.editorial} qa={row} writable={write} saved={result => { setMessage(`「${row.question}」：${result}`); resource.reload() }} />}
       {'example' in row && <blockquote>{row.example}</blockquote>}
       <div className="rag-row"><small>{dateLabel(row.updated_at)}</small><button disabled={!write} onClick={() => { setEditing({ row }); setMessage('') }}>編輯 {'question' in row ? row.question : row.name}</button></div>
     </article>)}</ResourceState>

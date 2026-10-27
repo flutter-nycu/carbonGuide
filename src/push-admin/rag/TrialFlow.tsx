@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { TrialCall, TrialResult } from './v1'
 import { duration, usd } from './traces'
+import { missingResponse, reasonExplanation } from './response-guidance'
 
 export const states: Record<string, string> = { reserved: '已受理', running: '處理中', answered: '已回答', abstained: '資料不足或驗證未通過', failed: '未完成', uncertain: '結果待確認', stopped: '已停止', active: '開放中', succeeded: '完成', skipped: '略過', received: '已收到回應', started: '已開始', http_error: '模型服務拒絕' }
 const nodes: Record<string, string> = { snapshot_and_access: '版本與權限', scope_guard: '服務範圍', verified_qa: '通用 QA', query_embedding: '問句向量化', hybrid_retrieval: '混合檢索', rewrite: '問句改寫', rewritten_embedding: '改寫後向量化', rewritten_retrieval: '再次檢索', context_selection: '引用內容選擇', answer: '模型回答', citation_and_number_validation: '引用與數值驗證', deterministic_tools: '確定性計算' }
@@ -25,17 +26,18 @@ export function TrialFlow({ result }: { result: TrialResult }) {
     <p className="rag-muted">這是歷史測試結果，內容仍待人工審閱；不代表目前可發布或來源仍啟用。</p>
     {result.details_expired && <p>問題與回答已超過保留期限；題數與費用帳仍保留。</p>}
     {!result.details_expired && <section className="rag-question-block" aria-label="原始問題"><h3>問題</h3><p className="rag-preserve">{result.input?.question || '這筆紀錄未提供問題正文。'}</p></section>}
-    {!result.details_expired && <h3>回答</h3>}
+    {!result.details_expired && <h3>{result.state === 'abstained' ? '本次實際回覆（拒答）' : '本次實際回覆'}</h3>}
     {typeof answer.answer === 'string' && <p className="rag-pilot-answer">{answer.answer}</p>}
     {typeof qa.answer === 'string' && <p className="rag-pilot-answer">{qa.answer}</p>}
-    {!result.details_expired && typeof answer.answer !== 'string' && typeof qa.answer !== 'string' && !Array.isArray(output.calculations) && <p className="rag-muted">{['running', 'reserved'].includes(result.state) ? '尚在處理中，還沒有回答。' : '本次沒有可顯示的回答，請參考下方處理原因與流程。'}</p>}
+    {!result.details_expired && typeof answer.answer !== 'string' && typeof qa.answer !== 'string' && !Array.isArray(output.calculations) && <p className="rag-muted">{missingResponse(result.state)}</p>}
+    {!result.details_expired && <p className="rag-response-note">以上為後台測試保存的結果。Flutter 尚未接入；無法據此宣稱 App 使用者已看到這段內容。</p>}
     {citations.map((value, i) => { const c = record(value), source = evidence.find(item => item.id === c.chunk_id); return <details key={i}><summary>引用 {i + 1} · {String(source?.title ?? c.chunk_id ?? c.coefficient_id ?? '')}{source?.page_start != null ? ` · 第 ${String(source.page_start)}${source.page_end != null && source.page_end !== source.page_start ? `–${String(source.page_end)}` : ''} 頁` : ''}</summary><blockquote>{String(c.quote ?? '')}</blockquote><small>來源識別碼：{String(c.chunk_id ?? c.coefficient_id ?? '')}</small></details> })}
     {Array.isArray(output.calculations) && output.calculations.map((value, i) => <details open key={i}><summary>計算 {i + 1} · {String(record(value).name ?? '')}</summary><pre>{JSON.stringify(value, null, 2)}</pre></details>)}
-    {result.reason && <small>處理原因：{result.reason}</small>}
+    {result.reason && <aside className="rag-explanation"><strong>給管理員的處理說明</strong><p>{reasonExplanation(result.reason)}</p><small>原因代碼：<code>{result.reason}</code></small></aside>}
     <p>模型預留 {usd(calls ? calls.reduce((sum, c) => sum + Number(c.reserved_usd), 0) : null)} · 用量估算 {usd(estimated)} · 帳單金額 未知</p>
     <p className="rag-muted">預留是控制上限，不是扣款。缺少用量或結果不明時顯示未知；此處不把文件前置處理成本重複計入每題。單價版本：2026-10-26，<a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Google 標準文字計價</a>。</p>
     {events.length ? <><ol className="rag-pilot-flow">{events.map((e, i) => <li key={`${i}-${e.node}`}><button aria-pressed={selected === i} className={`is-${e.state}`} onClick={() => setSelected(i)}><small>{i + 1} · {states[e.state] ?? e.state}</small><strong>{nodes[e.node] ?? e.node}</strong><span>{duration(e.duration_ms)}</span></button></li>)}</ol>
-      {event && <div className="rag-pilot-node"><h3>{nodes[event.node] ?? event.node}</h3><pre>{JSON.stringify(event, null, 2)}</pre></div>}</> : <p>尚未取得完成的流程。處理中或中斷的模型呼叫可由下方持久費用帳確認。</p>}
+      {event && <div className="rag-pilot-node"><h3>{nodes[event.node] ?? event.node}</h3><p>{states[event.state] ?? event.state} · {duration(event.duration_ms)}</p>{typeof event.reason === 'string' && <p>{reasonExplanation(event.reason)}</p>}<details><summary>展開此步驟的技術資料</summary><pre>{JSON.stringify(event, null, 2)}</pre></details></div>}</> : !result.details_expired && <p>尚未取得完成的流程。處理中或中斷的模型呼叫可由下方持久費用帳確認。</p>}
     {!!calls?.length && <details><summary>模型呼叫與費用帳（{calls.length} 筆）</summary>{calls.map(c => <p key={c.id}>{nodes[c.purpose] ?? c.purpose} · {c.model} · {states[c.status] ?? c.status} · 預留 {usd(Number(c.reserved_usd))} · 估算 {usd(estimate(c))}</p>)}</details>}
   </section>
 }

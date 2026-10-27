@@ -72,7 +72,7 @@ export function TrialsPanel({ api, active = true }: { api: RagV1Repository; acti
       setResult({ ...value, input })
       const detail = await trials.detail(value.id, controller.signal)
       if (mounted.current && selection.current === epoch) setResult(detail)
-    } catch (reason) { if (mounted.current && selection.current === epoch) setError(`${reason instanceof Error ? reason.message : '連線結果未知。'} 相同問題再次送出會沿用同一識別碼，不會自動再扣題數。`) }
+    } catch (reason) { if (mounted.current && selection.current === epoch) setError(`${reason instanceof Error ? reason.message : '連線結果未知。'} 請先到「互動紀錄」重新讀取本次結果，額度用完、輪次到期或停止後仍可讀取。此頁未重新整理且輸入相同時會沿用識別碼；不要另建同題測試。`) }
     finally { if (mounted.current) { setBusy(false); setRevision(n => n + 1) } }
   }
   async function inspect(id: string) {
@@ -87,6 +87,7 @@ export function TrialsPanel({ api, active = true }: { api: RagV1Repository; acti
     <div className="rag-notice"><strong>版本試問 · 私有候選內容</strong><p>輪次綁定固定知識快照，與文件向量化、評測共用已核准預算。問題、回答與診斷保留 30 天；請勿輸入個資或秘密。離開頁面不會撤回已開始的模型呼叫。</p></div>
     {error && !detailOpen && <p className="rag-error" role="alert">{error}</p>}
     <div className="rag-row"><p>共用預算：{campaign ? `${usd(Number(campaign.reserved_usd))} / ${usd(Number(campaign.budget_usd))} 已預留` : '目前沒有可用的共用預算'}</p><button disabled={busy || loading} onClick={() => setRevision(n => n + 1)}>重新整理輪次</button></div>
+    {!loading && !available && <p className="rag-explanation">目前輪次無法新增問題。已送出的題目可到「互動紀錄」或下方「版本試問與評測紀錄」查看；讀取既有結果不受新題額度限制，也不呼叫模型。</p>}
     <details className="rag-panel"><summary>建立有限試問輪次</summary><form onSubmit={create}><fieldset disabled={busy || !campaign || !snapshots.length}>
       <label>輪次名稱<input required maxLength={100} value={name} onChange={e => setName(e.target.value)} /></label>
       <label>知識版本<select required value={releaseId} onChange={e => setReleaseId(e.target.value)}><option value="">選擇已凍結快照</option>{snapshots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>

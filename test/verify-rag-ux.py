@@ -29,7 +29,7 @@ with sync_playwright() as pw:
         docs.click()
         dialog = page.get_by_role('dialog', name='測試文件 10：氣候與生活指南', exact=True)
         expect(dialog).to_be_visible()
-        expect(dialog.get_by_text('段落內容 1。', exact=False)).to_be_visible()
+        expect(dialog.locator('.rag-chunk > p').filter(has_text='段落內容 1。')).to_be_visible()
         box = dialog.bounding_box()
         assert box['y'] >= -1 and box['y'] + box['height'] <= page.viewport_size['height'] + 1
         for _ in range(12):
@@ -39,7 +39,7 @@ with sync_playwright() as pw:
         close = dialog.get_by_role('button', name='關閉詳情', exact=True)
         assert close.bounding_box()['y'] < 120
         dialog.get_by_role('button', name='下一頁', exact=True).click()
-        expect(dialog.get_by_text('段落內容 26。', exact=False)).to_be_visible()
+        expect(dialog.locator('.rag-chunk > p').filter(has_text='段落內容 26。')).to_be_visible()
         first_chunk = dialog.locator('.rag-chunk').first.bounding_box()
         assert first_chunk['y'] >= dialog.locator('.rag-detail-header').bounding_box()['height']
         assert first_chunk['y'] < page.viewport_size['height'] - 100

@@ -1,5 +1,9 @@
 # CarbonGuide RAG 管理介面使用說明
 
+初次操作請先讀 [RAG 後台使用指南](rag-admin-guide.zh-TW.md)（[PDF](../output/pdf/CarbonGuide-RAG-Admin-Guide-zh-TW.pdf)）；名詞與模型原理見[擴充技術文件](rag-technical-reference.zh-TW.md)。兩份均更新至 2026-10-28。本頁保留較深入的實作與歷史驗證背景。
+
+操作提醒：移除 QA 引用只改本機清單，儲存後才生效；空引用草稿不能加入快照。段落修訂／排除會建立新集合，保留段落 ID 也會更新，相關 QA 與計算引用須重綁。目前 v1 的固定拒答不受設定頁 fallback_reply 欄位控制；完整拒答、未完成和結果不明的差別見新指南。
+
 更新：2026-10-27。本文件說明 RAG v1 的實作、操作與人工審閱方式。部署網址、語料覆蓋及評測結果另見[本輪驗收紀錄](rag-v1-delivery.zh-TW.md)；本機程式已完成不代表雲端已更新。
 
 本階段提供管理員候選知識庫與有限額試問。**真實內容仍待人工審核，一般回答服務關閉，Flutter App 尚未接入。**

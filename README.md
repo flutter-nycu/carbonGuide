@@ -19,7 +19,12 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 RAG 七個畫面已採原生 React。v1 包含私有原始檔上傳、列管 URL 快照、本機解析／OCR、固定 profile 的 Gemini embedding、段落修訂、QA／人格／提示詞／計算草稿、不可變版本、有限輪次、評測、逐步流程及成本、人工審核、發布與回滾。詳細操作、模型及限制見 [RAG 使用說明](docs/rag-pilot-user-guide.zh-TW.md)，開發範圍見 [OpenSpec](openspec/changes/rag-v1-review-ready/)。
 
-技術交接另提供 [15 頁繁體中文 PDF](output/pdf/CarbonGuide-RAG-Technical-Reference-zh-TW.pdf)（2026-10-27 版本），包含架構、資料管線、模型方法、API、安全、成本、評測與維運；[內容來源](docs/rag-technical-reference.zh-TW.json)可用 `python scripts/build-rag-technical-pdf.py` 重建，需 ReportLab 與 Windows 微軟正黑體。PDF 是固定版本紀錄，不會自動更新線上額度。
+2026-10-28 文件提供兩種閱讀路線：
+
+- [技術文件 PDF（26 頁）](output/pdf/CarbonGuide-RAG-Technical-Reference-zh-TW.pdf)：架構、模型方法、資料結構、RLS／RPC、不可變版本、預留與留存，並用白話解釋 Docling／OCR、20／6／0.72 等設定及尚未部署的雲端解析方案。[網頁版](docs/rag-technical-reference.zh-TW.md)
+- [RAG 後台使用指南 PDF（18 頁）](output/pdf/CarbonGuide-RAG-Admin-Guide-zh-TW.pdf)：逐頁說明操作順序、每個按鈕的影響與費用、移除引用／排除段落、拒答和未知結果。[網頁版](docs/rag-admin-guide.zh-TW.md)
+
+兩份文件均由同名 JSON 產生 PDF 與 Markdown。執行 `python scripts/build-rag-technical-pdf.py` 及 `python scripts/build-rag-technical-pdf.py --guide` 重建；需 ReportLab 與 Windows 微軟正黑體。`python scripts/verify-rag-pdfs.py` 檢查頁數、書籤、字型、文字範圍及敏感資料，並用 PyMuPDF 輸出逐頁圖。PDF 的歷史數字不是即時額度。本次 UI／文件與部署證據見[收尾單](docs/rag-admin-guidance-closeout.zh-TW.md)。
 
 內容維持待人工審核，一般回答服務關閉，Flutter 最後接入。ready 代表處理可用，並非人工核准。維護者使用 App repo 的 `scripts/rag/` 執行批次解析／文件 embedding；本階段沒有常駐雲端 worker。
 

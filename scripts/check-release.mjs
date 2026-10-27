@@ -6,6 +6,8 @@ import { resolve, relative, extname } from 'node:path'
 const root = resolve('.')
 const failures = []
 const secrets = []
+// User-authorized manuals only; their extracted text is separately checked by verify-rag-pdfs.py.
+const manuals = new Set(['output/pdf/CarbonGuide-RAG-Technical-Reference-zh-TW.pdf', 'output/pdf/CarbonGuide-RAG-Admin-Guide-zh-TW.pdf'])
 for (const name of ['.env.local', '.env.development.local']) {
   try {
     for (const line of readFileSync(name, 'utf8').split(/\r?\n/)) {
@@ -30,7 +32,7 @@ function scan(path, buffer) {
 if (process.argv.includes('--staged')) {
   const paths = execFileSync('git',['diff','--cached','--name-only','--diff-filter=ACMR','-z']).toString().split('\0').filter(Boolean)
   for (const path of paths) {
-    if (/^(?:reports|outputs|\.vercel|\.agents|\.codex|\.release-check)\//.test(path) || /(?:^|\/)\.env/.test(path) && path !== '.env.example' || /\.(?:pem|key|pdf|docx|base64)$/i.test(path)) failures.push([path,'forbidden-source-artifact'])
+    if (/^(?:reports|outputs|\.vercel|\.agents|\.codex|\.release-check)\//.test(path) || /(?:^|\/)\.env/.test(path) && path !== '.env.example' || /\.(?:pem|key|pdf|docx|base64)$/i.test(path) && !manuals.has(path)) failures.push([path,'forbidden-source-artifact'])
     scan(path, execFileSync('git',['show',`:${path}`],{maxBuffer:8*1024*1024}))
   }
   console.log(`Reviewed ${paths.length} staged files; local secret values were not printed.`)

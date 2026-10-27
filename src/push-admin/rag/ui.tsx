@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
+import { PageHelp } from './PageHelp'
 
 export function PageHeading({ title, description, secondary = false }: { title: string; description: string; secondary?: boolean }) {
-  return <header className="rag-page-heading">{secondary ? <h2>{title}</h2> : <h1>{title}</h1>}<p>{description}</p></header>
+  return <header className="rag-page-heading">{secondary ? <h2>{title}</h2> : <h1>{title}</h1>}<p>{description}</p>{!secondary && <PageHelp title={title} />}</header>
 }
 export function ResourceState({ resource, empty, children }: { resource: { loading: boolean; error: string; connected: boolean; data: unknown[]; reload: () => void }; empty: string; children: ReactNode }) {
   if (!resource.connected) return <p className="rag-empty">連線完成後顯示資料。</p>
