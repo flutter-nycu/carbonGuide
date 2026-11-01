@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAG 工作台驗證頁</title>
+<style>body{margin:0}</style>
+</head>
+<body>
+<!-- 和 RagWorkspace.tsx 相同：取 index.html 的 body，放進 shadow DOM，再呼叫 mountRag。 -->
+<div id="host" class="rag-workspace"></div>
+<script type="module">
+const base = '/src/push-admin/rag/';
+const html = await (await fetch(base + 'index.html')).text();
+const body = html.split('<body>')[1].split('</body>')[0];
+const root = document.getElementById('host').attachShadow({ mode: 'open' });
+root.innerHTML = '<link rel="stylesheet" href="' + base + 'styles.css"><div class="rag-body">' + body + '</div>';
+await new Promise(resolve => root.querySelector('link').addEventListener('load', resolve, { once: true }));
+const { mountRag } = await import(base + 'app.js');
+window.__dispose = mountRag(root);
+window.__ready = true;
+</script>
+</body>
+</html>

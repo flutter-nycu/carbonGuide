@@ -22,6 +22,30 @@ describe('Dashboard role navigation', () => {
     expect(screen.getByLabelText('RAG 知識工作台（假資料示範）')).toBe(frame)
     expect(frame.parentElement?.hidden).toBe(true)
   })
+  it('ignores hashes other than #rag, #push or an empty hash', () => {
+    render(<Dashboard role="editor" onLogout={() => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 假資料示範' }))
+    const ragPanel = () => screen.getByLabelText('RAG 知識工作台（假資料示範）').parentElement!
+    for (const hash of ['#main', '#workspace-content']) {
+      window.history.replaceState(null, '', hash)
+      fireEvent(window, new HashChangeEvent('hashchange'))
+      expect(ragPanel().hidden).toBe(false)
+    }
+    window.history.replaceState(null, '', '/')
+    fireEvent(window, new HashChangeEvent('hashchange'))
+    expect(ragPanel().hidden).toBe(true)
+  })
+
+  it('moves focus with the skip link without switching workspaces', () => {
+    const { container } = render(<Dashboard role="editor" onLogout={() => undefined} />)
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 假資料示範' }))
+    const link = screen.getByText('跳至主要內容')
+    const notPrevented = fireEvent.click(link)
+    expect(notPrevented).toBe(false)
+    expect(document.activeElement).toBe(container.querySelector('#workspace-content'))
+    expect(screen.getByLabelText('RAG 知識工作台（假資料示範）').parentElement!.hidden).toBe(false)
+  })
+
   it('keeps viewer accounts on read-only tabs', () => {
     render(<Dashboard role="viewer" onLogout={() => undefined} />)
 

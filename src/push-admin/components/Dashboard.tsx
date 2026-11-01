@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { MouseEvent } from 'react'
 import type { AdminRole, AdminTab } from '../auth'
 import { visibleAdminTabs } from '../auth'
 import SystemPushTab from './SystemPushTab'
@@ -26,7 +27,9 @@ export default function Dashboard({ role, onLogout }: Props) {
 
   useEffect(() => {
     const navigate = () => {
-      const next = window.location.hash === '#rag' ? 'rag' : 'push'
+      const { hash } = window.location
+      if (hash !== '#rag' && hash !== '#push' && hash !== '') return
+      const next = hash === '#rag' ? 'rag' : 'push'
       setWorkspace(next)
       if (next === 'rag') setRagVisited(true)
     }
@@ -40,8 +43,13 @@ export default function Dashboard({ role, onLogout }: Props) {
     window.location.hash = next
   }
 
+  function skipToContent(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault()
+    document.getElementById('workspace-content')?.focus()
+  }
+
   return <div className="admin-app">
-    <a className="admin-skip" href="#workspace-content">跳至主要內容</a>
+    <a className="admin-skip" href="#workspace-content" onClick={skipToContent}>跳至主要內容</a>
     <header className="admin-header">
       <div className="admin-brand"><img src={logo} alt="" width="40" height="40" /><div>CarbonGuide<small>營運管理工作台</small></div></div>
       <div className="admin-account"><span className="admin-badge">{{ owner: '管理者', editor: '編輯者', viewer: '唯讀者' }[role]}</span><button onClick={onLogout}>登出</button></div>

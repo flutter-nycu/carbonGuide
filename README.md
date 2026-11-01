@@ -17,11 +17,11 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 唯一管理入口為 `/push-admin`，沿用 Google OAuth、帳號白名單及 `admin_users` 角色驗證。登入後可切換推播管理與 RAG 知識工作台；`/push-admin#rag` 可直接選取 RAG，舊 `/rag-preview/` 路徑由 Vercel 導向同一登入入口。推播功能仍呼叫既有後端，viewer 只可查看紀錄與用量。
 
-RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo、側欄及操作說明。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、Gemini 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
+RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo 及側欄。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、Gemini 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
 
-可操作匯入預檢、原文與段落示例、係數核定、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、檢索設定及互動紀錄。檔案選擇只讀取檔名和大小，URL 不會被擷取；所有解析、評測與服務狀態都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。
+側欄共 10 頁，可操作匯入預檢、原文與段落示例、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、檢索設定及互動紀錄。匯入只收 PDF、DOCX、TXT 和網址；檔案選擇只讀取檔名和大小，URL 不會被擷取；所有處理與評測結果都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。
 
-介面保留舊版的操作引導：首頁三步入門、可收合的頁面說明、設定旁的用途解釋，以及試問結果的來源與判斷原因。進階參數預設收合，手機使用功能下拉選單。
+2026-11-01 起（`openspec/changes/rag-admin-static-uiux-cleanup/`）介面拿掉首頁導引、各頁操作說明和設定旁的說明卡，只保留每頁一句副標與欄位說明；「係數與費率」「服務連線」兩頁和文件處理與向量設定也已移除。試問台只用 RAG 文件回答並附引用，不再有獨立的計算流程，也會顯示回答的判斷原因。手機使用功能下拉選單。
 
 原有氣候教練與通勤原型保留於 `src/push-admin/rag/prototype.html` 作為設計來源，不部署獨立公開頁面，未將舊版通勤分類評估混入 RAG 評測。
 

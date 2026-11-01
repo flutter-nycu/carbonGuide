@@ -52,7 +52,14 @@ describe('RAG static preview', () => {
     action('sample-import'); action('commit-import')
     expect(document.querySelectorAll('#doc-rows tr')).toHaveLength(8)
     expect(document.querySelector('#doc-rows')!.textContent).not.toContain('大型掃描文件.pdf')
-    expect(document.querySelector('#doc-rows')!.textContent).toContain('待核對表格')
+    const added = [...document.querySelectorAll('#doc-rows tr')].filter(row => /綠生活示範指南\.pdf|家庭節能手冊\.docx/.test(row.textContent!))
+    expect(added).toHaveLength(2)
+    for (const row of added) expect(row.textContent).toContain('待處理')
+    expect(document.querySelector('#doc-rows')!.textContent).not.toContain('待核對表格')
+    nav('import')
+    value('#source-name', '示範網址'); value('#source-url', 'https://example.org/guide'); action('add-url'); action('commit-import')
+    const url = [...document.querySelectorAll('#doc-rows tr')].find(row => row.textContent!.includes('示範網址'))
+    expect(url!.textContent).toContain('待讀取網址')
   })
 
   it('can retry a failure without silently publishing the result', () => {
@@ -95,7 +102,7 @@ describe('RAG static preview', () => {
     nav('personas'); action('toggle-persona', '0'); action('toggle-persona', '1')
     expect(document.querySelectorAll('[data-action="toggle-persona"]')[1].textContent).toBe('停用')
     nav('playground'); ask('<img src=x onerror=alert(1)>')
-    expect(document.querySelector('.answer')!.textContent).toContain('沒有可支撐')
+    expect(document.querySelector('.answer')!.textContent).toContain('還沒有能回答')
     nav('logs'); expect(document.querySelector('tbody img')).toBeNull()
     expect(document.querySelector('tbody')!.textContent).toContain('<img src=x onerror=alert(1)>')
   })
@@ -115,16 +122,29 @@ describe('RAG static preview', () => {
     expect(document.querySelector('.persona-card')!.textContent).toContain('列出假設，再比較選項。')
     expect(document.querySelector('.persona-tone')!.textContent).toContain('<img src=x onerror=alert(1)>')
     expect(document.querySelector('.persona-tone img')).toBeNull()
-    nav('playground')
-    expect(document.querySelector('#ask-persona')!.textContent).toContain('比較型')
   })
 
-  it('asks for missing tariff inputs and labels synthetic arithmetic', () => {
+  it('leaves personas to the persona page instead of the playground', () => {
+    nav('playground')
+    expect(document.querySelector('#ask-persona')).toBeNull()
+    expect(document.querySelector('main')!.textContent).not.toContain('回覆人格')
+    ask()
+    expect(document.querySelector('main')!.textContent).toContain('不套用人格語氣')
+    expect(document.querySelector('main')!.textContent).not.toContain('理性型')
+    nav('logs')
+    expect(document.querySelector('thead')!.textContent).not.toContain('人格')
+    action('run-detail', '1')
+    expect(document.querySelector('#dialog-body')!.textContent).not.toContain('人格')
+  })
+
+  it('asks for missing bill inputs and answers carbon questions from a cited document', () => {
     nav('playground'); ask('少用 20 度電能省多少錢？')
     expect(document.querySelector('.answer')!.textContent).toContain('先不提供金額')
     ask('每月少用 20 度電，少多少碳排？')
-    expect(document.querySelector('.answer')!.textContent).toContain('10.00 kg CO₂e')
-    expect(document.querySelector('.answer')!.textContent).toContain('合成係數')
+    expect(document.querySelector('main .section-head .tag')!.textContent).toBe('文件回答')
+    expect(document.querySelector('.answer')!.textContent).toContain('[1]')
+    expect(document.querySelector('.source-result h3')!.textContent).toContain('綠生活指引.pdf')
+    expect(document.querySelector('main')!.textContent).not.toContain('計算')
   })
 
   it('renders every section and resets all ephemeral state', () => {
@@ -134,12 +154,7 @@ describe('RAG static preview', () => {
     expect(document.querySelector('main')!.textContent).toContain('還沒有試問紀錄')
   })
 
-  it('keeps guidance collapsed across navigation and supports the mobile selector', () => {
-    const guide = document.querySelector('details[data-help="start"]') as HTMLDetailsElement
-    guide.open = false
-    guide.dispatchEvent(new dom.window.Event('toggle'))
-    nav('import'); nav('documents')
-    expect((document.querySelector('details[data-help="start"]') as HTMLDetailsElement).open).toBe(false)
+  it('supports the mobile selector', () => {
     value('#page-select', 'settings')
     expect(document.querySelector('h1')!.textContent).toBe('檢索設定')
   })
@@ -150,17 +165,16 @@ describe('RAG static preview', () => {
     expect((document.querySelector('#question') as HTMLTextAreaElement).value).toBe('如何減少食物浪費？')
     submit('#ask-form')
     expect(document.querySelector('.answer')!.textContent).toContain('[1]')
-    expect(document.querySelector('.decision')!.textContent).toContain('關聯文件')
+    expect(document.querySelector('.decision')!.textContent).toContain('對應的文件')
     nav('qa'); action('draft-test')
     expect((document.querySelector('#test-scope') as HTMLSelectElement).value).toBe('draft')
   })
 
-  it('keeps advanced settings available and invalidates evaluation after changes', () => {
+  it('keeps retrieval settings without document indexing fields and invalidates evaluation after changes', () => {
     evaluatePass(); nav('settings')
-    expect((document.querySelector('.setting-details') as HTMLDetailsElement).open).toBe(false)
+    for (const id of ['#chunk', '#overlap', '#dimension']) expect(document.querySelector(id)).toBeNull()
+    expect(document.querySelector('.setting-details')).toBeNull()
     value('#candidate', '24'); value('#context', '6')
-    expect(document.querySelector('#candidate-preview')!.textContent).toContain('24')
-    expect(document.querySelector('#context-preview')!.textContent).toContain('6')
     submit('#settings-form')
     nav('releases'); expect(disabled('review-release')).toBe(true)
     nav('settings'); expect((document.querySelector('#context') as HTMLInputElement).value).toBe('6')
@@ -170,18 +184,74 @@ describe('RAG static preview', () => {
     action('document', '4'); action('retry-document', '4'); action('approve-document', '4')
     nav('playground'); ask()
     const exclusions = () => [...document.querySelectorAll('.source-result.excluded')].map(e => e.textContent).join(' ')
-    expect(exclusions()).toContain('尚未納入所選發布版本')
-    expect(exclusions()).not.toContain('待擷取')
+    expect(exclusions()).toContain('還沒收進這個發布版本')
+    expect(exclusions()).not.toContain('待讀取網址')
     value('#test-scope', 'draft'); ask()
     expect(exclusions()).not.toContain('IPCC')
-    expect(exclusions()).toContain('內容尚未核准')
+    expect(exclusions()).toContain('內容還沒核准')
   })
 
   it('explains saved prompt drafts without activating them', () => {
     nav('prompt'); value('#prompt-draft', '尚未套用的新指令'); action('save-prompt')
-    expect(document.querySelector('#prompt-draft-status')!.textContent).toContain('尚未套用')
+    expect(document.querySelector('#prompt-draft-status')!.textContent).toContain('還沒套用')
     action('draft-test'); ask()
     expect(document.querySelector('main')!.textContent).toContain('p1 / r1')
+  })
+
+  it('shows ten sections in order without factor or connection pages', () => {
+    const labels = [...document.querySelectorAll('#nav [data-action="nav"]')].map(n => n.textContent)
+    expect(labels).toEqual(['01知識庫與文件', '02匯入與預檢', '03檢索試問台', '04RAG 評測', '05知識版本', '06人格設定', '07System Prompt', '08基本通用 QA', '09進階檢索設定', '10互動紀錄'])
+    expect([...document.querySelectorAll('#page-select option')].map(o => (o as HTMLOptionElement).value)).toEqual(['documents', 'import', 'playground', 'evaluation', 'releases', 'personas', 'prompt', 'qa', 'settings', 'logs'])
+    expect(document.querySelector('[data-id="numbers"], [data-id="connection"]')).toBeNull()
+  })
+
+  it('removes onboarding and explanation blocks from every section', () => {
+    for (const option of document.querySelectorAll('#page-select option')) {
+      nav((option as HTMLOptionElement).value)
+      expect(document.querySelector('details[data-help], .page-help, .quick-start, .guide-side')).toBeNull()
+      expect(document.querySelector('.subtitle')!.textContent!.trim()).not.toBe('')
+      for (const text of ['第一次使用', '操作說明', '文件何時會用在回答裡', '設定會用在哪裡', '怎麼判斷有沒有變好', '指令怎麼套用']) {
+        expect(document.querySelector('main')!.textContent).not.toContain(text)
+      }
+    }
+  })
+
+  it('imports only PDF, DOCX and TXT files besides URLs', () => {
+    nav('import')
+    const input = document.querySelector('#files') as HTMLInputElement
+    expect(input.getAttribute('accept')).toBe('.pdf,.docx,.txt')
+    Object.defineProperty(input, 'files', { value: [new dom.window.File(['{}'], '係數.json'), new dom.window.File(['text'], '手冊.txt'), new dom.window.File([], '空白.pdf')] })
+    input.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+    const rows = [...document.querySelectorAll('main tbody tr')]
+    expect(rows[0].querySelector('.tag.error')).not.toBeNull()
+    expect(rows[0].textContent).toContain('格式不支援')
+    expect(rows[1].querySelector('.tag.error')).toBeNull()
+    expect(rows[2].textContent).toContain('檔案是空的')
+    action('sample-import')
+    expect(document.querySelector('main')!.textContent).not.toMatch(/json/i)
+  })
+
+  it('never shows the separate calculation flow', () => {
+    const seen: string[] = []
+    for (const option of document.querySelectorAll('#page-select option')) { nav((option as HTMLOptionElement).value); seen.push(document.querySelector('main')!.textContent!) }
+    nav('playground'); ask('每月少用 20 度電，少多少碳排？'); seen.push(document.querySelector('main')!.textContent!)
+    nav('logs'); action('run-detail', '1'); seen.push(document.querySelector('#dialog-body')!.textContent!)
+    const all = seen.join(' ')
+    for (const word of ['計算資訊', '合成計算', '計算資料', '排放係數', '計算工具', '計算規則', '係數與費率', '服務連線', '文件處理與向量', '向量維度']) expect(all).not.toContain(word)
+  })
+
+  it('keeps the skip link inside the workspace', () => {
+    const link = document.querySelector('a.skip') as HTMLAnchorElement
+    const event = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true })
+    link.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(document.activeElement?.id).toBe('main')
+  })
+
+  it('pads dialog content through a valid selector', () => {
+    const css = readFileSync(resolve('src/push-admin/rag/styles.css'), 'utf8')
+    expect(css).not.toContain('#dialog-.rag-body')
+    expect(css).toMatch(/#dialog-body\{padding:24px/)
   })
 
   it('prevents backend connections through the page content security policy', () => {

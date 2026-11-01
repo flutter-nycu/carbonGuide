@@ -5,7 +5,8 @@ from playwright.sync_api import sync_playwright
 base = sys.argv[1] if len(sys.argv)>1 else 'http://127.0.0.1:4185'
 out = Path(sys.argv[2]) if len(sys.argv)>2 else Path('../carbon-navigation/outputs/admin-integration')
 out.mkdir(parents=True, exist_ok=True)
-env = dict(re.findall(r'^(\w+)=(.*)$',Path('.env.local').read_text(encoding='utf-8-sig'),re.M))
+env_file = Path('.env.local')
+env = dict(re.findall(r'^(\w+)=(.*)$',env_file.read_text(encoding='utf-8-sig'),re.M)) if env_file.exists() else {}
 url = os.environ.get('VITE_SUPABASE_URL', env.get('VITE_SUPABASE_URL', 'https://admin-test.supabase.co')).strip('"\'')
 ref = url.split('//')[1].split('.')[0]
 config = json.loads(Path('vercel.json').read_text())
@@ -76,10 +77,21 @@ with sync_playwright() as p:
         page.get_by_role('button',name='RAG 知識工作台 假資料示範',exact=True).click()
     checks.append('RAG and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
     page.set_viewport_size({'width':1440,'height':1000})
-    for tab in ['import','numbers','playground','evaluation','releases','personas','prompt','qa','settings','logs','connection','documents']:
+    for tab in ['import','playground','evaluation','releases','personas','prompt','qa','settings','logs','documents']:
         frame.locator(f'#nav [data-id="{tab}"]').click()
         assert frame.locator('h1').is_visible()
-    checks.append('All 12 RAG sections open')
+    assert frame.locator('#nav [data-action="nav"]').count()==10
+    checks.append('All 10 RAG sections open')
+    frame.locator('a.skip').focus()
+    page.keyboard.press('Enter')
+    assert page.evaluate('location.hash')=='#rag'
+    assert frame.evaluate('(host)=>host.shadowRoot.activeElement?.id')=='main'
+    page.locator('a.admin-skip').focus()
+    page.keyboard.press('Enter')
+    assert page.evaluate('location.hash')=='#rag'
+    assert page.evaluate('document.activeElement.id')=='workspace-content'
+    assert frame.get_by_role('heading',name='知識庫與文件',exact=True).is_visible()
+    checks.append('Both skip links move focus without switching away from RAG')
     frame.locator('#nav [data-id="playground"]').click()
     frame.locator('[data-action="question"][data-id="如何減少食物浪費？"]').click()
     frame.get_by_role('button',name='試問',exact=True).click()
