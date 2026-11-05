@@ -43,6 +43,6 @@
 
 ## 8. 交付（Step 7 經 Ken 審核後才執行）
 
-- [ ] 8.1 commit 到 `preview/rag-admin-uiux-20261101` 並推送
-- [ ] 8.2 `develop`、`main` fast-forward 到同一個 commit 並推送
-- [ ] 8.3 從 GitHub deployments 查 Vercel 是否建立 Production 部署，並用公開網址確認正式站 `/push-admin` 的打包檔已更新；回報結果
+- [x] 8.1 commit 到 `preview/rag-admin-uiux-20261101` 並推送
+- [x] 8.2 `develop`、`main` fast-forward 到同一個 commit 並推送
+- [x] 8.3 從 GitHub deployments 查 Vercel 是否建立 Production 部署，並用公開網址確認正式站 `/push-admin` 的打包檔已更新；回報結果
