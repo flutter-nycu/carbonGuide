@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-10-24（分支 `preview/rag-admin-20261024`，基於 `preview/rag-phase0`）
+最後核對：2026-10-24（分支 `preview/rag-admin-20261024`，基於 `preview/rag-phase0`）；「RAG 知識工作台」一節 2026-11-05 依分支 `preview/rag-admin-live-20261105` 更新
 
 這份文件給 Codex、Claude 與其他 AI agent 接手時先讀。內容以本 repo 的程式碼、設定與 Git／部署紀錄為準；和程式碼不一致時，先確認實際行為，再在同一個變更裡修正文件。
 
@@ -25,7 +25,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | `auth-callback.html`、`src/auth-callback.ts` | `/auth/callback` | 密碼重設 callback，把使用者帶回 App |
 | `push-admin.html`、`src/push-admin/` | `/push-admin` | 推播與 RAG 整合工作台（React） |
 | `public/.well-known/` | `/.well-known/...` | iOS AASA 與 Android asset links，給 Universal Link／App Links 使用 |
-| `src/push-admin/rag/` | `/push-admin#rag` | 登入後掛載的 RAG 假資料工作台；舊 `/rag-preview/` 導向此入口 |
+| `src/push-admin/rag/` | `/push-admin#rag` | 登入後掛載的 RAG 知識工作台（React），接上 App 的正式 Supabase，由 `VITE_RAG_ENABLED` 開關；舊 `/rag-preview/` 導向此入口 |
 | `openspec/` | 不部署 | OpenSpec 規格與 change |
 
 建置設定：`vite.config.ts` 列出 5 個 HTML entry；`public/` 底下的檔案由 Vite 原樣複製，不經過打包。`vercel.json` 設定 `/push-admin.html` 轉到 `/push-admin` 的 redirect、`/push-admin` 與 `/auth/callback` 的 rewrite 和安全 header（CSP、`X-Frame-Options`、`noindex` 等），以及 AASA 的 `Content-Type`。`src/push-admin/deployment.test.ts` 只檢查 `/push-admin` 的 redirect、rewrite、CSP 和 `X-Frame-Options`；`/auth/callback` 和 AASA 的設定目前沒有測試。
@@ -37,15 +37,17 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 角色：`owner`、`editor` 可以看到系統推播、個人化規則、發送紀錄、推播用量四個分頁；`viewer` 只看得到發送紀錄和推播用量（見 `src/push-admin/auth.ts`）。
 - 帳號限制：目前只允許一個管理員 Email，限制在三個地方：本 repo 的 `src/push-admin/auth.ts` 常數、App repo Edge Functions 的 `supabase/functions/_shared/push-admin-roles.ts` 常數，以及資料庫的 `admin_users_single_email` constraint 和 `is_push_*` 函式。要讓業主或其他人進後台，三處都要改（資料庫要新的 migration），屬於權限變更，需要另外確認。README 裡「Bootstrap the first administrator」的步驟只適用於這一個 Email。
 - 呼叫後端：發送、受眾預覽和用量查詢呼叫 Supabase Edge Functions（`send-system-push`、`send-personalized-push`、`preview-push-audience`、`onesignal-usage`）；個人化規則是前端直接更新 `push_rules`，由 RLS 限制只有 editor 以上能改。Functions、資料表、RLS 和角色檢查都在 App repo。
-- 環境變數：只有 `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`，都是公開值，範例在 `.env.example`。不要把任何伺服器端 secret 放進 `VITE_*`。
+- 環境變數：`VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`，都是公開值，範例在 `.env.example`；另有 RAG 開關 `VITE_RAG_ENABLED`（見下一節）。不要把任何伺服器端 secret 放進 `VITE_*`。
 
-## 新版 RAG 工作台
+## RAG 知識工作台（2026-11-05 起）
 
-- 程式入口為 `src/push-admin/components/RagWorkspace.tsx`，以 Shadow DOM 掛載 `src/push-admin/rag/`。先通過既有登入及角色檢查；登出即卸載，切換工作台保留記憶體狀態。
-- RAG 的匯入、試問、評測、審核、發布與回滾都是假資料流程，沒有接上解析、模型或儲存服務。推播管理仍使用既有真實後端。
-- 規格與本次分支範圍見 `openspec/changes/rag-admin-integration/`；使用與驗證方式見 README「推播與 RAG 整合工作台」。
-- 2026-11-01 的介面整理見 `openspec/changes/rag-admin-static-uiux-cleanup/`：側欄 10 頁，拿掉說明區塊、係數與費率、服務連線、文件處理與向量設定和獨立計算流程，中文依 humanizer-zh-tw 改寫。之後改這個工作台請以這份 spec 為準。
-- 本分支移除 `public/rag-preview/index.html`。下方 Phase 0 原型是歷史紀錄；其建置及驗證工具只適用原分支，不能拿來重建本分支的公開入口。
+- 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入，用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM，樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
+- 資料層在 `rag/api/`：`types.ts` 定義 `RagApi` 介面，`supabase.ts` 接 App 的正式 Supabase（表格在 RLS 下直接讀，寫入一律經 `rag-v1` Edge Function），`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。錯誤碼轉白話在 `errors.ts`；付費或不能重複的操作用 `requestKeys.ts` 的請求鍵，成功之後才清掉。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時每一頁顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。後端（App repo 的 `openspec/changes/rag-backend-live/`）部署並驗收之前不要在正式站開啟，開啟由 Ken 在 Vercel 設定。
+- 11 頁：知識庫與文件、匯入與預檢、檢索試問台、RAG 評測、知識版本、人格設定、System Prompt、基本通用 QA、進階檢索設定、互動紀錄、對話使用者。頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。角色權限、各頁行為與文字原則以 `openspec/changes/rag-admin-live-workspace/` 的 spec 為準。
+- 不做的事：App 端、計算與係數流程、Google 帳單匯入、多位管理員。
+- 驗證：`npm test`；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、11 頁）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。用法見 README「推播與 RAG 整合工作台」。接上真實後端之後的逐頁核對另外記錄。
+- 舊的靜態示範（`rag/app.js`、`index.html`）已經刪除；`openspec/changes/rag-admin-static-uiux-cleanup/` 與 `rag-admin-integration/` 只是歷史紀錄。下方 Phase 0 原型也是歷史紀錄，其建置與驗證工具只適用原分支。
 
 ## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）
 
@@ -74,7 +76,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 ## 開發與驗證
 
 - 安裝：`main` 現有的 `package-lock.json` 和 `package.json` 不同步，npm 12 的 `npm ci` 會拒絕安裝。本機驗證可以改用 `npm install --package-lock=false`，lock 檔不會被改。修正 lock 檔要另外處理，並確認 Vercel 的建置方式。
-- 驗證指令：`npm run type-check`、`npm test`、`npm run build`；README 另外列了 `npm audit --audit-level=moderate`。整合版瀏覽器驗證使用 `test/verify-admin-integration.py`，後端請求全部 mock，不代表真實登入或推播驗收。
+- 驗證指令：`npm run type-check`、`npm test`、`npm run build`；README 另外列了 `npm audit --audit-level=moderate`。瀏覽器驗證使用 `test/verify-rag-workspace.py`（RAG 各頁）和 `test/verify-admin-integration.py`（整合與推播），後端請求全部 mock，不代表真實登入、推播或 RAG 資料驗收。
 - 本機驗證建置時用的是假的 `VITE_*` 值；`/push-admin` 在瀏覽器執行時需要真的值，缺少會直接報錯（`src/push-admin/lib/supabase.ts`）。
 - 本機預覽：`npm run preview` 後開啟 `/push-admin.html`；Vite preview 不套用 Vercel 的 redirect/rewrite。跑完要用實際的 PID 停掉 server。
 - 執行 agent 的那台主機上，Playwright 的瀏覽器快取由多個工作區共用。執行 `playwright install` 會自動刪掉其他版本的瀏覽器，必要時先列出現況、裝完再比對。WebKit 在那台主機缺系統函式庫，跑不起來，所以 Safari 一直沒有實測。

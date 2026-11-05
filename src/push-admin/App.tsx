@@ -12,19 +12,23 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [adminError, setAdminError] = useState<string | null>(null)
   const authRevision = useRef(0)
+  // The user whose admin role is already verified; token refreshes for that user keep the dashboard mounted.
+  const verifiedUser = useRef<string | null>(null)
 
   useEffect(() => {
     let alive = true
     let authChanged = false
-    const acceptSession = (current: Session | null) => {
+    const acceptSession = (current: Session | null, event?: string) => {
+      if (current && verifiedUser.current === current.user.id && (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')) return
+      verifiedUser.current = null
       authRevision.current++
       setAdminRole(null)
       setSession(current ? { ...current } : null)
       setLoading(Boolean(current))
     }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, current) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, current) => {
       authChanged = true
-      if (alive) acceptSession(current)
+      if (alive) acceptSession(current, event)
     })
     supabase.auth.getSession().then(({ data: { session: current } }) => {
       if (alive && !authChanged) acceptSession(current)
@@ -59,6 +63,7 @@ export default function App() {
         message = '暫時無法驗證管理員權限，請稍後再試。'
       }
       if (cancelled || revision !== authRevision.current) return
+      verifiedUser.current = role ? current.user.id : null
       setAdminRole(role)
       setAdminError(message)
       setLoading(false)
@@ -73,6 +78,7 @@ export default function App() {
   }, [session])
 
   async function handleLogout() {
+    verifiedUser.current = null
     authRevision.current++
     setAdminRole(null)
     setSession(null)

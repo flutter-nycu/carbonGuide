@@ -17,15 +17,28 @@ get Vercel preview deployments, which require Vercel login or a shareable link.
 
 唯一管理入口為 `/push-admin`，沿用 Google OAuth、帳號白名單及 `admin_users` 角色驗證。登入後可切換推播管理與 RAG 知識工作台；`/push-admin#rag` 可直接選取 RAG，舊 `/rag-preview/` 路徑由 Vercel 導向同一登入入口。推播功能仍呼叫既有後端，viewer 只可查看紀錄與用量。
 
-RAG 是依 `carbon-navigation/docs/roadmap.md`（2026-10-24）製作的假資料示範。來源由 `public/rag-preview/` 移至 `src/push-admin/rag/`，僅在通過管理員驗證後掛載，沒有獨立公開 HTML 頁。以 Shadow DOM 隔離樣式，沿用青綠色票、Logo 及側欄。示範資料只保存在記憶體；切換工作台保留狀態，登出或重新整理即還原；RAG 未串接 Supabase、Storage、Gemini 或正式推播。前端程式及假資料仍是靜態資產，不能放入機密資料。
+RAG 知識工作台在 2026-11 起改成接上 App 的正式 Supabase（`rag-v1` Edge Function 與 `rag_v1_*` 資料表；後端規格在 `githyoung/carbon-navigation` 的 `openspec/changes/rag-backend-live/`）。程式在 `src/push-admin/rag/`，用 React 寫成，掛在 Shadow DOM 裡隔離樣式；通過管理員驗證之後才以 `React.lazy` 載入，沒有獨立公開頁。規格見 `openspec/changes/rag-admin-live-workspace/`。
 
-側欄共 10 頁，可操作匯入預檢、原文與段落示例、檢索試問、RAG 評測、審核／發布／回滾、人格、提示詞、QA、檢索設定及互動紀錄。匯入只收 PDF、DOCX、TXT 和網址；檔案選擇只讀取檔名和大小，URL 不會被擷取；所有處理與評測結果都明確標示為示範。已發布版本固定 QA 與設定快照，草稿需評測、審核後才可模擬發布。
+`VITE_RAG_ENABLED=true` 時才讀寫真實資料。沒有設定時，每一頁只顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。這是公開的開關，不是金鑰；後端部署並驗收之前，正式站保持關閉。
 
-2026-11-01 起（`openspec/changes/rag-admin-static-uiux-cleanup/`）介面拿掉首頁導引、各頁操作說明和設定旁的說明卡，只保留每頁一句副標與欄位說明；「係數與費率」「服務連線」兩頁和文件處理與向量設定也已移除。試問台只用 RAG 文件回答並附引用，不再有獨立的計算流程，也會顯示回答的判斷原因。手機使用功能下拉選單。
+側欄共 11 頁：
 
-原有氣候教練與通勤原型保留於 `src/push-admin/rag/prototype.html` 作為設計來源，不部署獨立公開頁面，未將舊版通勤分類評估混入 RAG 評測。
+- 管理來源：01 知識庫與文件、02 匯入與預檢
+- 驗證回答：03 檢索試問台、04 RAG 評測、05 知識版本
+- 教練設定：06 人格設定、07 System Prompt、08 基本通用 QA
+- 進階與紀錄：09 進階檢索設定、10 互動紀錄、11 對話使用者
 
-使用 `npm run dev` 後開啟 `/push-admin.html`。`npm test` 包含登入、角色、過期權限查詢、RAG 狀態與模擬發布邊界檢查。`test/verify-admin-integration.py` 提供 Chromium 整合、正式 CSP、五種寬度、草稿保留與登出驗證；所有 Supabase 請求均攔截為 mock，不發送通知。先以 `VITE_SUPABASE_URL=https://admin-test.supabase.co`、`VITE_SUPABASE_ANON_KEY=mock-publishable-key` 建置並在 4185 port 預覽，再執行該腳本。舊 `test/verify-rag-preview.py` 是獨立原型時期的測試，整合版改以上述腳本驗證。這些檢查不代表真實 Google OAuth、手機送達或模型能力已驗收。
+匯入只收 PDF、DOCX、TXT（每個檔案 20 MB 以內）和 https 的 PDF 網址，上傳之後由後端自動解析。owner 可以使用所有功能；editor 可以上傳、修改段落、人格、System Prompt 和 QA，不能試問、評測、審核或發布；viewer 只能看。互動紀錄和對話使用者只有 owner 看得到，對話內容保存 180 天。畫面上的費用是依 Google 公告單價的估計，實際金額以 Google 帳單為準。試問、建立輪次、建立版本、開始評測、登記網址、審核與發布都帶請求鍵，網路中斷後重送不會重複扣款，也不會重複建立。
+
+原有氣候教練與通勤原型保留於 `src/push-admin/rag/prototype.html` 作為設計來源，不部署獨立公開頁面。
+
+驗證方式：
+
+- `npm test`：登入、角色、推播，以及 RAG 各頁的元件測試（`src/push-admin/rag/**/*.test.tsx`）和跨頁檢查（`test/rag-workspace.test.tsx`）。RAG 測試使用記憶體版的資料層 `rag/api/fake.ts`，它不會被打包進正式頁面。
+- `test/verify-rag-workspace.py`：先執行 `npx vite --host 127.0.0.1 --port 5199 --strictPort`，再用 Chromium 打開 `test/rag-live-preview.html`（同樣使用記憶體資料層），在 1440、1024、768、390 寬度檢查 11 頁、對話框焦點與 Esc、水平溢出、主控台錯誤和對外請求，並輸出截圖。
+- `test/verify-admin-integration.py`：以 `VITE_SUPABASE_URL=https://admin-test.supabase.co`、`VITE_SUPABASE_ANON_KEY=mock-publishable-key` 建置（不設 `VITE_RAG_ENABLED`），在 4185 port 預覽後執行。它套用正式 CSP，檢查登入、推播四個分頁、RAG 11 頁顯示尚未啟用且沒有送出 RAG 請求、兩個跳至主要內容連結、切換工作台保留狀態與登出；所有 Supabase 請求都攔截成 mock，不發送通知。
+
+這些檢查都不代表真實 Google 登入、手機送達、真實知識庫資料或模型回答已驗收；接上真實後端之後要另外逐頁核對。
 
 2026-10-24 既有部署紀錄：整合版曾部署至 `https://carbon-guide.vercel.app/push-admin`，記錄的 Vercel deployment 為 `dpl_Dxz4RAjuMsoHYnxJMTyFcckbUUfR`（READY）。本次工作只將本機版本提交至從 `preview/rag-phase0` 建立的 `preview/rag-admin-20261024`，不推送 `main`，也不執行 Production 部署；上述既有部署狀態未於本次重新驗證。真實 Google 登入及推播送達仍待另外驗收。
 

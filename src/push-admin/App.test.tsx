@@ -3,6 +3,7 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { PUSH_ADMIN_EMAIL } from './auth'
 
 const authMocks = vi.hoisted(() => ({
   getSession: vi.fn(),
@@ -26,9 +27,16 @@ vi.mock('./lib/supabase', () => ({
   },
 }))
 
-vi.mock('./components/Dashboard', () => ({
-  default: ({ role }: { role: string }) => <div>dashboard:{role}</div>,
-}))
+const dashboardMounts = vi.hoisted(() => ({ count: 0 }))
+vi.mock('./components/Dashboard', async () => {
+  const { useEffect } = await import('react')
+  return {
+    default: ({ role }: { role: string }) => {
+      useEffect(() => { dashboardMounts.count++ }, [])
+      return <div>dashboard:{role}</div>
+    },
+  }
+})
 
 vi.mock('./components/LoginForm', () => ({
   default: ({ error }: { error?: string | null }) => <div>{error ?? 'login'}</div>,
@@ -101,6 +109,30 @@ describe('App admin gate', () => {
     expect(
       await screen.findByText('此 Google 帳號不在推播管理員白名單中。'),
     ).toBeTruthy()
+  })
+
+  it('keeps the dashboard mounted when the token refreshes for the same user', async () => {
+    authMocks.maybeSingle.mockResolvedValue({ data: { role: 'owner' }, error: null })
+    render(<App />)
+    expect(await screen.findByText('dashboard:owner')).toBeTruthy()
+    const mounts = dashboardMounts.count
+    const listener = authMocks.onAuthStateChange.mock.calls[0][0]
+    const sameUser = { user: { id: 'auth-user-1', email: PUSH_ADMIN_EMAIL }, access_token: 'refreshed' }
+    act(() => listener('TOKEN_REFRESHED', sameUser))
+    act(() => listener('SIGNED_IN', sameUser))
+    expect(screen.queryByText('正在確認管理員權限…')).toBeNull()
+    expect(screen.getByText('dashboard:owner')).toBeTruthy()
+    expect(dashboardMounts.count).toBe(mounts)
+    expect(authMocks.maybeSingle).toHaveBeenCalledTimes(1)
+  })
+
+  it('checks the role again when a different user signs in', async () => {
+    authMocks.maybeSingle.mockResolvedValue({ data: { role: 'owner' }, error: null })
+    render(<App />)
+    expect(await screen.findByText('dashboard:owner')).toBeTruthy()
+    const listener = authMocks.onAuthStateChange.mock.calls[0][0]
+    act(() => listener('SIGNED_IN', { user: { id: 'auth-user-9', email: PUSH_ADMIN_EMAIL } }))
+    await waitFor(() => expect(authMocks.maybeSingle).toHaveBeenCalledTimes(2))
   })
 
   it('rejects a different email before querying the admin table', async () => {

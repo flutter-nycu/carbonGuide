@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { AdminRole, AdminTab } from '../auth'
 import { visibleAdminTabs } from '../auth'
@@ -6,8 +6,9 @@ import SystemPushTab from './SystemPushTab'
 import RulesTab from './RulesTab'
 import HistoryTab from './HistoryTab'
 import UsageTab from './UsageTab'
-import RagWorkspace from './RagWorkspace'
 import logo from '../rag/logo.png'
+
+const RagWorkspace = lazy(() => import('./RagWorkspace'))
 
 const TABS: readonly { key: AdminTab; label: string; description: string; help: string }[] = [
   { key: 'system', label: '系統推播', description: '準備一則清楚、適時的通知，傳遞給使用者。', help: '填寫內容後先預覽受眾；勾選乾跑可檢查發送流程，不會真的傳送通知。' },
@@ -56,7 +57,7 @@ export default function Dashboard({ role, onLogout }: Props) {
     </header>
     <nav className="workspace-tabs" aria-label="切換工作台">
       <button aria-current={workspace === 'push' ? 'page' : undefined} onClick={() => switchWorkspace('push')}>推播管理 <span>正式功能</span></button>
-      <button aria-current={workspace === 'rag' ? 'page' : undefined} onClick={() => switchWorkspace('rag')}>RAG 知識工作台 <span>假資料示範</span></button>
+      <button aria-current={workspace === 'rag' ? 'page' : undefined} onClick={() => switchWorkspace('rag')}>RAG 知識工作台 <span>內部測試</span></button>
     </nav>
     <div id="workspace-content" tabIndex={-1}>
       <div className="push-shell" hidden={workspace !== 'push'}>
@@ -77,7 +78,9 @@ export default function Dashboard({ role, onLogout }: Props) {
           </section>
         </main>
       </div>
-      <div hidden={workspace !== 'rag'}>{ragVisited && <RagWorkspace />}</div>
+      <div className="rag-panel" hidden={workspace !== 'rag'}>
+        {ragVisited && <Suspense fallback={<p role="status">正在載入 RAG 知識工作台…</p>}><RagWorkspace role={role} active={workspace === 'rag'} /></Suspense>}
+      </div>
     </div>
   </div>
 }

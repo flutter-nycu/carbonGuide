@@ -1,4 +1,8 @@
-"""Browser QA of the integrated admin. All Supabase traffic is mocked."""
+"""Browser QA of the integrated admin. All Supabase traffic is mocked.
+
+Build without VITE_RAG_ENABLED: the RAG workspace must say the backend is not enabled and send no RAG request.
+The RAG pages themselves are checked on the in-memory API by test/verify-rag-workspace.py.
+"""
 import json, re, sys, base64, time, os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -11,7 +15,8 @@ url = os.environ.get('VITE_SUPABASE_URL', env.get('VITE_SUPABASE_URL', 'https://
 ref = url.split('//')[1].split('.')[0]
 config = json.loads(Path('vercel.json').read_text())
 headers = {v['key']:v['value'] for v in next(x for x in config['headers'] if x['source']=='/push-admin')['headers']}
-checks, errors, writes = [], [], []
+checks, errors, writes, rag_requests = [], [], [], []
+RAG_PATHS = ('/functions/v1/rag-v1', '/rest/v1/rag_', '/rest/v1/knowledge_', '/rest/v1/documents', '/rest/v1/chunks', '/rest/v1/personas', '/rest/v1/prompts', '/rest/v1/qa_entries', '/storage/v1/')
 def encode(v): return base64.urlsafe_b64encode(json.dumps(v).encode()).decode().rstrip('=')
 token = encode({'alg':'HS256','typ':'JWT'})+'.'+encode({'sub':'test-admin','exp':int(time.time())+3600,'role':'authenticated'})+'.test'
 session = {'access_token':token,'refresh_token':'test-refresh','expires_at':int(time.time())+3600,'expires_in':3600,'token_type':'bearer','user':{'id':'test-admin','email':'j20692091@gmail.com','aud':'authenticated','role':'authenticated'}}
@@ -27,6 +32,7 @@ with sync_playwright() as p:
         if req.method == 'OPTIONS':
             route.fulfill(status=200,headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},body=''); return
         path = req.url.split(url)[-1]
+        if path.startswith(RAG_PATHS): rag_requests.append(path)
         if 'admin_users' in path: data = {'role':'owner'}
         elif 'push_campaigns' in path:
             data = [{'id':'test-campaign','type':'system','status':'sent','title':'測試紀錄（假資料）','audience_count':42,'success_count':40,'failure_count':2,'created_at':'2026-10-24T08:00:00Z'}]
@@ -74,14 +80,16 @@ with sync_playwright() as p:
             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth'), (width,tab)
             if width in [1440,390]:page.screenshot(path=str(out/f'push-{tab}-{width}.png'),full_page=True)
         page.get_by_role('navigation',name='推播功能').get_by_role('button',name='系統推播',exact=True).click()
-        page.get_by_role('button',name='RAG 知識工作台 假資料示範',exact=True).click()
+        page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
     checks.append('RAG and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
     page.set_viewport_size({'width':1440,'height':1000})
-    for tab in ['import','playground','evaluation','releases','personas','prompt','qa','settings','logs','documents']:
-        frame.locator(f'#nav [data-id="{tab}"]').click()
-        assert frame.locator('h1').is_visible()
-    assert frame.locator('#nav [data-action="nav"]').count()==10
-    checks.append('All 10 RAG sections open')
+    nav=frame.get_by_role('navigation',name='RAG 工作台頁面')
+    assert nav.get_by_role('button').count()==11
+    for name,title in [('匯入與預檢','匯入與預檢'),('檢索試問台','檢索試問台'),('RAG 評測','RAG 評測'),('知識版本','知識版本'),('人格設定','人格設定'),('System Prompt','全域提示詞'),('基本通用 QA','基本通用 QA'),('進階檢索設定','檢索設定'),('互動紀錄','互動紀錄'),('對話使用者','對話使用者'),('知識庫與文件','知識庫與文件')]:
+        nav.get_by_role('button',name=name).click()
+        frame.get_by_role('heading',name=title,exact=True).wait_for()
+        assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1, name
+    checks.append('All 11 RAG pages open and say the backend is not enabled yet')
     frame.locator('a.skip').focus()
     page.keyboard.press('Enter')
     assert page.evaluate('location.hash')=='#rag'
@@ -92,32 +100,22 @@ with sync_playwright() as p:
     assert page.evaluate('document.activeElement.id')=='workspace-content'
     assert frame.get_by_role('heading',name='知識庫與文件',exact=True).is_visible()
     checks.append('Both skip links move focus without switching away from RAG')
-    frame.locator('#nav [data-id="playground"]').click()
-    frame.locator('[data-action="question"][data-id="如何減少食物浪費？"]').click()
-    frame.get_by_role('button',name='試問',exact=True).click()
-    assert '[1]' in frame.locator('.answer').inner_text()
-    frame.get_by_role('button',name='查看來源 →').click()
-    assert frame.locator('dialog').is_visible()
-    page.keyboard.press('Escape')
-    assert not frame.locator('dialog').is_visible()
-    frame.locator('#nav [data-id="documents"]').click()
-    checks.append('RAG mock question, source dialog and Escape dismissal work after integration')
-    frame.locator('#doc-search').fill('通勤')
-    assert frame.locator('#doc-rows tr').count()==1
+    nav.get_by_role('button',name='知識版本').click()
     page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
     page.get_by_placeholder('例：本月碳排提醒').fill('驗證用草稿，未發送')
-    page.get_by_role('button',name='RAG 知識工作台 假資料示範',exact=True).click()
-    assert frame.locator('#doc-search').input_value()=='通勤'
+    page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
+    assert frame.get_by_role('heading',name='知識版本',exact=True).is_visible()
     page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
     assert page.get_by_placeholder('例：本月碳排提醒').input_value()=='驗證用草稿，未發送'
-    checks.append('Workspace switching preserves push draft and RAG state')
+    checks.append('Workspace switching keeps the push draft and the open RAG page')
     page.get_by_role('button',name='登出',exact=True).click()
     page.get_by_role('heading',name='登入管理工作台').wait_for()
     assert page.locator('.rag-workspace').count()==0
     assert not writes, writes
-    checks.append('Logout removes both workspaces; no push function invoked')
+    assert not rag_requests, rag_requests
+    checks.append('Logout removes both workspaces; no push function or RAG request was sent')
     browser.close()
-result={'mode':'mock','checks':checks,'errors':errors,'push_function_requests':writes}
+result={'mode':'mock','checks':checks,'errors':errors,'push_function_requests':writes,'rag_requests':rag_requests}
 (out/'browser-results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
 print(json.dumps(result,ensure_ascii=False,indent=2))
 assert not errors,errors

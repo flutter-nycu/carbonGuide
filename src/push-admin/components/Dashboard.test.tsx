@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Dashboard from './Dashboard'
 
@@ -12,20 +12,22 @@ vi.mock('./UsageTab', () => ({ default: () => <div>usage panel</div> }))
 afterEach(() => { cleanup(); window.history.replaceState(null, '', '/') })
 
 describe('Dashboard role navigation', () => {
-  it('only mounts the isolated RAG demo when selected and preserves it on return', () => {
+  it('only mounts the isolated RAG workspace when selected and preserves it on return', async () => {
     const { container } = render(<Dashboard role="viewer" onLogout={() => undefined} />)
     expect(container.querySelector('.rag-workspace')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 假資料示範' }))
-    const frame = screen.getByLabelText('RAG 知識工作台（假資料示範）')
-    expect(frame.shadowRoot?.querySelector('#nav')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 內部測試' }))
+    const frame = await screen.findByLabelText('RAG 知識工作台', undefined, { timeout: 5000 })
+    await waitFor(() => expect(frame.shadowRoot?.querySelector('#nav')).toBeTruthy())
+    expect(frame.shadowRoot!.textContent).toContain('RAG 後端尚未啟用')
     fireEvent.click(screen.getByRole('button', { name: '推播管理 正式功能' }))
-    expect(screen.getByLabelText('RAG 知識工作台（假資料示範）')).toBe(frame)
-    expect(frame.parentElement?.hidden).toBe(true)
+    expect(screen.getByLabelText('RAG 知識工作台')).toBe(frame)
+    expect(frame.closest('[hidden]')).not.toBeNull()
   })
-  it('ignores hashes other than #rag, #push or an empty hash', () => {
+  it('ignores hashes other than #rag, #push or an empty hash', async () => {
     render(<Dashboard role="editor" onLogout={() => undefined} />)
-    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 假資料示範' }))
-    const ragPanel = () => screen.getByLabelText('RAG 知識工作台（假資料示範）').parentElement!
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 內部測試' }))
+    await screen.findByLabelText('RAG 知識工作台', undefined, { timeout: 5000 })
+    const ragPanel = () => screen.getByLabelText('RAG 知識工作台').closest('.rag-panel') as HTMLElement
     for (const hash of ['#main', '#workspace-content']) {
       window.history.replaceState(null, '', hash)
       fireEvent(window, new HashChangeEvent('hashchange'))
@@ -36,14 +38,15 @@ describe('Dashboard role navigation', () => {
     expect(ragPanel().hidden).toBe(true)
   })
 
-  it('moves focus with the skip link without switching workspaces', () => {
+  it('moves focus with the skip link without switching workspaces', async () => {
     const { container } = render(<Dashboard role="editor" onLogout={() => undefined} />)
-    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 假資料示範' }))
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 內部測試' }))
+    await screen.findByLabelText('RAG 知識工作台', undefined, { timeout: 5000 })
     const link = screen.getByText('跳至主要內容')
     const notPrevented = fireEvent.click(link)
     expect(notPrevented).toBe(false)
     expect(document.activeElement).toBe(container.querySelector('#workspace-content'))
-    expect(screen.getByLabelText('RAG 知識工作台（假資料示範）').parentElement!.hidden).toBe(false)
+    expect((screen.getByLabelText('RAG 知識工作台').closest('.rag-panel') as HTMLElement).hidden).toBe(false)
   })
 
   it('keeps viewer accounts on read-only tabs', () => {
