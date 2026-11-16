@@ -2,7 +2,7 @@
 import type { ConversationSummary, RagApi } from './api/types'
 import ConversationView from './ConversationView'
 import { useLoader, type Paged } from './hooks'
-import { KIND_LABEL, KIND_TONE, formatDate, formatUsd } from './labels'
+import { KIND_LABEL, KIND_TONE, formatDate, formatUsd, formatEstimate } from './labels'
 import { Dialog, Notice } from './ui'
 
 export function ConversationTable({ label, paged, showUser, onOpen }: {
@@ -23,7 +23,7 @@ export function ConversationTable({ label, paged, showUser, onOpen }: {
           {showUser && <td>{c.userLabel}</td>}
           <td><span className={`tag ${KIND_TONE[c.kind]}`.trim()}>{KIND_LABEL[c.kind]}</span></td>
           <td>{c.versionName || '—'}</td>
-          <td>{formatUsd(c.estimatedUsd)}<small>預留 {formatUsd(c.reservedUsd)}</small></td>
+          <td>{formatEstimate(c.estimatedUsd, c.unknownCostCalls)}<small>預留 {formatUsd(c.reservedUsd)}</small></td>
           <td><button type="button" className="text-button" aria-label={`檢視 ${formatDate(c.createdAt)} 的對話`} onClick={() => onOpen(c.id)}>檢視 →</button></td>
         </tr>)}
         {!paged.items.length && <tr><td colSpan={showUser ? 6 : 5}><div className="empty">還沒有對話紀錄。</div></td></tr>}

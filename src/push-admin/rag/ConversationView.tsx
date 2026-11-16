@@ -1,7 +1,7 @@
 // One conversation: question, answer, citations, processing steps and costs. Shared by the playground, history and users pages.
 import { knownReason, reasonText } from './api/errors'
 import type { ConversationDetail } from './api/types'
-import { KIND_LABEL, KIND_TONE, formatDate, formatUsd } from './labels'
+import { KIND_LABEL, KIND_TONE, formatDate, formatUsd, formatEstimate } from './labels'
 import { Notice } from './ui'
 
 const STEP_LABEL: Record<string, string> = {
@@ -56,7 +56,7 @@ export default function ConversationView({ detail }: { detail: ConversationDetai
       <dl className="metadata">
         <dt>知識版本</dt><dd>{detail.versionName || '—'}</dd>
         <dt>預留費用</dt><dd>{formatUsd(detail.reservedUsd)}</dd>
-        <dt>估計費用</dt><dd>{formatUsd(detail.estimatedUsd)}</dd>
+        <dt>估計費用</dt><dd>{formatEstimate(detail.estimatedUsd, detail.unknownCostCalls)}</dd>
       </dl>
       {detail.calls.length > 0 && <div className="table-wrap"><table>
         <thead><tr><th>AI 使用項目</th><th>預留</th><th>估計</th><th>花費時間</th></tr></thead>

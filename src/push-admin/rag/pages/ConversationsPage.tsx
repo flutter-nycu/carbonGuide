@@ -3,7 +3,7 @@ import { messageFor } from '../api/errors'
 import type { ConversationUser, RagApi } from '../api/types'
 import { ConversationDialog, ConversationTable } from '../ConversationList'
 import { usePaged } from '../hooks'
-import { ROLE_LABEL, formatDate, formatUsd } from '../labels'
+import { ROLE_LABEL, formatDate, formatUsd, formatEstimate } from '../labels'
 import { Notice, type PageProps } from '../ui'
 
 const displayName = (u: ConversationUser) => (u.userId === null ? '已刪除帳號' : u.name || u.email || '沒有名稱的帳號')
@@ -50,7 +50,7 @@ export default function ConversationsPage({ api }: PageProps) {
               <td>{roleText(u)}</td>
               <td>{u.count} 次</td>
               <td>{formatDate(u.lastAt)}</td>
-              <td>{formatUsd(u.estimatedUsd)}<small>預留 {formatUsd(u.reservedUsd)}</small></td>
+              <td>{formatEstimate(u.estimatedUsd, u.unknownCostCalls)}<small>預留 {formatUsd(u.reservedUsd)}</small></td>
               <td><button type="button" className="text-button" aria-label={`查看 ${displayName(u)} 的對話`}
                 onClick={event => { opener.current = event.currentTarget; setPerson(u) }}>查看對話 →</button></td>
             </tr>)}
@@ -82,7 +82,7 @@ function PersonConversations({ api, person, onBack, onOpen }: { api: RagApi; per
       <dt>Email</dt><dd>{person.email ?? '—'}</dd>
       <dt>角色</dt><dd>{roleText(person)}</dd>
       <dt>對話次數</dt><dd>{person.count} 次，最近一次在 {formatDate(person.lastAt)}</dd>
-      <dt>累計估計費用</dt><dd>{formatUsd(person.estimatedUsd)}（預留 {formatUsd(person.reservedUsd)}）</dd>
+      <dt>累計估計費用</dt><dd>{formatEstimate(person.estimatedUsd, person.unknownCostCalls)}（預留 {formatUsd(person.reservedUsd)}）</dd>
     </dl>
     <ConversationTable label={`${name} 的對話`} paged={conversations} onOpen={onOpen} />
   </section>

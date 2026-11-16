@@ -28,3 +28,10 @@ export function formatUsd(value: number | null | undefined): string {
 }
 
 export const canEdit = (role: Role) => role === 'owner' || role === 'editor'
+
+// A partial estimate must not look like the total for every model call.
+export function formatEstimate(value: number | null | undefined, unknownCalls = 0): string {
+  if (unknownCalls <= 0) return formatUsd(value)
+  const known = value === null || value === undefined ? '尚無費用資料' : `已知 ${formatUsd(value)}`
+  return `${known}（${unknownCalls} 筆尚未取得用量）`
+}

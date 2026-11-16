@@ -25,7 +25,7 @@
 - 修改後端或資料庫（由 `rag-backend-live` 處理）。
 - 新增帳號管理、App 畫面、多管理員。
 - 審查報告裡其他沒有列出的問題，例如 logo 大小、對比度。
-- 修正 `package-lock.json` 不同步或 Vercel 安裝方式。
+- 原計畫不含 lockfile 修正；2026-11-16 為已授權 Preview 部署同步 lockfile，`npm ci` 與 Vercel build 均通過。
 
 ## Decisions
 
@@ -88,6 +88,16 @@
 - **supabase 實作**：用可鏈式呼叫的 mock client 測請求格式與錯誤對照。
 - **`App` 與 `Dashboard`**：補上 token 更新後不會卸載的測試。
 - **瀏覽器驗證**：用 Vite dev server 開一個只掛假資料層的驗證頁，以 Python Playwright（Chromium）在 1440、1024、768、390 寬度檢查每一頁、對話框、溢出與主控台錯誤。
+
+### W12 真實評測驗收修正（2026-11-16）
+
+每日額度跨輪次計算，開始評測前用已登入 owner 的 UTC 當日請求 exact count 加上題數設定輪次上限，超過 Edge 上限 100 時停止。建立輪次回應遺失時沿用原請求內容；批次回應遺失時保留成功建立的輪次 ID，跨日重送也不新增輪次。所有授權與額度仍由後端核對，前端不改帳本。
+
+`evaluation_begin` 一次預登記整批題目，因此 `request_count` 不能代表完成數。未完成批次以 answered／abstained／failed／uncertain 的 exact count 顯示進度，已產生報告的批次才使用全部題數。新增每日硬上限、預登記與完成數差異、跨日重送共 3 項回歸測試。
+
+### W13 排除停用來源（2026-11-16）
+
+新 snapshot 只選取 `document_versions.content_status` 非 disabled 的已處理段落組，引用未入選段落組的 QA 也由既有規則排除。這與後端既有停用來源規則一致，不改已凍結版本或發布門檻。回歸測試驗證停用來源及其 QA 被排除、正常來源保留；本次合成驗收 PDF 已可逆停用，處理及費用紀錄保留。
 
 ## Risks / Trade-offs
 

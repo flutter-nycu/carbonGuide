@@ -10,7 +10,7 @@ import {
   type Persona, type PromptVersion, type QaEntry, type RagApi, type Role, type TestRound, type UrlEntry,
 } from './types'
 
-export type RagClient = Pick<SupabaseClient, 'from' | 'functions' | 'storage'>
+export type RagClient = Pick<SupabaseClient, 'from' | 'functions' | 'storage' | 'auth'>
 export interface SupabaseApiOptions { role: Role; supabaseUrl: string; now?: () => Date }
 
 type Row = Record<string, unknown>
@@ -54,7 +54,7 @@ function summaryFrom(row: Row): ConversationSummary {
     userLabel: user?.name || user?.email || '已刪除帳號',
     questionPreview: typeof row.question_preview === 'string' ? row.question_preview : typeof row.question === 'string' ? row.question.slice(0, 60) : null,
     kind: answerKind(str(row.state), typeof row.reason === 'string' ? row.reason : null), state: str(row.state),
-    versionName: str(row.release_name), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd),
+    versionName: str(row.release_name), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd), unknownCostCalls: num(row.unknown_cost_calls),
   }
 }
 
@@ -144,6 +144,7 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
 
   // The backend replays a round key only with identical contents, so a retry resends the first body unchanged.
   const roundByKey = new Map<string, Row>()
+  const evaluationRounds = new Map<string, { datasetId: string; versionId: string; roundId: string }>()
   async function createRoundRow(versionId: string, requestKey: string, name: string, budgetUsd: number, requestLimit: number, dailyLimit: number): Promise<string> {
     let body = roundByKey.get(requestKey)
     if (!body) {
@@ -176,10 +177,10 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     const [sets, originals, versions] = await Promise.all([
       rows(client.from('rag_v1_sets').select('chunk_set_id,original_id,embedding_state,created_at').order('created_at', { ascending: false }).limit(4000)),
       rows(client.from('rag_v1_originals').select('id,document_version_id').limit(4000)),
-      rows(client.from('document_versions').select('id,document_id').limit(4000)),
+      rows(client.from('document_versions').select('id,document_id,content_status').limit(4000)),
     ])
     const versionOf = new Map(originals.map(o => [str(o.id), str(o.document_version_id)]))
-    const documentOf = new Map(versions.map(v => [str(v.id), str(v.document_id)]))
+    const documentOf = new Map(versions.filter(v => v.content_status !== 'disabled').map(v => [str(v.id), str(v.document_id)]))
     const chosen = new Map<string, Row>()
     const preparing = new Set<string>()
     for (const set of sets) {
@@ -420,18 +421,50 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
         rows(client.from('rag_v1_evaluation_receipts').select('batch_id,evaluation_id').limit(1000)),
       ])
       const reportOf = new Map(receipts.map(r => [str(r.batch_id), str(r.evaluation_id)]))
-      return batches.map((b): EvaluationBatch => {
+      return Promise.all(batches.map(async (b): Promise<EvaluationBatch> => {
         const round = rounds.find(r => r.id === b.round_id)
-        return { id: str(b.id), datasetId: str(b.dataset_id), versionId: str(round?.release_id), completed: num(round?.request_count),
-          total: num(datasets.find(d => d.id === b.dataset_id)?.case_count), finished: reportOf.has(str(b.id)), reportId: reportOf.get(str(b.id)) ?? null }
-      })
+        const total = num(datasets.find(d => d.id === b.dataset_id)?.case_count)
+        let completed = total
+        if (!reportOf.has(str(b.id))) {
+          // Beginning a batch reserves every admission; request_count is not completed work.
+          const { count, error } = await client.from('rag_v1_requests').select('id', { count: 'exact', head: true })
+            .eq('round_id', b.round_id).in('state', ['answered', 'abstained', 'failed', 'uncertain'])
+          if (error) throw tableError(error)
+          if (count == null) throw new RagError('invalid_response')
+          completed = count
+        }
+        return { id: str(b.id), datasetId: str(b.dataset_id), versionId: str(round?.release_id), completed,
+          total, finished: reportOf.has(str(b.id)), reportId: reportOf.get(str(b.id)) ?? null }
+      }))
     },
     async beginEvaluation(datasetId, versionId, requestKey) {
-      const dataset = await one(client.from('rag_v1_datasets').select('case_count').eq('id', datasetId).single())
-      const cases = num(dataset.case_count)
-      const roundId = await createRoundRow(versionId, requestKeyFor('evaluation-round', { requestKey }), `評測 ${now().toISOString().slice(0, 10)}`,
-        Math.round(cases * 0.03 * 100) / 100, cases, Math.min(200, cases))
-      return idFrom(await action({ action: 'evaluation_begin', datasetId, roundId, requestKey }))
+      let prior = evaluationRounds.get(requestKey)
+      if (prior && (prior.datasetId !== datasetId || prior.versionId !== versionId)) throw new RagError('evaluation_conflict')
+      if (!prior) {
+        const dataset = await one(client.from('rag_v1_datasets').select('case_count').eq('id', datasetId).single())
+        const cases = num(dataset.case_count)
+        const roundKey = requestKeyFor('evaluation-round', { requestKey })
+        const saved = roundByKey.get(roundKey)
+        let dailyLimit = saved ? num(saved.dailyLimit) : 0
+        if (!saved) {
+          const { data: { user }, error: authError } = await client.auth.getUser()
+          if (authError || !user) throw new RagError('admin_required')
+          const day = new Date(now())
+          day.setUTCHours(0, 0, 0, 0)
+          const { count, error } = await client.from('rag_v1_requests').select('id', { count: 'exact', head: true })
+            .eq('actor_id', user.id).gte('created_at', day.toISOString()).lt('created_at', new Date(day.getTime() + DAY).toISOString())
+          if (error) throw tableError(error)
+          if (count == null) throw new RagError('invalid_response')
+          // The backend counts across rounds, so leave room for today's earlier questions.
+          dailyLimit = count + cases
+          if (dailyLimit > 100) throw new RagError('daily_limit')
+        }
+        const roundId = await createRoundRow(versionId, roundKey, `評測 ${now().toISOString().slice(0, 10)}`,
+          Math.round(cases * 0.03 * 100) / 100, cases, dailyLimit)
+        prior = { datasetId, versionId, roundId }
+        evaluationRounds.set(requestKey, prior)
+      }
+      return idFrom(await action({ action: 'evaluation_begin', datasetId, roundId: prior.roundId, requestKey }))
     },
     async nextEvaluation(batchId) {
       const result = await action({ action: 'evaluation_next', batchId })
@@ -489,7 +522,7 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     async listConversationUsers(search, cursor) {
       return pageFrom(await action({ action: 'conversation_users', search, cursor }), (row): ConversationUser => ({
         userId: (row.user_id as string | null) ?? null, name: (row.name as string | null) ?? null, email: (row.email as string | null) ?? null,
-        role: (row.role as Role | null) ?? null, count: num(row.count), lastAt: str(row.last_at), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd),
+        role: (row.role as Role | null) ?? null, count: num(row.count), lastAt: str(row.last_at), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd), unknownCostCalls: num(row.unknown_cost_calls),
       }))
     },
     async listUserConversations(userId, cursor) {

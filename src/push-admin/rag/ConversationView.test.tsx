@@ -34,6 +34,11 @@ describe('conversation detail', () => {
     expect(text).toContain('google-standard-text-2026-10-26')
   })
 
+  it('labels the total as partial when a receipt is missing', () => {
+    const { container } = render(<ConversationView detail={detail({ unknownCostCalls: 1 })} />)
+    expect(container.textContent).toContain('已知 US$0.0006（1 筆尚未取得用量）')
+  })
+
   it('explains each of the four result kinds', () => {
     for (const [kind, label] of [['qa', 'QA 回答'], ['insufficient', '資料不足'], ['incomplete', '沒有完成']] as const) {
       const { container, unmount } = render(<ConversationView detail={detail({ kind, citations: [], reason: kind === 'qa' ? 'verified_qa' : null })} />)

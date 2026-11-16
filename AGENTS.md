@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-11-16（分支 `preview/rag-admin-live-20261105`；`main`、`develop` 與 Vercel 部署狀態依 GitHub 紀錄）
+最後核對：2026-11-16（工作分支 `preview/rag-admin-live-20261105`；提交前已 fetch 確認遠端基線。Git 與 Vercel 部署須分別核對）
 
 這份文件給 Codex、Claude 與其他 AI agent 接手時先讀。內容以本 repo 的程式碼、設定與 Git／部署紀錄為準；和程式碼不一致時，先確認實際行為，再在同一個變更裡修正文件。
 
@@ -14,6 +14,13 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | `githyoung/carbon-navigation` | Flutter App、Supabase migrations 與 Edge Functions（含 RAG 後端 `rag-v1`）、Cloud Run 自動處理、專案文件中心 | 該 repo 的 `AGENTS.md`、`docs/README.md`；RAG 現況與待辦在 `docs/rag.md`（分支 `feature/rag-backend-live`） |
 
 產品、App 架構、MAS 檢測、後端角色矩陣和推播後端都在 App repo 維護。本 repo 只放瀏覽器端的頁面，不放任何 service role key 或 OneSignal REST key。
+
+## 新 Agent 的閱讀順序
+
+1. 先查 `git status --short --branch`、`git log -3 --oneline`，有網路時 fetch 比對 origin。不要直接 pull、切分支或建立工作樹。
+2. 讀本檔與 [README](README.md)；Claude 同樣從 [CLAUDE.md](CLAUDE.md) 回到本檔，不維護另一套進度。
+3. 全專案架構讀後端功能分支的 [docs/README.md](https://github.com/githyoung/carbon-navigation/blob/feature/rag-backend-live/docs/README.md) 和 [docs/architecture.md](https://github.com/githyoung/carbon-navigation/blob/feature/rag-backend-live/docs/architecture.md)；RAG 部署、報告 ID、費用和剩餘事項以 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/feature/rag-backend-live/docs/rag.md) 為準。沒有後端 checkout 時讀這些連結，不改讀 main 的舊文件。
+4. 依下方程式地圖、OpenSpec design／tasks 與測試核對實作。先釐清已提交、已推送、已部署、機械評測通過、業主核准及公開發布各自的證據。
 
 ## 目錄與頁面
 
@@ -35,7 +42,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 技術：React 18、TypeScript、Vite、Tailwind、`@supabase/supabase-js`。
 - 登入：Supabase Auth 的 Google OAuth。登入後查 `admin_users` 取得角色。
 - 角色：`owner`、`editor` 可以看到系統推播、個人化規則、發送紀錄、推播用量四個分頁；`viewer` 只看得到發送紀錄和推播用量（見 `src/push-admin/auth.ts`）。
-- 帳號限制：目前只允許一個管理員 Email，限制在三個地方：本 repo 的 `src/push-admin/auth.ts` 常數、App repo Edge Functions 的 `supabase/functions/_shared/push-admin-roles.ts` 常數，以及資料庫的 `admin_users_single_email` constraint 和 `is_push_*` 函式。要讓業主或其他人進後台，三處都要改（資料庫要新的 migration），屬於權限變更，需要另外確認。README 裡「Bootstrap the first administrator」的步驟只適用於這一個 Email。
+- 帳號限制：目前只允許一個管理員 Email，限制在三個地方：本 repo 的 `src/push-admin/auth.ts` 常數、App repo Edge Functions 的 `supabase/functions/_shared/push-admin-roles.ts` 常數，以及資料庫的 `admin_users_single_email` constraint 和 `is_push_*` 函式。要讓業主或其他人進後台，三處都要改（資料庫要新的 migration），屬於權限變更，需要另外確認。README「角色與設定」中的管理員初始化只適用於這一個 Email，不是開放新帳號的授權。
 - 呼叫後端：發送、受眾預覽和用量查詢呼叫 Supabase Edge Functions（`send-system-push`、`send-personalized-push`、`preview-push-audience`、`onesignal-usage`）；個人化規則是前端直接更新 `push_rules`，由 RLS 限制只有 editor 以上能改。Functions、資料表、RLS 和角色檢查都在 App repo。
 - 環境變數：`VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`，都是公開值，範例在 `.env.example`；另有 RAG 開關 `VITE_RAG_ENABLED`（見下一節）。不要把任何伺服器端 secret 放進 `VITE_*`。
 
@@ -43,15 +50,15 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 ### 現況（2026-11-16）
 
-- 新版工作台在分支 `preview/rag-admin-live-20261105`（`f17d5b0` 起），**還沒合併、沒上線**。Vercel Preview 建置成功，但 `VITE_RAG_ENABLED` 沒開，畫面只顯示「RAG 後端尚未啟用」。
+- 新版工作台在分支 `preview/rag-admin-live-20261105`；已驗收 Preview 以 `a1d5360` 加同輪修正建立，程式與文件納入本次功能分支交接。僅此分支 Preview 開啟 `VITE_RAG_ENABLED=true`，尚未合併或切換 Production。已驗收部署 `dpl_FCNfU7UyuYeHJtmdK1jNu42Hy5Qu`，網址 https://carbon-guide-t1ufi6m6d-fluttermans-projects.vercel.app/push-admin#rag ，保留 Vercel Authentication。
 - 正式站 `main`（`88e4c90`）的 `/push-admin#rag` 仍是舊的靜態示範（假資料）。
-- 後端在 App repo `feature/rag-backend-live`，也還沒部署。整體現況、架構、資料流、待辦與已知限制以 App repo 的 `docs/rag.md` 為準，本節只記網站這一側。
-- 規格：`openspec/changes/rag-admin-live-workspace/`（32／34，剩 11.2 接真實後端逐頁核對、11.3 合併上線）。
+- 後端在 App repo `feature/rag-backend-live`，正式 Supabase、Cloud Run、即時觸發與每小時排程已部署並驗證。整體現況、架構、資料流、待辦與已知限制以 App repo 的 `docs/rag.md` 為準，本節只記網站這一側。
+- 規格：`openspec/changes/rag-admin-live-workspace/`（33／34，11.2 真實 Preview 逐頁核對完成；剩 11.3 合併上線。內容核准與 Safari 驗收仍另行追蹤）。
 
 ### 怎麼運作
 
 - 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入（獨立 chunk，推播管理不用下載），用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM。樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
-- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時每一頁顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。後端部署並驗收之前不要在正式站開啟，開啟由 Ken 在 Vercel 設定。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時每一頁顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。後端部署並驗收之前不要在正式站開啟，本次已獲授權開啟指定分支 Preview；Production 尚未切換。
 - 資料層 `rag/api/`：`supabase.ts` 在 RLS 下直接讀表，所有寫入都經 App repo 的 `rag-v1` Edge Function；`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。
 - 不能重複的操作（試問、建立輪次、建立版本、開始評測、登記網址、審核、發布、改回、停用）都帶請求鍵（`requestKeys.ts`，存在元件外，成功之後才清掉）。重送時沿用第一次送出的內容，因為後端只接受同一個請求鍵、同樣內容的重送；試問回來是「還在處理中」時保留請求鍵，避免重複扣款。
 - 頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。輪詢只在頁面可見時每 15 秒一次。
@@ -71,6 +78,17 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | 10 互動紀錄 | `pages/LogsPage.tsx` | owner |
 | 11 對話使用者 | `pages/ConversationsPage.tsx` | owner |
 
+### 資料與重送契約
+
+| 行為 | 必須保留的契約 |
+|---|---|
+| 上傳 | `upload_begin` 取 signed URL → 瀏覽器上傳 → `upload_verify` 核對 SHA-256 → 後端觸發 worker；上傳成功不等於解析／向量化成功 |
+| 建立版本 | 只凍結有效文件與引用有效段落的 QA；disabled 驗收文件及其 QA 不得進入新 snapshot，既有 snapshot 不回寫 |
+| 評測 | 題組與輪次固定；先扣除當日已用額度，進度只計 terminal requests。回應遺失時沿用原輪次／批次／請求鍵，離頁停止前端接續，不清除已完成結果 |
+| 對話分頁 | 後端 cursor 綁定 cutoff、使用者與來源；保留 cursor，換篩選重開列表，不用 offset 或自行拼頁碼 |
+| 費用 | 未取得模型用量不得顯示成零；呈現已知估計與未知筆數。campaign 預留、模型估計與 Google 帳單是不同數字 |
+| 發布 | 自動評測與引用驗證通過仍需 owner 人工核准；候選 pending 不可直接發布，正式網站切換另需授權 |
+
 ### 程式地圖
 
 | 檔案 | 用途 |
@@ -88,7 +106,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 ### 不做的事與驗證
 
 - 不做：App 端、計算與係數流程、Google 帳單匯入、多位管理員。
-- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、11 頁）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。用法見 README「推播與 RAG 整合工作台」。2026-11-05 全部通過；接上真實後端之後的逐頁核對還沒做。
+- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、11 頁）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。驗證邊界見 README「開發與驗證」。2026-11-05 mock 驗證通過；2026-11-16 type-check、183 項測試（24 檔）、build 及 npm ci 通過，真實 Google 登入、網址匯入、Chrome 原生選檔與 signed URL 上傳、自動處理、試問、引用與費用明細已驗證。實際逐頁結果及未驗證邊界見 App repo `docs/rag.md`；Safari 與本次手機版面未重測。
 - 舊的靜態示範（`rag/app.js`、`index.html`）在這個分支已經刪除；`openspec/changes/rag-admin-static-uiux-cleanup/`（已完成、未歸檔）與 `rag-admin-integration/` 是歷史紀錄。下方 Phase 0 原型也是歷史紀錄，其建置與驗證工具只適用原分支。
 
 ## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）
@@ -114,14 +132,15 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 推其他分支會建立 Preview 部署。專案開著 Vercel Authentication，預覽網址沒登入時會 302 導向 `vercel.com/sso-api`。要給外部的人看，需要專案擁有者或 Developer 以上角色的成員在部署頁按 Share，選 Anyone with the link。Hobby 方案每個帳號總共只能建立一個分享連結。
 - 專案開了 Deployment Retention，舊的預覽部署過一段時間會被刪除；分享連結指向的部署被刪除後，連結也會失效。
 - Vercel 回報的部署狀態可以從 GitHub deployments API 查到，環境分成 Production 和 Preview。
+- 功能分支 push 可能建立新的 Preview。必須核對 deployment source SHA、target 與 READY；本頁的既有 Chrome 驗收屬於指定部署，不能自動移作新部署證據。Git push 不會部署 Supabase 或 Cloud Run。
 
 ## 開發與驗證
 
-- 安裝：`main` 現有的 `package-lock.json` 和 `package.json` 不同步，npm 12 的 `npm ci` 會拒絕安裝。本機驗證可以改用 `npm install --package-lock=false`，lock 檔不會被改。修正 lock 檔要另外處理，並確認 Vercel 的建置方式。
+- 安裝：本分支的 `package-lock.json` 已同步，2026-11-16 `npm ci` 與 Vercel Preview 建置通過；不能推論 main 的 lockfile 已修復。
 - 驗證指令：`npm run type-check`、`npm test`、`npm run build`；README 另外列了 `npm audit --audit-level=moderate`。瀏覽器驗證使用 `test/verify-rag-workspace.py`（RAG 各頁）和 `test/verify-admin-integration.py`（整合與推播），後端請求全部 mock，不代表真實登入、推播或 RAG 資料驗收。
 - 本機驗證建置時用的是假的 `VITE_*` 值；`/push-admin` 在瀏覽器執行時需要真的值，缺少會直接報錯（`src/push-admin/lib/supabase.ts`）。
-- 本機預覽：`npm run preview` 後開啟 `/push-admin.html`；Vite preview 不套用 Vercel 的 redirect/rewrite。跑完要用實際的 PID 停掉 server。
-- 執行 agent 的那台主機上，Playwright 的瀏覽器快取由多個工作區共用。執行 `playwright install` 會自動刪掉其他版本的瀏覽器，必要時先列出現況、裝完再比對。WebKit 在那台主機缺系統函式庫，跑不起來，所以 Safari 一直沒有實測。
+- 本機預覽手冊只供未來另獲授權時使用：`npm run preview` 的 `/push-admin.html` 不套用 Vercel redirect/rewrite。本輪禁止啟動本機 server、Docker 或新瀏覽器；不可自動執行瀏覽器驗證腳本。
+- 過去 Linux 驗證環境曾缺 WebKit 系統函式庫；這不是目前 macOS Safari 的診斷。本輪只操作原本開啟的 Chrome，Safari 與手機版面仍無新證據。不要為此自行安裝或啟動瀏覽器。
 
 ## 分支與部署現況（2026-11-16）
 
@@ -129,23 +148,24 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 |---|---|---|
 | `main` | `88e4c90` | Production（2026-11-05 部署成功）。含 githyoung 的隱私權政策與資料刪除申請文件；RAG 仍是靜態示範 |
 | `develop` | `9a479c4` | 與 2026-11-01 的正式站相同，落後 `main` 兩個 commit |
-| `preview/rag-admin-live-20261105` | `f17d5b0` 起 | **RAG 工作台新版**，之後在這裡繼續。Preview 建置成功；沒有包含 `main` 上那兩個文件 commit，合併時要一起處理 |
+| `preview/rag-admin-live-20261105` | `f17d5b0` 起 | **RAG 工作台新版**，之後在這裡繼續。真實 Preview 已部署（`a1d5360` 加同輪修正，納入本次交接）；沒有包含 `main` 上那兩個文件 commit，合併時要一起處理 |
 | `preview/rag-admin-uiux-20261101` | `9a479c4` | 靜態示範的介面整理，已上線 |
 | `preview/rag-admin-20261024` | `c34f02c` | githyoung 的參考架構（React＋真實 rag-v1），只供參考，不要合併 |
 | `preview/rag-phase0` | `14937b1` | Phase 0 靜態原型，歷史紀錄 |
 
-還沒做的事（每一步都要 Ken 授權，完整清單在 App repo `docs/rag.md`）：
+剩餘事項（完整證據在 App repo `docs/rag.md`）：
 
-1. App repo 的 RAG 後端部署（正式庫 migration、`rag-v1`），以及業主提供 Google Cloud 建置自動處理。
-2. 在這個分支的 Preview 打開 `VITE_RAG_ENABLED`，用真實資料逐頁核對（tasks 11.2）。
-3. 合併 `develop`、`main`，正式站打開 `VITE_RAG_ENABLED`（tasks 11.3）。
-4. 歸檔已完成的 OpenSpec change。
-5. `package-lock.json` 不同步、Safari 沒有實測，這兩件事還沒處理。
+1. 真實後端與 Preview 已部署；Computer Use 操作既有 Chrome 的原生選檔及 signed URL 上傳補驗成功，自動解析與向量化完成，驗收檔已停用並排除候選。Safari 與本次手機版面未實測。
+2. 先前 40／40 候選因語意問題退回；本輪已修正分類、摘要範圍、不確定性與術語，另建候選以 Chrome 跑完同題組 40／40，數字錯誤與版本外來源 0。舊報告與退回收據保留；本輪內容複核狀態見 App repo docs/rag.md，尚未代替業主核准或發布。舊 503 文件已恢復。原 US$5 campaign 剩餘約 US$0.38；使用者明確授權本次輪次每日 150、至 2026-11-17 14:00，當日累計 142，未重設紀錄。
+3. 本次使用者已授權將程式與完整交接 commit 並 push 至現有功能分支；合併 `develop`、`main` 及 Production 切換尚未授權或執行。不得新增分支或 worktree。
+4. 舊 OpenSpec 尚未歸檔。
 
 ## 工作規則
 
 - 開始前先跑 `git status --short --branch` 和 `git log -3 --oneline`，分清楚本機 commit、已推送的分支和已部署的版本。
-- commit、push、合併 `main`、改 Vercel 設定，都要有當次的明確授權。Ken 的習慣是：問題一題一題確認，等他說開始才改程式。
+- commit、push、合併 `main`、改 Vercel 設定，都要有當次明確授權。本次已授權兩個現有功能分支 commit／push；不延伸成未來任務的永久授權。推送明列目標分支，不 force push。
+- 本輪最多同時兩個子程序；使用單 worker 測試。可直接以 Node 執行 Vitest，指定 `--maxWorkers=1 --no-file-parallelism --pool=threads`，避免額外 npm 父程序與多個 workers。
+- 不啟動本機瀏覽器、server 或 Docker，不新增分支／worktree。關閉程序只針對 Agent 確實啟動的任務程序；保留使用者原本的 Chrome、其他 App 與雲端排程。
 - 不要提交 secrets、`.env`、`node_modules/`、`dist/` 或 `.vercel/`。
 - 非小型的變更先寫 OpenSpec change（`openspec/changes/`），使用 `openspec validate --strict`。
 - 回報時附上實際執行過的指令和結果。沒驗證過的項目要明講，例如 Safari、預覽網址是否被保護擋住。

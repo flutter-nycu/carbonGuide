@@ -110,6 +110,7 @@ export interface ConversationSummary {
   versionName: string
   reservedUsd: number
   estimatedUsd: number | null
+  unknownCostCalls?: number
 }
 
 export interface ConversationDetail extends ConversationSummary {
@@ -132,6 +133,7 @@ export interface ConversationUser {
   lastAt: string
   reservedUsd: number
   estimatedUsd: number | null
+  unknownCostCalls?: number
 }
 
 export interface Page<T> { items: T[]; nextCursor: string | null }

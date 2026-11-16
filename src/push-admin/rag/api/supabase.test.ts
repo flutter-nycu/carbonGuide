@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createSupabaseRagApi, type RagClient } from './supabase'
 
-type Result = { data: unknown; error: { code?: string; message?: string } | null }
+type Result = { data: unknown; error: { code?: string; message?: string } | null; count?: number | null }
 interface Query { table: string; ops: [string, unknown[]][]; payload?: unknown }
 
 const SUPABASE_URL = 'https://abcdefghijklmnopqrst.supabase.co'
@@ -19,7 +19,7 @@ function mockClient(options: {
     const query: Query = { table, ops: [] }
     queries.push(query)
     const chain: Record<string, unknown> = {}
-    for (const name of ['select', 'order', 'limit', 'range', 'eq', 'gt', 'in', 'is', 'abortSignal', 'single', 'maybeSingle', 'not']) {
+    for (const name of ['select', 'order', 'limit', 'range', 'eq', 'gt', 'in', 'is', 'abortSignal', 'single', 'maybeSingle', 'not', 'gte', 'lt']) {
       chain[name] = (...args: unknown[]) => { query.ops.push([name, args]); return chain }
     }
     for (const name of ['update', 'insert']) {
@@ -31,6 +31,7 @@ function mockClient(options: {
   }
   const client = {
     from: (table: string) => builder(table),
+    auth: { getUser: async () => ({ data: { user: { id: 'owner-1' } }, error: null }) },
     functions: {
       invoke: async (_name: string, { body }: { body: Record<string, unknown> }) => {
         actions.push(body)
@@ -110,6 +111,25 @@ describe('supabase RAG API: rag-v1 actions', () => {
     expect(mock.actions.map(a => (a.selection as { prompt_id: string }).prompt_id)).toEqual(['prompt-1', 'prompt-1', 'prompt-2'])
   })
 
+  it('excludes disabled document versions and their QA references from a new snapshot', async () => {
+    const tables: Record<string, unknown[]> = {
+      rag_v1_sets: [
+        { chunk_set_id: 'disabled-set', original_id: 'disabled-original', embedding_state: 'ready' },
+        { chunk_set_id: 'ready-set', original_id: 'ready-original', embedding_state: 'ready' },
+      ],
+      rag_v1_originals: [{ id: 'disabled-original', document_version_id: 'disabled-version' }, { id: 'ready-original', document_version_id: 'ready-version' }],
+      document_versions: [{ id: 'disabled-version', document_id: 'disabled-doc', content_status: 'disabled' }, { id: 'ready-version', document_id: 'ready-doc', content_status: 'in_review' }],
+      qa_entries: [{ id: 'disabled-qa' }, { id: 'ready-qa' }],
+      rag_v1_qa_citations: [{ qa_id: 'disabled-qa', chunk_id: 'disabled-chunk' }, { qa_id: 'ready-qa', chunk_id: 'ready-chunk' }],
+      chunks: [{ id: 'disabled-chunk', chunk_set_id: 'disabled-set' }, { id: 'ready-chunk', chunk_set_id: 'ready-set' }],
+      prompts: [{ id: 'prompt-1' }],
+    }
+    const mock = mockClient({ tables: query => ({ data: tables[query.table] ?? [], error: null }), actions: () => ({ id: 'new-version' }) })
+    await api(mock).createVersion('排除停用文件', 'disabled-source-key')
+    expect(mock.actions[0].selection).toMatchObject({ chunk_set_ids: ['ready-set'], qa_ids: ['ready-qa'] })
+    expect(mock.queries.find(q => q.table === 'document_versions')?.ops).toContainEqual(['select', ['id,document_id,content_status']])
+  })
+
   it('sends exactly the fields rag-v1 accepts for each write', async () => {
     const mock = mockClient({
       tables: query => ({ data: query.table === 'knowledge_releases' ? { manifest_hash: 'mh' } : query.table === 'rag_v1_datasets' ? { case_count: 2 } : [], error: null }),
@@ -136,21 +156,60 @@ describe('supabase RAG API: rag-v1 actions', () => {
   it('begins an evaluation on its own round with a key derived from the request key', async () => {
     const campaign = { id: 'camp-1', budget_usd: 5, reserved_usd: 1, call_limit: 1000, call_count: 0, state: 'active', expires_at: '2027-01-31T00:00:00Z' }
     const mock = mockClient({
-      tables: query => ({ data: query.table === 'rag_v1_datasets' ? { case_count: 40 } : [campaign], error: null }),
+      tables: query => ({ data: query.table === 'rag_v1_datasets' ? { case_count: 40 } : query.table === 'rag_v1_campaigns' ? [campaign] : [], count: 1, error: null }),
       actions: body => ({ id: body.action === 'round_create' ? 'round-9' : 'batch-9' }),
     })
     expect(await api(mock).beginEvaluation('ds1', 'v2', 'ek')).toBe('batch-9')
     const [round, begin] = mock.actions
-    expect(round).toMatchObject({ action: 'round_create', releaseId: 'v2', requestLimit: 40, budgetUsd: 1.2 })
+    expect(round).toMatchObject({ action: 'round_create', releaseId: 'v2', requestLimit: 40, dailyLimit: 41, budgetUsd: 1.2 })
     expect(round.requestKey).not.toBe('ek')
     expect(begin).toEqual({ action: 'evaluation_begin', datasetId: 'ds1', roundId: 'round-9', requestKey: 'ek' })
   })
 
+  it('refuses a whole evaluation when it would exceed the global 100 request day limit', async () => {
+    const mock = mockClient({ tables: query => ({ data: query.table === 'rag_v1_datasets' ? { case_count: 40 } : null, count: 61, error: null }) })
+    expect(await code(api(mock).beginEvaluation('ds1', 'v2', 'over-day-limit'))).toBe('daily_limit')
+    expect(mock.actions).toEqual([])
+    const query = mock.queries.find(q => q.table === 'rag_v1_requests')!
+    expect(query.ops).toContainEqual(['eq', ['actor_id', 'owner-1']])
+    expect(query.ops).toContainEqual(['gte', ['created_at', '2026-11-05T00:00:00.000Z']])
+    expect(query.ops).toContainEqual(['lt', ['created_at', '2026-11-06T00:00:00.000Z']])
+  })
+
+  it('counts finished evaluation requests instead of all reserved admissions', async () => {
+    const mock = mockClient({ tables: query => ({ error: null, count: 2, data: {
+      rag_v1_evaluation_batches: [{ id: 'b1', dataset_id: 'ds1', round_id: 'r1' }],
+      rag_v1_rounds: [{ id: 'r1', release_id: 'v1', request_count: 40 }],
+      rag_v1_datasets: [{ id: 'ds1', case_count: 40 }],
+      rag_v1_evaluation_receipts: [],
+    }[query.table] ?? null }) })
+    expect(await api(mock).listBatches()).toEqual([{ id: 'b1', datasetId: 'ds1', versionId: 'v1', completed: 2, total: 40, finished: false, reportId: null }])
+    const query = mock.queries.find(q => q.table === 'rag_v1_requests')!
+    expect(query.ops).toContainEqual(['eq', ['round_id', 'r1']])
+    expect(query.ops).toContainEqual(['in', ['state', ['answered', 'abstained', 'failed', 'uncertain']]])
+  })
+
+  it('reuses the evaluation round after a lost begin response, even on another day', async () => {
+    let clock = NOW.getTime()
+    let begins = 0
+    const campaign = { id: 'camp-1', budget_usd: 5, reserved_usd: 1, call_limit: 1000, call_count: 0, expires_at: '2027-01-31T00:00:00Z' }
+    const mock = mockClient({
+      tables: query => ({ error: null, count: 1, data: query.table === 'rag_v1_datasets' ? { case_count: 40 } : [campaign] }),
+      actions: body => body.action === 'round_create' ? { id: 'round-9' } : ++begins === 1 ? new TypeError('Lost response') : { id: 'batch-9' },
+    })
+    const rag = createSupabaseRagApi(mock.client, { role: 'owner', supabaseUrl: SUPABASE_URL, now: () => new Date(clock) })
+    expect(await code(rag.beginEvaluation('ds1', 'v2', 'lost-begin'))).toBe('network_error')
+    clock += 24 * 3600 * 1000
+    expect(await rag.beginEvaluation('ds1', 'v2', 'lost-begin')).toBe('batch-9')
+    expect(mock.actions.filter(a => a.action === 'round_create')).toHaveLength(1)
+    expect(mock.actions[2]).toEqual(mock.actions[1])
+  })
+
   it('maps conversation users and keeps the cursor', async () => {
-    const mock = mockClient({ actions: () => ({ items: [{ user_id: null, name: null, email: null, role: null, count: 2, last_at: NOW.toISOString(), reserved_usd: 0.01, estimated_usd: null }], next_cursor: 'c2' }) })
+    const mock = mockClient({ actions: () => ({ items: [{ user_id: null, name: null, email: null, role: null, count: 2, last_at: NOW.toISOString(), reserved_usd: 0.01, estimated_usd: null, unknown_cost_calls: 2 }], next_cursor: 'c2' }) })
     const page = await api(mock).listConversationUsers('owner@', 'c1')
     expect(mock.actions[0]).toEqual({ action: 'conversation_users', search: 'owner@', cursor: 'c1' })
-    expect(page).toEqual({ items: [{ userId: null, name: null, email: null, role: null, count: 2, lastAt: NOW.toISOString(), reservedUsd: 0.01, estimatedUsd: null }], nextCursor: 'c2' })
+    expect(page).toEqual({ items: [{ userId: null, name: null, email: null, role: null, count: 2, lastAt: NOW.toISOString(), reservedUsd: 0.01, estimatedUsd: null, unknownCostCalls: 2 }], nextCursor: 'c2' })
   })
 
   it('asks the same conversation query for everyone, one person or deleted accounts', async () => {
@@ -273,7 +332,7 @@ describe('supabase RAG API: tables', () => {
   })
 
   it('links finished evaluation batches to their report', async () => {
-    const mock = mockClient({ tables: query => ({ error: null, data: {
+    const mock = mockClient({ tables: query => ({ error: null, count: 3, data: {
       rag_v1_evaluation_batches: [{ id: 'b1', dataset_id: 'ds1', round_id: 'r1' }, { id: 'b2', dataset_id: 'ds1', round_id: 'r2' }],
       rag_v1_rounds: [{ id: 'r1', release_id: 'v1', request_count: 40 }, { id: 'r2', release_id: 'v1', request_count: 3 }],
       rag_v1_datasets: [{ id: 'ds1', case_count: 40 }],

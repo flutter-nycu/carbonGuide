@@ -62,5 +62,5 @@
 ## 11. 交付（Step 7 之後，每一步都要 Ken 另外授權）
 
 - [x] 11.1 commit 並推送 `preview/rag-admin-live-20261105`（2026-11-05：`5abc0dd` 補上一個 change 的勾選、`f17d5b0` 本 change；Vercel Preview 建置成功，`VITE_RAG_ENABLED` 未開）
-- [ ] 11.2 `rag-backend-live` 部署後，在 preview 啟用 `VITE_RAG_ENABLED`，用真實資料逐頁核對並回報
+- [x] 11.2 `rag-backend-live` 部署後，在 preview 啟用 `VITE_RAG_ENABLED`，用真實資料逐頁核對並回報（2026-11-16：真實登入、11 頁資料讀取、PDF 網址、Chrome 原生選檔與 signed URL 上傳、自動解析／向量化、試問引用費用、紀錄載入更多、Prompt 另存版本及審核退回均完成。新版評測 40／40、舊 37／40 保留，183 項測試通過。先前候選因內容問題退回；本輪語意修正另建候選並完整重測 40／40，尚未代替業主核准發布。Safari 與本次手機版面未驗證，獨立追蹤。逐頁證據見 App repo `docs/rag.md`）
 - [ ] 11.3 經授權後合併 `develop`、`main`；正式站的 `VITE_RAG_ENABLED` 由 Ken 在 Vercel 開啟

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeRagApi, type FakeOptions } from '../api/fake'
 import { clearRequestKeys } from '../api/requestKeys'
 import type { Role } from '../api/types'
@@ -11,9 +11,11 @@ beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
   HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) }
 })
-afterEach(() => { cleanup(); clearRequestKeys() })
+afterEach(() => { cleanup(); clearRequestKeys(); vi.restoreAllMocks() })
 
 const NOW = new Date('2026-11-05T08:00:00Z')
+// The fake API and the UI must compare expiry against the same clock.
+beforeEach(() => { vi.spyOn(Date, 'now').mockReturnValue(NOW.getTime()) })
 function open(role: Role = 'owner', options: FakeOptions = {}) {
   const api = createFakeRagApi({ role, now: () => NOW, ...options })
   const view = render(<Workspace api={api} role={role} />)
