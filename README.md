@@ -40,7 +40,7 @@ RAG 知識工作台在 2026-11 起改成接上 App 的正式 Supabase（`rag-v1`
 
 這些檢查都不代表真實 Google 登入、手機送達、真實知識庫資料或模型回答已驗收；接上真實後端之後要另外逐頁核對。
 
-2026-10-24 既有部署紀錄：整合版曾部署至 `https://carbon-guide.vercel.app/push-admin`，記錄的 Vercel deployment 為 `dpl_Dxz4RAjuMsoHYnxJMTyFcckbUUfR`（READY）。本次工作只將本機版本提交至從 `preview/rag-phase0` 建立的 `preview/rag-admin-20261024`，不推送 `main`，也不執行 Production 部署；上述既有部署狀態未於本次重新驗證。真實 Google 登入及推播送達仍待另外驗收。
+部署現況（2026-11-16，依 GitHub deployments）：正式站是 `main` 的 `88e4c90`（2026-11-05），`/push-admin#rag` 仍是舊的靜態示範。接上真實後端的工作台在分支 `preview/rag-admin-live-20261105`，Preview 建置成功但沒有打開 `VITE_RAG_ENABLED`；後端在 App repo 的 `feature/rag-backend-live`，也還沒部署。現況與待辦見 App repo 的 `docs/rag.md` 與本 repo 的 `AGENTS.md`。
 
 ## Local development
 
@@ -105,8 +105,9 @@ This branch replaces its public HTML entry with the authenticated RAG workspace
 described above. The original `openspec/changes/rag-coach-phase0-preview/`
 sources and verifier are historical references; do not run their build script
 on this branch, because it would restore the retired public entry.
-The integrated workspace is documented in
-`openspec/changes/rag-admin-integration/`.
+The current workspace, connected to the live `rag-v1` backend, is documented in
+`openspec/changes/rag-admin-live-workspace/`; `rag-admin-integration/` and
+`rag-admin-static-uiux-cleanup/` describe the earlier static demo.
 
 ## Verification
 

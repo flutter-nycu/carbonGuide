@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-10-24（分支 `preview/rag-admin-20261024`，基於 `preview/rag-phase0`）；「RAG 知識工作台」一節 2026-11-05 依分支 `preview/rag-admin-live-20261105` 更新
+最後核對：2026-11-16（分支 `preview/rag-admin-live-20261105`；`main`、`develop` 與 Vercel 部署狀態依 GitHub 紀錄）
 
 這份文件給 Codex、Claude 與其他 AI agent 接手時先讀。內容以本 repo 的程式碼、設定與 Git／部署紀錄為準；和程式碼不一致時，先確認實際行為，再在同一個變更裡修正文件。
 
@@ -10,8 +10,8 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 | Repo | 負責 | 文件入口 |
 |---|---|---|
-| `flutter-nycu/carbonGuide`（本 repo） | 公開網站、推播管理前端、AI 氣候教練的靜態原型 | 本檔 |
-| `githyoung/carbon-navigation` | Flutter App、Supabase migrations 與 Edge Functions、專案文件中心 | 該 repo 的 `AGENTS.md` 與 `docs/README.md` |
+| `flutter-nycu/carbonGuide`（本 repo） | 公開網站、推播管理前端、RAG 知識工作台 | 本檔 |
+| `githyoung/carbon-navigation` | Flutter App、Supabase migrations 與 Edge Functions（含 RAG 後端 `rag-v1`）、Cloud Run 自動處理、專案文件中心 | 該 repo 的 `AGENTS.md`、`docs/README.md`；RAG 現況與待辦在 `docs/rag.md`（分支 `feature/rag-backend-live`） |
 
 產品、App 架構、MAS 檢測、後端角色矩陣和推播後端都在 App repo 維護。本 repo 只放瀏覽器端的頁面，不放任何 service role key 或 OneSignal REST key。
 
@@ -39,15 +39,57 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 呼叫後端：發送、受眾預覽和用量查詢呼叫 Supabase Edge Functions（`send-system-push`、`send-personalized-push`、`preview-push-audience`、`onesignal-usage`）；個人化規則是前端直接更新 `push_rules`，由 RLS 限制只有 editor 以上能改。Functions、資料表、RLS 和角色檢查都在 App repo。
 - 環境變數：`VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`，都是公開值，範例在 `.env.example`；另有 RAG 開關 `VITE_RAG_ENABLED`（見下一節）。不要把任何伺服器端 secret 放進 `VITE_*`。
 
-## RAG 知識工作台（2026-11-05 起）
+## RAG 知識工作台
 
-- 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入，用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM，樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
-- 資料層在 `rag/api/`：`types.ts` 定義 `RagApi` 介面，`supabase.ts` 接 App 的正式 Supabase（表格在 RLS 下直接讀，寫入一律經 `rag-v1` Edge Function），`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。錯誤碼轉白話在 `errors.ts`；付費或不能重複的操作用 `requestKeys.ts` 的請求鍵，成功之後才清掉。
-- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時每一頁顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。後端（App repo 的 `openspec/changes/rag-backend-live/`）部署並驗收之前不要在正式站開啟，開啟由 Ken 在 Vercel 設定。
-- 11 頁：知識庫與文件、匯入與預檢、檢索試問台、RAG 評測、知識版本、人格設定、System Prompt、基本通用 QA、進階檢索設定、互動紀錄、對話使用者。頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。角色權限、各頁行為與文字原則以 `openspec/changes/rag-admin-live-workspace/` 的 spec 為準。
-- 不做的事：App 端、計算與係數流程、Google 帳單匯入、多位管理員。
-- 驗證：`npm test`；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、11 頁）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。用法見 README「推播與 RAG 整合工作台」。接上真實後端之後的逐頁核對另外記錄。
-- 舊的靜態示範（`rag/app.js`、`index.html`）已經刪除；`openspec/changes/rag-admin-static-uiux-cleanup/` 與 `rag-admin-integration/` 只是歷史紀錄。下方 Phase 0 原型也是歷史紀錄，其建置與驗證工具只適用原分支。
+### 現況（2026-11-16）
+
+- 新版工作台在分支 `preview/rag-admin-live-20261105`（`f17d5b0` 起），**還沒合併、沒上線**。Vercel Preview 建置成功，但 `VITE_RAG_ENABLED` 沒開，畫面只顯示「RAG 後端尚未啟用」。
+- 正式站 `main`（`88e4c90`）的 `/push-admin#rag` 仍是舊的靜態示範（假資料）。
+- 後端在 App repo `feature/rag-backend-live`，也還沒部署。整體現況、架構、資料流、待辦與已知限制以 App repo 的 `docs/rag.md` 為準，本節只記網站這一側。
+- 規格：`openspec/changes/rag-admin-live-workspace/`（32／34，剩 11.2 接真實後端逐頁核對、11.3 合併上線）。
+
+### 怎麼運作
+
+- 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入（獨立 chunk，推播管理不用下載），用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM。樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時每一頁顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。後端部署並驗收之前不要在正式站開啟，開啟由 Ken 在 Vercel 設定。
+- 資料層 `rag/api/`：`supabase.ts` 在 RLS 下直接讀表，所有寫入都經 App repo 的 `rag-v1` Edge Function；`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。
+- 不能重複的操作（試問、建立輪次、建立版本、開始評測、登記網址、審核、發布、改回、停用）都帶請求鍵（`requestKeys.ts`，存在元件外，成功之後才清掉）。重送時沿用第一次送出的內容，因為後端只接受同一個請求鍵、同樣內容的重送；試問回來是「還在處理中」時保留請求鍵，避免重複扣款。
+- 頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。輪詢只在頁面可見時每 15 秒一次。
+- 11 頁與可讀的角色：
+
+| 頁 | 檔案 | 可以看的角色 |
+|---|---|---|
+| 01 知識庫與文件 | `pages/DocumentsPage.tsx` | 全部；editor 以上可改分類、修正或排除段落 |
+| 02 匯入與預檢 | `pages/ImportPage.tsx` | 全部；editor 以上可上傳 PDF／DOCX／TXT、登記 https PDF 網址 |
+| 03 檢索試問台 | `pages/PlaygroundPage.tsx` | owner |
+| 04 RAG 評測 | `pages/EvaluationPage.tsx` | owner |
+| 05 知識版本 | `pages/ReleasesPage.tsx` | owner、editor（只有 owner 能建立、審核、發布） |
+| 06 人格設定 | `pages/PersonasPage.tsx` | 全部；editor 以上可編輯 |
+| 07 System Prompt | `pages/PromptPage.tsx` | 全部；editor 以上可編輯 |
+| 08 基本通用 QA | `pages/QaPage.tsx` | 全部；editor 以上可編輯與核對引用 |
+| 09 進階檢索設定 | `pages/SettingsPage.tsx` | 全部；只有 owner 能改 |
+| 10 互動紀錄 | `pages/LogsPage.tsx` | owner |
+| 11 對話使用者 | `pages/ConversationsPage.tsx` | owner |
+
+### 程式地圖
+
+| 檔案 | 用途 |
+|---|---|
+| `rag/pageList.ts` | 11 頁的順序、標題、副標與可讀角色 |
+| `rag/Workspace.tsx`、`rag/ui.tsx`、`rag/hooks.ts` | 外框、導覽、對話框（`useId` 產生 id）、toast、讀取與分頁、輪詢 |
+| `rag/api/types.ts` | `RagApi` 介面、各種資料型別、`LIMITS`、前端檢查（檔案、網址、設定、段落長度） |
+| `rag/api/supabase.ts` | 真實資料層：讀表、`rag-v1` action、上傳 signed URL 流程、段落修正的基準與排除推算 |
+| `rag/api/errors.ts` | 錯誤碼與原因碼轉白話中文 |
+| `rag/api/status.ts` | 從資料表推出文件狀態、回答類型、知識版本的發布條件 |
+| `rag/ConversationView.tsx`、`rag/ConversationList.tsx` | 單次對話詳情（流程、引用、費用）與對話列表 |
+| `rag/labels.ts` | 狀態、角色、日期與金額格式 |
+| `test/rag-live-preview.html`、`.tsx` | 只供本機驗證的預覽頁（記憶體資料層） |
+
+### 不做的事與驗證
+
+- 不做：App 端、計算與係數流程、Google 帳單匯入、多位管理員。
+- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、11 頁）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。用法見 README「推播與 RAG 整合工作台」。2026-11-05 全部通過；接上真實後端之後的逐頁核對還沒做。
+- 舊的靜態示範（`rag/app.js`、`index.html`）在這個分支已經刪除；`openspec/changes/rag-admin-static-uiux-cleanup/`（已完成、未歸檔）與 `rag-admin-integration/` 是歷史紀錄。下方 Phase 0 原型也是歷史紀錄，其建置與驗證工具只適用原分支。
 
 ## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）
 
@@ -81,24 +123,24 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 本機預覽：`npm run preview` 後開啟 `/push-admin.html`；Vite preview 不套用 Vercel 的 redirect/rewrite。跑完要用實際的 PID 停掉 server。
 - 執行 agent 的那台主機上，Playwright 的瀏覽器快取由多個工作區共用。執行 `playwright install` 會自動刪掉其他版本的瀏覽器，必要時先列出現況、裝完再比對。WebKit 在那台主機缺系統函式庫，跑不起來，所以 Safari 一直沒有實測。
 
-## 分支進度（2026-10-24）
-
-本次將本機新版 RAG 後台承接至 `preview/rag-admin-20261024`，以 `preview/rag-phase0` 的 `14937b1` 為起點。只提交並推送新分支；沒有合併或推送 `main`。正式站既有部署紀錄見 README，本次不重新驗證 Production。
-
-### Phase 0 進度快照（2026-10-20）
+## 分支與部署現況（2026-11-16）
 
 | 分支 | Commit | 狀態 |
 |---|---|---|
-| `main` | `cfd6773`（2026-09-09，更新隱私權政策） | Production 部署中。這份 `AGENTS.md`、`CLAUDE.md` 和 `openspec/` 還沒有合併進 `main` |
-| `preview/rag-phase0` | `f9a7467` 起 | AI 氣候教練 Phase 0 原型。Preview 部署成功，網址 `https://carbon-guide-pwiyue8bn-fluttermans-projects.vercel.app/rag-preview/`，需要登入 Vercel 或使用分享連結 |
+| `main` | `88e4c90` | Production（2026-11-05 部署成功）。含 githyoung 的隱私權政策與資料刪除申請文件；RAG 仍是靜態示範 |
+| `develop` | `9a479c4` | 與 2026-11-01 的正式站相同，落後 `main` 兩個 commit |
+| `preview/rag-admin-live-20261105` | `f17d5b0` 起 | **RAG 工作台新版**，之後在這裡繼續。Preview 建置成功；沒有包含 `main` 上那兩個文件 commit，合併時要一起處理 |
+| `preview/rag-admin-uiux-20261101` | `9a479c4` | 靜態示範的介面整理，已上線 |
+| `preview/rag-admin-20261024` | `c34f02c` | githyoung 的參考架構（React＋真實 rag-v1），只供參考，不要合併 |
+| `preview/rag-phase0` | `14937b1` | Phase 0 靜態原型，歷史紀錄 |
 
-待辦和等待中的事：
+還沒做的事（每一步都要 Ken 授權，完整清單在 App repo `docs/rag.md`）：
 
-- 等業主看完原型的回饋。回饋可能會改到 spec，所以 OpenSpec change 先不歸檔。
-- 分享連結要由專案擁有者或 Developer 以上角色的成員在 Vercel 後台產生。
-- 桌面版矮螢幕（例如 1440×789）要往下捲才看得到手機框底部。要不要改成自動縮小，等 Ken 決定。
-- Safari 還沒實測。
-- `package-lock.json` 不同步的問題還沒處理。
+1. App repo 的 RAG 後端部署（正式庫 migration、`rag-v1`），以及業主提供 Google Cloud 建置自動處理。
+2. 在這個分支的 Preview 打開 `VITE_RAG_ENABLED`，用真實資料逐頁核對（tasks 11.2）。
+3. 合併 `develop`、`main`，正式站打開 `VITE_RAG_ENABLED`（tasks 11.3）。
+4. 歸檔已完成的 OpenSpec change。
+5. `package-lock.json` 不同步、Safari 沒有實測，這兩件事還沒處理。
 
 ## 工作規則
 

@@ -61,6 +61,6 @@
 
 ## 11. 交付（Step 7 之後，每一步都要 Ken 另外授權）
 
-- [ ] 11.1 commit 並推送 `preview/rag-admin-live-20261105`
+- [x] 11.1 commit 並推送 `preview/rag-admin-live-20261105`（2026-11-05：`5abc0dd` 補上一個 change 的勾選、`f17d5b0` 本 change；Vercel Preview 建置成功，`VITE_RAG_ENABLED` 未開）
 - [ ] 11.2 `rag-backend-live` 部署後，在 preview 啟用 `VITE_RAG_ENABLED`，用真實資料逐頁核對並回報
 - [ ] 11.3 經授權後合併 `develop`、`main`；正式站的 `VITE_RAG_ENABLED` 由 Ken 在 Vercel 開啟
