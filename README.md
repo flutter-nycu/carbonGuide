@@ -14,7 +14,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 已依使用者授權核准發布，沿用既有 40／40 報告；App 公開問答未接入，現行試問仍只有 owner。
 - 本輪 TypeScript、188 項測試（24 檔）、啟用 RAG 的 build 與獨立複審通過。11/16 Chrome PDF、網址、自動處理、503 恢復及完整問答驗收保留原日期；Safari／手機未驗。
 - 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站，使用者已用真實資料驗證；規格已歸檔，需求併入 `openspec/specs/rag-admin-live-workspace/spec.md`，收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
-- 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；正式站部署後驗證見後端 `docs/rag.md`。規格 `openspec/changes/rag-top-tabs/` 尚未歸檔，後端文件更新與歸檔另需授權。
+- 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；部署收據與驗證見後端 `docs/rag.md`。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-top-tabs/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；正式站的真實資料畫面待使用者登入確認。
 
 ## 架構與資料流
 

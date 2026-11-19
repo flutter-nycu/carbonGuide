@@ -57,7 +57,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 本次網站 188／188、TypeScript、RAG 啟用建置通過；配額與輪次餘額競態修正經獨立複審。Safari／手機未驗；11/16 Chrome 完整驗收仍是當日 Preview 的證據。
 - 原規格 `rag-admin-live-workspace`（37／37）已歸檔到 `openspec/changes/archive/2026-11-19-rag-admin-live-workspace/`，主規格在 `openspec/specs/rag-admin-live-workspace/spec.md`。Chrome 未執行新正式站登入／試問，另列驗證邊界。
 - 第 12 頁「技術架構導覽」在 `preview/rag-architecture-guide`（基準 main `a831af7`）完成，Preview `386f26e` 經使用者檢查後，2026-11-19 依使用者授權 fast-forward 合併 main 並部署正式站。使用者已登入正式站用真實資料驗證。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-architecture-guide/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；部署與驗證收據見後端 `docs/rag.md`。
-- 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；正式站部署後驗證見後端 `docs/rag.md`。規格 `openspec/changes/rag-top-tabs/` 尚未歸檔，後端文件更新與歸檔另需授權。
+- 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；部署收據與驗證見後端 `docs/rag.md`。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-top-tabs/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；正式站的真實資料畫面待使用者登入確認。
 
 ### 怎麼運作
 
