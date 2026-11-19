@@ -33,5 +33,5 @@
 ## 6. 交付（每一步都要 Ken 另外授權）
 
 - [x] 6.1 commit 並推送 `preview/rag-architecture-guide`，在 Preview 用真實資料看一次（`386f26e`，Preview 由 Ken 檢查）
-- [ ] 6.2 後端 `docs/rag.md` 補上導覽頁的說明
-- [ ] 6.3 合併 `main` 部署正式站並驗證
+- [x] 6.2 後端 `docs/rag.md` 補上導覽頁的說明（後端 `d08bfb7`）
+- [x] 6.3 合併 `main` 部署正式站並驗證（`8ab7394`，Production deployment `7903374158`；Ken 以真實資料驗證）

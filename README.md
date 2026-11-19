@@ -13,7 +13,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 工作輪次仍最多 20 題、7 天、US$0.50，預算依實際餘額縮小；低於 US$0.01 不開新輪次。這不代表整體服務到期。
 - 候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 已依使用者授權核准發布，沿用既有 40／40 報告；App 公開問答未接入，現行試問仍只有 owner。
 - 本輪 TypeScript、188 項測試（24 檔）、啟用 RAG 的 build 與獨立複審通過。11/16 Chrome PDF、網址、自動處理、503 恢復及完整問答驗收保留原日期；Safari／手機未驗。
-- 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站（規格 `openspec/changes/rag-architecture-guide/`），收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
+- 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站，使用者已用真實資料驗證；規格已歸檔，需求併入 `openspec/specs/rag-admin-live-workspace/spec.md`，收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
 
 ## 架構與資料流
 
@@ -67,7 +67,7 @@ Vercel 專案為 carbon-guide；推 main 會直接部署正式站並影響首頁
 
 本次正式切換已獲明確授權；下一輪仍依當次任務範圍執行，不把本次授權當成永久部署或加預算授權。候選已核准發布，後續新候選仍需人工核准。
 
-剩餘事項為 Safari／手機驗收、OpenSpec 歸檔時機；App、多管理員與 Google 帳單整合另立需求。試問回應遺失且跨輪次到期時，先查互動紀錄，不盲目重問；此既有恢復邊界尚未擴充。
+剩餘事項為 Safari／手機驗收、其餘歷史 OpenSpec change 的歸檔時機；App、多管理員與 Google 帳單整合另立需求。試問回應遺失且跨輪次到期時，先查互動紀錄，不盲目重問；此既有恢復邊界尚未擴充。
 
 舊 Phase 0、靜態工作台與參考分支保留歷史用途，不執行舊 build 還原公開原型。完整進度只在後端 docs/rag.md 維護。
 
