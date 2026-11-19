@@ -56,7 +56,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 最新 40／40 候選已依使用者明確授權核准發布。只開既有 owner 管理問答；App 公開服務未接入，不新增其他管理員。
 - 本次網站 188／188、TypeScript、RAG 啟用建置通過；配額與輪次餘額競態修正經獨立複審。Safari／手機未驗；11/16 Chrome 完整驗收仍是當日 Preview 的證據。
 - 原規格 `rag-admin-live-workspace`（37／37）已歸檔到 `openspec/changes/archive/2026-11-19-rag-admin-live-workspace/`，主規格在 `openspec/specs/rag-admin-live-workspace/spec.md`。Chrome 未執行新正式站登入／試問，另列驗證邊界。
-- 第 12 頁「技術架構導覽」在分支 `preview/rag-architecture-guide`（從 main `a831af7` 開出）開發，規格 `openspec/changes/rag-architecture-guide/`。推送 Preview、後端文件補充與合併 main 各需另外授權；合併前正式站仍是 11 頁。
+- 第 12 頁「技術架構導覽」在 `preview/rag-architecture-guide`（基準 main `a831af7`）完成，Preview `386f26e` 經使用者檢查後，2026-11-19 依使用者授權 fast-forward 合併 main 並部署正式站。規格 `openspec/changes/rag-architecture-guide/` 尚未歸檔；部署與驗證收據見後端 `docs/rag.md`。
 
 ### 怎麼運作
 
@@ -149,11 +149,11 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 ## 分支與接手
 
-main 是正式網站來源，develop 與原 `preview/rag-admin-live-20261105` 保存相同已整合實作。最新遠端 SHA、deployment ID 與未驗證邊界統一見後端 main 的 `docs/rag.md`；不把舊 Preview URL 或 Git push 成功當成 Production 已驗收。
+main 是正式網站來源。develop 與原 `preview/rag-admin-live-20261105` 停在 `a831af7`（11 頁），這次沒有同步；第 12 頁導覽只在 main 與 `preview/rag-architecture-guide`。最新遠端 SHA、deployment ID 與未驗證邊界統一見後端 main 的 `docs/rag.md`；不把舊 Preview URL 或 Git push 成功當成 Production 已驗收。
 
 本次沒有啟動本機 server、Docker 或新瀏覽器，測試單工、同時最多兩個子程序。既有 Chrome 只依當次授權用 Computer Use；不自行啟動 Safari，不關閉使用者原有程式或雲端排程。
 
-之後待辦：Safari／手機驗收、OpenSpec 歸檔時機，以及另立需求的 App／多管理員。原 Phase 0 和參考分支僅供歷史追查，不執行舊 build 還原原型。
+之後待辦：Safari／手機驗收、OpenSpec 歸檔時機（含 `rag-architecture-guide` 的 6.2／6.3 勾選）、develop 是否同步，以及另立需求的 App／多管理員。原 Phase 0 和參考分支僅供歷史追查，不執行舊 build 還原原型。
 
 已知重送邊界：試問回應遺失又跨過輪次到期時，先查互動紀錄，不盲目重問；跨到期 pending ask 恢復尚未擴充。新建輪次遭明確 budget_exhausted 拒絕可重讀餘額；不明或網路錯誤保持原 body 與 key。
 
