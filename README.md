@@ -6,7 +6,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 
 ## 最新進度（2026-11-19）
 
-使用者已核准兩個 repo 整合 main／develop、正式網站切換及最新候選發布。Production 已設定 RAG 開關；正式入口 https://carbon-guide.vercel.app/push-admin#rag 。Git 推送與新部署驗收進行中，完整收據以後端 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md) 為準。
+使用者已核准兩個 repo 整合 main／develop、正式網站切換及最新候選發布。Production 已設定 RAG 開關；正式入口 https://carbon-guide.vercel.app/push-admin#rag 。兩個 repo 的 main／develop 已完成推送，Production READY；正式入口、靜態資產及匿名拒絕驗證通過，完整收據以後端 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md) 為準。
 
 - 正式後端：原五個 live migration、rag-v1 v10、Cloud Run 即時觸發與排程；11/19 新增每日 150 題硬上限並通過 SQL rollback 驗證。
 - 配額：每位使用者每日 150 題持續有效；試問／評測共用 UTC 當日計數（臺灣 08:00 換日）。原 US$5 與歷史帳本保留，目前保守預留餘額 US$0.38158625；用完停止付費呼叫，不自動加值。
@@ -69,3 +69,5 @@ Vercel 專案為 carbon-guide；推 main 會直接部署正式站並影響首頁
 剩餘事項為 Safari／手機驗收、OpenSpec 歸檔時機；App、多管理員與 Google 帳單整合另立需求。試問回應遺失且跨輪次到期時，先查互動紀錄，不盲目重問；此既有恢復邊界尚未擴充。
 
 舊 Phase 0、靜態工作台與參考分支保留歷史用途，不執行舊 build 還原公開原型。完整進度只在後端 docs/rag.md 維護。
+
+2026-11-19 正式程式部署：來源 `65b4da7ec7a49aaf20eb79fd956a0746b7294ba0`，Vercel `dpl_FtxQRmB7TC1RqasKtWmG42qDcmwV` READY，正式 alias 為 carbon-guide.vercel.app。七個公開入口 HTTP 200，RAG 真實資料層含每日 150／infinity 邏輯，匿名 rag-v1 回 401。這些是 HTTP／部署證據，不等於新正式站的瀏覽器端驗收；Computer Use 未找到既有 Chrome，未自行啟動。後續純文件提交的最新部署收據以後端 docs/rag.md 為準。

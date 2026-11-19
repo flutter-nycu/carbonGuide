@@ -51,11 +51,11 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 ### 現況（2026-11-19）
 
 - 正式來源改為 main，develop 一併整合；保留 main 的隱私政策及資料刪除文件。沿用既有 preview 分支完成工作，沒有新增分支或工作樹。
-- Production 已設定 `VITE_RAG_ENABLED=true`。正式入口 https://carbon-guide.vercel.app/push-admin#rag ；目前正在完成 Git 推送與新 deployment 驗收，最終收據見後端 `docs/rag.md`。
+- Production 已設定 `VITE_RAG_ENABLED=true`。正式入口 https://carbon-guide.vercel.app/push-admin#rag ；main／develop 已推送，Production READY；正式入口與資產已通過 HTTP 檢查，最終收據見後端 `docs/rag.md`。
 - 後端已套用每日 150 題 migration，原 US$5 campaign 無整體到期日，歷史帳本保留。試問／評測共用 UTC 當日計數，臺灣 08:00 換日；工作輪次仍為 20 題／7 天／最高 US$0.50，實際預算不超過總剩餘額度。
 - 最新 40／40 候選已依使用者明確授權核准發布。只開既有 owner 管理問答；App 公開服務未接入，不新增其他管理員。
 - 本次網站 188／188、TypeScript、RAG 啟用建置通過；配額與輪次餘額競態修正經獨立複審。Safari／手機未驗；11/16 Chrome 完整驗收仍是當日 Preview 的證據。
-- 規格沿用 `openspec/changes/rag-admin-live-workspace/`，新增第 12 節正式配額；11.3 與 12.3 在正式部署驗證後勾選。歸檔另決定。
+- 規格沿用 `openspec/changes/rag-admin-live-workspace/`，新增第 12 節正式配額；37／37 完成（11.3 與 12.3 已驗證）；Chrome 未執行新正式站登入／試問，另列驗證邊界。歸檔另決定。
 
 ### 怎麼運作
 
@@ -153,3 +153,5 @@ main 是正式網站來源，develop 與原 `preview/rag-admin-live-20261105` �
 之後待辦：Safari／手機驗收、OpenSpec 歸檔時機，以及另立需求的 App／多管理員。原 Phase 0 和參考分支僅供歷史追查，不執行舊 build 還原原型。
 
 已知重送邊界：試問回應遺失又跨過輪次到期時，先查互動紀錄，不盲目重問；跨到期 pending ask 恢復尚未擴充。新建輪次遭明確 budget_exhausted 拒絕可重讀餘額；不明或網路錯誤保持原 body 與 key。
+
+2026-11-19 正式程式部署：來源 `65b4da7ec7a49aaf20eb79fd956a0746b7294ba0`，Vercel `dpl_FtxQRmB7TC1RqasKtWmG42qDcmwV` READY，正式 alias 為 carbon-guide.vercel.app。七個公開入口 HTTP 200，RAG 真實資料層含每日 150／infinity 邏輯，匿名 rag-v1 回 401。這些是 HTTP／部署證據，不等於新正式站的瀏覽器端驗收；Computer Use 未找到既有 Chrome，未自行啟動。後續純文件提交的最新部署收據以後端 docs/rag.md 為準。

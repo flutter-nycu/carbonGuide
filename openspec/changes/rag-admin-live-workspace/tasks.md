@@ -63,10 +63,12 @@
 
 - [x] 11.1 commit 並推送 `preview/rag-admin-live-20261105`（2026-11-05：`5abc0dd` 補上一個 change 的勾選、`f17d5b0` 本 change；Vercel Preview 建置成功，`VITE_RAG_ENABLED` 未開）
 - [x] 11.2 `rag-backend-live` 部署後，在 preview 啟用 `VITE_RAG_ENABLED`，用真實資料逐頁核對並回報（2026-11-16：真實登入、11 頁資料讀取、PDF 網址、Chrome 原生選檔與 signed URL 上傳、自動解析／向量化、試問引用費用、紀錄載入更多、Prompt 另存版本及審核退回均完成。新版評測 40／40、舊 37／40 保留，183 項測試通過。先前候選因內容問題退回；本輪語意修正另建候選並完整重測 40／40，尚未代替業主核准發布。Safari 與本次手機版面未驗證，獨立追蹤。逐頁證據見 App repo `docs/rag.md`）
-- [ ] 11.3 經授權後合併 `develop`、`main`；正式站的 `VITE_RAG_ENABLED` 由 Ken 在 Vercel 開啟
+- [x] 11.3 經授權後合併 `develop`、`main`；正式站的 `VITE_RAG_ENABLED` 由 Ken 在 Vercel 開啟
 
 ## 12. 正式營運配額（2026-11-19 已核准）
 
 - [x] 12.1 無到期 campaign、每人每日 150、剩餘額度建立輪次，保留歷史帳本；後端以新增 migration 強制每日上限
 - [x] 12.2 配額邊界、重送、無到期與不足 US$0.50 回歸測試，type-check／build／OpenSpec 與獨立審查
-- [ ] 12.3 核准並發布指定 40／40 候選、更新原 campaign 期限、設定 Production 並驗證正式網址及資料
+- [x] 12.3 核准並發布指定 40／40 候選、更新原 campaign 期限、設定 Production 並驗證正式網址及資料
+
+2026-11-19 11.3／12.3 證據：兩個 repo main／develop 原子 fast-forward；Production 開關由使用者授權代設。程式來源 65b4da7、deployment dpl_FtxQRmB7TC1RqasKtWmG42qDcmwV READY；七入口 200、實際 bundle 與匿名 401 通過，SQL 配額 rollback、候選核准與發布收據另見後端 docs/rag.md。新正式站 Chrome 登入／試問、Safari／手機未驗，不以 HTTP 或舊 Preview 證據代替。
