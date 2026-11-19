@@ -16,8 +16,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .admin-account{display:flex;align-items:center;gap:16px;font-size:13px}
 .admin-account button{min-height:44px;color:#116b68;padding:8px}
 .admin-badge{padding:4px 12px;border-radius:20px;background:#dcf4f0;color:#116b68;font-size:11px;white-space:nowrap}
-.workspace-tabs{display:flex;gap:26px;padding:0 32px;background:white;border-bottom:1px solid #dceae6}
-.workspace-tabs>button{display:flex;align-items:center;gap:12px;min-height:62px;border-bottom:3px solid transparent;color:#597570;font-size:14px}
+.workspace-tabs{display:flex;gap:26px;padding:0 32px;background:white;border-bottom:1px solid #dceae6;overflow-x:auto}
+.workspace-tabs>button{display:flex;align-items:center;gap:12px;min-height:62px;border-bottom:3px solid transparent;color:#597570;font-size:14px;flex-shrink:0;white-space:nowrap}
+.workspace-tabs>button:focus-visible{outline-offset:-3px}
 .workspace-tabs>button[aria-current]{border-color:#29b7b3;color:#116b68;font-weight:700}
 .workspace-tabs span{font-size:10px;font-weight:400;background:#f0f6f4;border-radius:12px;padding:2px 8px}
 .push-shell{display:grid;grid-template-columns:238px minmax(0,1fr);min-height:calc(100dvh - 143px)}

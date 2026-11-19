@@ -16,6 +16,7 @@ ref = url.split('//')[1].split('.')[0]
 config = json.loads(Path('vercel.json').read_text())
 headers = {v['key']:v['value'] for v in next(x for x in config['headers'] if x['source']=='/push-admin')['headers']}
 checks, errors, writes, rag_requests = [], [], [], []
+mock_role = {'value': 'owner'}
 RAG_PATHS = ('/functions/v1/rag-v1', '/rest/v1/rag_', '/rest/v1/knowledge_', '/rest/v1/documents', '/rest/v1/chunks', '/rest/v1/personas', '/rest/v1/prompts', '/rest/v1/qa_entries', '/storage/v1/')
 def encode(v): return base64.urlsafe_b64encode(json.dumps(v).encode()).decode().rstrip('=')
 token = encode({'alg':'HS256','typ':'JWT'})+'.'+encode({'sub':'test-admin','exp':int(time.time())+3600,'role':'authenticated'})+'.test'
@@ -33,7 +34,7 @@ with sync_playwright() as p:
             route.fulfill(status=200,headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},body=''); return
         path = req.url.split(url)[-1]
         if path.startswith(RAG_PATHS): rag_requests.append(path)
-        if 'admin_users' in path: data = {'role':'owner'}
+        if 'admin_users' in path: data = {'role':mock_role['value']}
         elif 'push_campaigns' in path:
             data = [{'id':'test-campaign','type':'system','status':'sent','title':'測試紀錄（假資料）','audience_count':42,'success_count':40,'failure_count':2,'created_at':'2026-10-24T08:00:00Z'}]
         elif 'push_rules' in path:
@@ -70,6 +71,12 @@ with sync_playwright() as p:
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
         assert not frame.evaluate('(host)=>host.scrollWidth>innerWidth')
         if width==390: page.screenshot(path=str(out/'rag-mobile.png'),full_page=True)
+        for tab in ['技術架構導覽','對話使用者']:
+            page.get_by_role('navigation',name='切換工作台').get_by_role('button',name=tab,exact=True).click()
+            frame.get_by_role('heading',name=tab,exact=True).wait_for()
+            assert not page.evaluate('document.documentElement.scrollWidth>innerWidth'), (width,tab)
+            if width in [390,375]:page.screenshot(path=str(out/f'rag-{tab}-{width}.png'),full_page=True)
+        page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
         page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
         page.get_by_role('heading',name='系統推播',exact=True).wait_for()
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
@@ -81,19 +88,36 @@ with sync_playwright() as p:
             if width in [1440,390]:page.screenshot(path=str(out/f'push-{tab}-{width}.png'),full_page=True)
         page.get_by_role('navigation',name='推播功能').get_by_role('button',name='系統推播',exact=True).click()
         page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
-    checks.append('RAG and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
+    checks.append('RAG, both new top tabs and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
     page.set_viewport_size({'width':1440,'height':1000})
+    tabs=page.get_by_role('navigation',name='切換工作台')
+    assert [' '.join(b.text_content().split()) for b in tabs.get_by_role('button').all()]==['推播管理 正式功能','RAG 知識工作台 內部測試','對話使用者','技術架構導覽']
+    # The tab bar scrolls sideways, so a keyboard focus ring has to sit inside it rather than be clipped.
+    tabs.get_by_role('button',name='RAG 知識工作台 內部測試').focus()
+    page.keyboard.press('Tab')
+    assert tabs.get_by_role('button',name='對話使用者').evaluate('b => b === document.activeElement && b.matches(":focus-visible") && getComputedStyle(b).outlineOffset')=='-3px'
     nav=frame.get_by_role('navigation',name='RAG 工作台頁面')
-    assert nav.get_by_role('button').count()==12
-    nav.get_by_role('button',name='技術架構導覽').click()
+    assert nav.get_by_role('button').count()==10
+    tabs.get_by_role('button',name='技術架構導覽').click()
+    assert page.evaluate('location.hash')=='#guide'
     frame.get_by_role('heading',name='技術架構導覽',exact=True).wait_for()
     assert frame.get_by_role('list',name='架構總覽圖').is_visible()
     assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式環境目前的設定。').filter(visible=True).count()==1
-    for name,title in [('匯入與預檢','匯入與預檢'),('檢索試問台','檢索試問台'),('RAG 評測','RAG 評測'),('知識版本','知識版本'),('人格設定','人格設定'),('System Prompt','全域提示詞'),('基本通用 QA','基本通用 QA'),('進階檢索設定','檢索設定'),('互動紀錄','互動紀錄'),('對話使用者','對話使用者'),('知識庫與文件','知識庫與文件')]:
+    tabs.get_by_role('button',name='對話使用者').click()
+    assert page.evaluate('location.hash')=='#conversations'
+    frame.get_by_role('heading',name='對話使用者',exact=True).wait_for()
+    assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1
+    # A fresh load, not a same-page hash change, so the first render reads the address.
+    page.evaluate("location.hash='#guide'")
+    page.reload()
+    frame.get_by_role('heading',name='技術架構導覽',exact=True).wait_for()
+    assert tabs.get_by_role('button',name='技術架構導覽').get_attribute('aria-current')=='page'
+    tabs.get_by_role('button',name='RAG 知識工作台 內部測試').click()
+    for name,title in [('匯入與預檢','匯入與預檢'),('檢索試問台','檢索試問台'),('RAG 評測','RAG 評測'),('知識版本','知識版本'),('人格設定','人格設定'),('System Prompt','全域提示詞'),('基本通用 QA','基本通用 QA'),('進階檢索設定','檢索設定'),('互動紀錄','互動紀錄'),('知識庫與文件','知識庫與文件')]:
         nav.get_by_role('button',name=name).click()
         frame.get_by_role('heading',name=title,exact=True).wait_for()
         assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1, name
-    checks.append('All 12 RAG pages open; 01–11 say the backend is not enabled yet and the guide still teaches')
+    checks.append('Owner sees four top tabs; #guide opens the guide; the 10 sidebar pages and conversation users say the backend is not enabled yet and the guide still teaches')
     frame.locator('a.skip').focus()
     page.keyboard.press('Enter')
     assert page.evaluate('location.hash')=='#rag'
@@ -118,6 +142,20 @@ with sync_playwright() as p:
     assert not writes, writes
     assert not rag_requests, rag_requests
     checks.append('Logout removes both workspaces; no push function or RAG request was sent')
+    mock_role['value']='editor'
+    editor=context.new_page()
+    editor.on('pageerror',lambda e:errors.append(str(e)))
+    editor.on('console',lambda m:errors.append(m.text) if m.type=='error' else None)
+    editor.goto(base+'/push-admin.html')
+    editor.evaluate("([key,value])=>localStorage.setItem(key,JSON.stringify(value))",[f'sb-{ref}-auth-token',session])
+    editor.evaluate("location.hash='#conversations'")
+    editor.reload()
+    editor.get_by_role('heading',name='系統推播',exact=True).wait_for()
+    editor_tabs=editor.get_by_role('navigation',name='切換工作台')
+    assert [' '.join(b.text_content().split()) for b in editor_tabs.get_by_role('button').all()]==['推播管理 正式功能','RAG 知識工作台 內部測試','技術架構導覽']
+    assert editor.locator('.rag-workspace').count()==0
+    editor.screenshot(path=str(out/'editor-conversations-hash.png'),full_page=True)
+    checks.append('An editor has three top tabs and #conversations stays on push management')
     browser.close()
 result={'mode':'mock','checks':checks,'errors':errors,'push_function_requests':writes,'rag_requests':rag_requests}
 (out/'browser-results.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')

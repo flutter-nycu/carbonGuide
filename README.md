@@ -1,6 +1,6 @@
 # CarbonGuide 網站與管理工作台
 
-本 repo 維護公開網站、React 推播管理前端與 RAG 知識工作台。管理入口為 `/push-admin`，RAG 直達入口為 `/push-admin#rag`；舊 `/rag-preview/` 由 Vercel 導向同一登入入口。
+本 repo 維護公開網站、React 推播管理前端與 RAG 知識工作台。管理入口為 `/push-admin`，RAG 直達入口為 `/push-admin#rag`（上方分頁另有 `#conversations` 對話使用者、`#guide` 技術架構導覽）；舊 `/rag-preview/` 由 Vercel 導向同一登入入口。
 
 Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄、角色、資料契約、部署限制及分支現況。全專案文件中心在後端 `githyoung/carbon-navigation` 的 main：[文件入口](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md)、[整體架構](https://github.com/githyoung/carbon-navigation/blob/main/docs/architecture.md)、[RAG 架構與進度](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md)。後者是部署、評測、預算與待辦的唯一完整紀錄。
 
@@ -14,6 +14,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 已依使用者授權核准發布，沿用既有 40／40 報告；App 公開問答未接入，現行試問仍只有 owner。
 - 本輪 TypeScript、188 項測試（24 檔）、啟用 RAG 的 build 與獨立複審通過。11/16 Chrome PDF、網址、自動處理、503 恢復及完整問答驗收保留原日期；Safari／手機未驗。
 - 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站，使用者已用真實資料驗證；規格已歸檔，需求併入 `openspec/specs/rag-admin-live-workspace/spec.md`，收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
+- 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；正式站部署後驗證見後端 `docs/rag.md`。規格 `openspec/changes/rag-top-tabs/` 尚未歸檔，後端文件更新與歸檔另需授權。
 
 ## 架構與資料流
 
@@ -23,11 +24,11 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 | 管理登入 | `src/push-admin/App.tsx`、`auth.ts` | Supabase Google OAuth、唯一帳號白名單、`admin_users` 角色驗證 |
 | 推播管理 | `src/push-admin/` | 系統推播、個人化規則、發送紀錄、用量；沿用既有 Edge Functions／RLS |
 | RAG 外框 | `components/RagWorkspace.tsx`、`rag/Workspace.tsx` | 登入後 React.lazy 載入，React portal 掛入 Shadow DOM 隔離樣式 |
-| RAG 12 頁 | `rag/pages/`、`rag/pageList.ts`、`rag/guideContent.ts` | 文件、匯入、試問、評測、版本、人格、Prompt、QA、設定、互動紀錄、對話使用者、技術架構導覽 |
+| RAG 側欄 10 頁＋上方 2 個分頁 | `rag/pages/`、`rag/pageList.ts`、`rag/guideContent.ts`、`components/Dashboard.tsx` | 側欄：文件、匯入、試問、評測、版本、人格、Prompt、QA、設定、互動紀錄；上方分頁：對話使用者（只給 owner）、技術架構導覽 |
 | RAG 資料層 | `rag/api/supabase.ts`、`types.ts`、`requestKeys.ts` | 讀取受 RLS 保護的資料表，寫入經 `rag-v1`，保存重送鍵與原始請求內容 |
 | 後端與 worker | 另一個 repo 的 `supabase/`、`scripts/rag/`、`deploy/cloud-run/` | 權限、snapshot、檢索、模型呼叫、帳本、文件自動處理及排程 |
 
-`VITE_RAG_ENABLED=true` 才讀寫真實 RAG 資料；沒有設定時 01–11 頁顯示尚未啟用，12 技術架構導覽照常顯示教學內容，都不送 RAG 請求。它是公開開關，不能取代後端授權。`rag/api/fake.ts` 只給測試使用，不進入正式 bundle。正式 CSP 限制 `style-src 'self'`，RAG 使用獨立 CSS，不能新增 inline style。
+`VITE_RAG_ENABLED=true` 才讀寫真實 RAG 資料；沒有設定時 01–10 頁與對話使用者顯示尚未啟用，技術架構導覽照常顯示教學內容，都不送 RAG 請求。它是公開開關，不能取代後端授權。`rag/api/fake.ts` 只給測試使用，不進入正式 bundle。正式 CSP 限制 `style-src 'self'`，RAG 使用獨立 CSS，不能新增 inline style。
 
 文件流程：管理員取 signed URL、上傳、核對 SHA-256；`rag-v1` 觸發 Cloud Run，worker 完成解析與向量化，管理員再建立不可變的知識候選。只收 PDF／DOCX／TXT，每檔 20 MB 以內；網址僅收公開 https PDF。disabled 文件及引用其段落的 QA 不進入新候選。候選需通過完整評測及 owner 人工核准才可發布，修改工作區不回寫既有 snapshot。
 
@@ -54,9 +55,9 @@ Google OAuth 已配置；以下是未來環境遷移的核對點，接手時不�
 |---|---|---|
 | 安裝 | `npm ci` | lockfile 已同步；不代表 main 同步完成 |
 | 型別 | `npm run type-check` | TypeScript 靜態檢查 |
-| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 205 項（26 檔）元件／資料層／整合測試，使用 mock，不收費、不發推播 |
+| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 218 項（27 檔）元件／資料層／整合測試，使用 mock，不收費、不發推播 |
 | 建置 | `npm run build` | 用假的公開 Supabase 值可做離線建置；另驗 `VITE_RAG_ENABLED=true` 的 bundle |
-| 瀏覽器檢查 | `test/verify-rag-workspace.py`、`test/verify-admin-integration.py` | 需要本機 server 與 Chromium，依當次授權執行。2026-11-19 導覽頁分支以 headless Chromium 通過：1440／1024／768／390 寬度、12 頁、導覽頁鍵盤操作、正式 CSP 與推播回歸；後端全部 mock |
+| 瀏覽器檢查 | `test/verify-rag-workspace.py`、`test/verify-admin-integration.py` | 需要本機 server 與 Chromium，依當次授權執行。2026-11-19 導覽頁分支以 headless Chromium 通過：1440／1024／768／390 寬度、12 頁、導覽頁鍵盤操作、正式 CSP 與推播回歸；同日上方分頁分支重跑通過，另驗上方分頁網址、角色與 editor 權限；後端全部 mock |
 | 規格 | `openspec validate --all --strict` | 規格一致性，不代替功能或部署驗收 |
 
 未來另獲授權時，本機開發用 `npm run dev`，預覽用 `npm run preview`；Vite preview 不套用 Vercel rewrite，入口用 `/push-admin.html`。實際瀏覽器測試需要正確公開設定，結束後用已記錄 PID 關閉自己啟動的程序。不要關閉使用者既有 Chrome 或其他 App。

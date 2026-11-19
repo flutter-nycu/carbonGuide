@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom'
 import styleUrl from '../rag/styles.css?url'
 import Workspace from '../rag/Workspace'
 import type { RagApi, Role } from '../rag/api/types'
+import type { RagView } from '../rag/pageList'
 
 // The workspace keeps its own stylesheet inside a shadow root, so the push admin's Tailwind never reaches it.
 // React renders into that root through a portal; the portal container receives the events.
 const enabled = import.meta.env.VITE_RAG_ENABLED === 'true'
 
-export default function RagWorkspace({ role, active }: { role: Role; active: boolean }) {
+// One instance serves the three RAG top tabs, so switching between them keeps every page and the data connection.
+export default function RagWorkspace({ role, active, view, onView }: { role: Role; active: boolean; view: RagView; onView: (view: RagView) => void }) {
   const host = useRef<HTMLDivElement>(null)
   const [container, setContainer] = useState<HTMLElement | null>(null)
   const [api, setApi] = useState<RagApi | null>(null)
@@ -30,8 +32,8 @@ export default function RagWorkspace({ role, active }: { role: Role; active: boo
     return () => { alive = false }
   }, [role])
 
-  const view = enabled && !api
+  const content = enabled && !api
     ? <p className="muted" role="status">正在連線到知識庫…</p>
-    : <Workspace api={api} role={role} active={active} />
-  return <div ref={host} className="rag-workspace" aria-label="RAG 知識工作台">{container && createPortal(view, container)}</div>
+    : <Workspace api={api} role={role} active={active} view={view} onView={onView} />
+  return <div ref={host} className="rag-workspace" aria-label="RAG 知識工作台">{container && createPortal(content, container)}</div>
 }

@@ -7,6 +7,7 @@ import RulesTab from './RulesTab'
 import HistoryTab from './HistoryTab'
 import UsageTab from './UsageTab'
 import logo from '../rag/logo.png'
+import type { RagView } from '../rag/pageList'
 
 const RagWorkspace = lazy(() => import('./RagWorkspace'))
 
@@ -16,32 +17,51 @@ const TABS: readonly { key: AdminTab; label: string; description: string; help: 
   { key: 'history', label: '發送紀錄', description: '查閱近期推播的發送狀態與處理結果。', help: '發送成功代表後端處理結果；裝置是否顯示與開啟通知，仍需另外確認。' },
   { key: 'usage', label: '推播用量', description: '掌握通知服務用量，安排接下來的溝通。', help: '用量來自既有推播服務。讀取失敗時可重新整理，請勿把失敗當成零用量。' },
 ]
+// The top tabs. The last three share one RAG workspace; conversation users is owner-only, like its data.
+type TopTab = 'push' | 'rag' | 'conversations' | 'guide'
+const WORKSPACES: readonly { key: TopTab; label: string; tag?: string; ownerOnly?: boolean }[] = [
+  { key: 'push', label: '推播管理', tag: '正式功能' },
+  { key: 'rag', label: 'RAG 知識工作台', tag: '內部測試' },
+  { key: 'conversations', label: '對話使用者', ownerOnly: true },
+  { key: 'guide', label: '技術架構導覽' },
+]
+const ragView = (key: Exclude<TopTab, 'push'>): RagView => (key === 'rag' ? 'workspace' : key)
+const workspacesFor = (role: AdminRole) => WORKSPACES.filter(w => !w.ownerOnly || role === 'owner')
+// Only the tabs this role can see open from the address; anything else is left to the page (e.g. the skip links).
+const fromHash = (hash: string, role: AdminRole) => (hash === '' ? 'push' : workspacesFor(role).find(w => `#${w.key}` === hash)?.key)
+
 interface Props { role: AdminRole; onLogout: () => void | Promise<void> }
 
 export default function Dashboard({ role, onLogout }: Props) {
   const visibleTabs = visibleAdminTabs(role)
   const tabs = TABS.filter(tab => visibleTabs.includes(tab.key))
   const [activeTab, setActiveTab] = useState<AdminTab>(visibleTabs[0])
-  const [workspace, setWorkspace] = useState(() => window.location.hash === '#rag' ? 'rag' : 'push')
-  const [ragVisited, setRagVisited] = useState(workspace === 'rag')
+  const workspaces = workspacesFor(role)
+  const [workspace, setWorkspace] = useState<TopTab>(() => fromHash(window.location.hash, role) ?? 'push')
+  const [lastRag, setLastRag] = useState<Exclude<TopTab, 'push'>>(workspace === 'push' ? 'rag' : workspace)
+  const [ragVisited, setRagVisited] = useState(workspace !== 'push')
   const active = tabs.find(tab => tab.key === activeTab) ?? tabs[0]
+
+  // Only state setters inside, so the hash listener below may keep the first copy. A tab this role cannot see is
+  // never opened, whether the address or a page link asks for it.
+  function show(next: TopTab) {
+    if (!workspacesFor(role).some(w => w.key === next)) return false
+    setWorkspace(next)
+    if (next !== 'push') { setLastRag(next); setRagVisited(true) }
+    return true
+  }
 
   useEffect(() => {
     const navigate = () => {
-      const { hash } = window.location
-      if (hash !== '#rag' && hash !== '#push' && hash !== '') return
-      const next = hash === '#rag' ? 'rag' : 'push'
-      setWorkspace(next)
-      if (next === 'rag') setRagVisited(true)
+      const next = fromHash(window.location.hash, role)
+      if (next) show(next)
     }
     window.addEventListener('hashchange', navigate)
     return () => window.removeEventListener('hashchange', navigate)
-  }, [])
+  }, [role])
 
-  function switchWorkspace(next: string) {
-    setWorkspace(next)
-    if (next === 'rag') setRagVisited(true)
-    window.location.hash = next
+  function switchWorkspace(next: TopTab) {
+    if (show(next)) window.location.hash = next
   }
 
   function skipToContent(event: MouseEvent<HTMLAnchorElement>) {
@@ -56,8 +76,9 @@ export default function Dashboard({ role, onLogout }: Props) {
       <div className="admin-account"><span className="admin-badge">{{ owner: '管理者', editor: '編輯者', viewer: '唯讀者' }[role]}</span><button onClick={onLogout}>登出</button></div>
     </header>
     <nav className="workspace-tabs" aria-label="切換工作台">
-      <button aria-current={workspace === 'push' ? 'page' : undefined} onClick={() => switchWorkspace('push')}>推播管理 <span>正式功能</span></button>
-      <button aria-current={workspace === 'rag' ? 'page' : undefined} onClick={() => switchWorkspace('rag')}>RAG 知識工作台 <span>內部測試</span></button>
+      {workspaces.map(w => <button key={w.key} aria-current={workspace === w.key ? 'page' : undefined} onClick={() => switchWorkspace(w.key)}>
+        {w.label}{w.tag && <> <span>{w.tag}</span></>}
+      </button>)}
     </nav>
     <div id="workspace-content" tabIndex={-1}>
       <div className="push-shell" hidden={workspace !== 'push'}>
@@ -78,8 +99,10 @@ export default function Dashboard({ role, onLogout }: Props) {
           </section>
         </main>
       </div>
-      <div className="rag-panel" hidden={workspace !== 'rag'}>
-        {ragVisited && <Suspense fallback={<p role="status">正在載入 RAG 知識工作台…</p>}><RagWorkspace role={role} active={workspace === 'rag'} /></Suspense>}
+      <div className="rag-panel" hidden={workspace === 'push'}>
+        {ragVisited && <Suspense fallback={<p role="status">正在載入 RAG 知識工作台…</p>}>
+          <RagWorkspace role={role} active={workspace !== 'push'} view={ragView(lastRag)} onView={v => switchWorkspace(v === 'workspace' ? 'rag' : v)} />
+        </Suspense>}
       </div>
     </div>
   </div>

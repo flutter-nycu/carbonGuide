@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createFakeRagApi } from './api/fake'
-import { Dialog } from './ui'
-import { PAGES } from './pageList'
+import { Dialog, useNavigate } from './ui'
+import { PAGES, SIDEBAR_PAGES, pageName, viewOf, type PageId } from './pageList'
 import Workspace from './Workspace'
-import { ALL_PAGES_TIMEOUT } from './pages/testing'
+import { ALL_PAGES_TIMEOUT, WorkspaceHost, showPage } from './pages/testing'
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
@@ -28,22 +28,79 @@ function TitledDialog({ title }: { title: string }) {
 }
 
 describe('RAG workspace shell', () => {
-  it('lists the twelve pages in order with matching mobile options', () => {
+  it('lists the ten sidebar pages in order with matching mobile options', () => {
     render(<Workspace api={fake()} role="owner" />)
     const buttons = within(nav()).getAllByRole('button').map(b => b.textContent)
-    expect(buttons).toEqual(PAGES.map(p => p.number + p.label))
+    expect(buttons).toEqual(SIDEBAR_PAGES.map(p => p.number + p.label))
     expect(buttons).toEqual(['01知識庫與文件', '02匯入與預檢', '03檢索試問台', '04RAG 評測', '05知識版本', '06人格設定', '07System Prompt',
-      '08基本通用 QA', '09進階檢索設定', '10互動紀錄', '11對話使用者', '12技術架構導覽'])
+      '08基本通用 QA', '09進階檢索設定', '10互動紀錄'])
     const options = [...(screen.getByLabelText('切換管理功能') as HTMLSelectElement).options].map(o => o.textContent)
-    expect(options).toEqual(PAGES.map(p => p.label))
+    expect(options).toEqual(SIDEBAR_PAGES.map(p => p.label))
     expect(within(nav()).getByText('進階與紀錄')).toBeTruthy()
-    expect(within(nav()).getByText('認識系統')).toBeTruthy()
+    expect(within(nav()).queryByText('認識系統')).toBeNull()
+    // Conversation users and the guide live in the admin's top tabs, without numbers.
+    expect(PAGES.filter(p => p.placement === 'tab').map(p => [p.id, p.number])).toEqual([['conversations', undefined], ['guide', undefined]])
+    for (const page of PAGES) expect(viewOf(page.id) === 'workspace', page.id).toBe(page.placement === 'sidebar')
+    expect(PAGES.map(pageName).slice(8)).toEqual(['09 進階檢索設定', '10 互動紀錄', '對話使用者', '技術架構導覽'])
+  })
+
+  it('shows a top-tab page full width, without the sidebar or other pages', () => {
+    const { container } = render(<Workspace api={fake()} role="owner" view="guide" />)
+    expect(container.querySelector('.shell')!.classList.contains('single')).toBe(true)
+    expect((container.querySelector('.sidebar') as HTMLElement).hidden).toBe(true)
+    expect((container.querySelector('[data-page="guide"]') as HTMLElement).hidden).toBe(false)
+    expect(container.querySelector('[data-page="documents"]')).toBeNull()
+  })
+
+  it('keeps every visited page mounted while switching between the three views', () => {
+    const view = render(<WorkspaceHost api={fake()} role="owner" renderPage={id => (id === 'prompt' ? <Draft /> : null)} />)
+    showPage(view, 'prompt')
+    fireEvent.change(screen.getByLabelText('草稿'), { target: { value: '還沒存的內容' } })
+    showPage(view, 'guide')
+    showPage(view, 'conversations')
+    expect(view.container.querySelector('[data-page="prompt"]')!.hasAttribute('hidden')).toBe(true)
+    expect(view.container.querySelector('[data-page="guide"]')!.hasAttribute('hidden')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台' }))
+    expect((screen.getByLabelText('草稿') as HTMLInputElement).value).toBe('還沒存的內容')
+    expect(view.container.querySelector('[data-page="prompt"]')!.hasAttribute('hidden')).toBe(false)
+  })
+
+  it('moves focus to the content when the sidebar it was in gets hidden', () => {
+    const view = render(<WorkspaceHost api={fake()} role="owner" />)
+    within(nav()).getByRole('button', { name: '09進階檢索設定' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: '技術架構導覽' }))
+    expect(document.activeElement?.id).toBe('main')
+    // Focus elsewhere is left alone.
+    const tab = screen.getByRole('button', { name: 'RAG 知識工作台' })
+    tab.focus()
+    fireEvent.click(tab)
+    fireEvent.click(screen.getByRole('button', { name: '對話使用者' }))
+    expect(document.activeElement).toBe(tab)
+    view.unmount()
+  })
+
+  it('sends a link to the view that holds the page', () => {
+    function Links() {
+      const navigate = useNavigate()
+      return <>{(['conversations', 'guide', 'settings'] as PageId[]).map(id => <button key={id} type="button" onClick={() => navigate(id)}>去 {id}</button>)}</>
+    }
+    const onView = vi.fn()
+    const { container } = render(<Workspace api={fake()} role="owner" onView={onView} renderPage={id => (id === 'documents' ? <Links /> : null)} />)
+    fireEvent.click(screen.getByRole('button', { name: '去 conversations' }))
+    expect(onView).toHaveBeenLastCalledWith('conversations')
+    fireEvent.click(screen.getByRole('button', { name: '去 guide' }))
+    expect(onView).toHaveBeenLastCalledWith('guide')
+    onView.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: '去 settings' }))
+    expect(onView).not.toHaveBeenCalled()
+    expect((container.querySelector('[data-page="settings"]') as HTMLElement).hidden).toBe(false)
   })
 
   it('gives every page a heading and a one-line subtitle, and only the guide teaches', () => {
-    const { container } = render(<Workspace api={fake()} role="owner" />)
+    const view = render(<WorkspaceHost api={fake()} role="owner" />)
+    const { container } = view
     for (const page of PAGES) {
-      fireEvent.click(within(nav()).getByRole('button', { name: page.number + page.label }))
+      showPage(view, page.id)
       const current = container.querySelector(`[data-page="${page.id}"]`)!
       expect(current.querySelector('h1')!.textContent).toBe(page.title)
       expect(current.querySelector('.subtitle')!.textContent!.length).toBeGreaterThan(5)
@@ -66,15 +123,16 @@ describe('RAG workspace shell', () => {
   })
 
   it('shows a not-connected notice on every page when the backend is off', () => {
-    const { container } = render(<Workspace api={null} role="owner" renderPage={() => <p>真實內容</p>} />)
+    const view = render(<WorkspaceHost api={null} role="owner" renderPage={() => <p>真實內容</p>} />)
+    const { container } = view
     for (const page of PAGES.filter(p => p.id !== 'guide')) {
-      fireEvent.click(within(nav()).getByRole('button', { name: page.number + page.label }))
+      showPage(view, page.id)
       const current = container.querySelector(`[data-page="${page.id}"]`)!
       expect(current.textContent).toContain('RAG 後端尚未啟用')
       expect(current.textContent).not.toContain('真實內容')
     }
     // The guide still teaches; only its live-settings section says the backend is off.
-    fireEvent.click(within(nav()).getByRole('button', { name: '12技術架構導覽' }))
+    showPage(view, 'guide')
     const guide = container.querySelector('[data-page="guide"]')!
     expect(guide.querySelector('.guide-diagram')).toBeTruthy()
     expect(guide.querySelector('.guide-live')!.textContent).toContain('RAG 後端尚未啟用')
@@ -82,17 +140,17 @@ describe('RAG workspace shell', () => {
 
   it('shows each role only the pages its account can read', () => {
     const visible = (role: 'editor' | 'viewer') => {
-      const { container, unmount } = render(<Workspace api={createFakeRagApi({ role })} role={role} renderPage={() => <p>真實內容</p>} />)
+      const view = render(<WorkspaceHost api={createFakeRagApi({ role })} role={role} renderPage={() => <p>真實內容</p>} />)
       const shown = PAGES.filter(page => {
-        fireEvent.change(screen.getByLabelText('切換管理功能'), { target: { value: page.id } })
-        const current = container.querySelector(`[data-page="${page.id}"]`)!
+        showPage(view, page.id)
+        const current = view.container.querySelector(`[data-page="${page.id}"]`)!
         return current.textContent!.includes('真實內容') || current.querySelector('.guide-diagram') !== null
-      }).map(page => page.number)
-      unmount()
+      }).map(page => page.id)
+      view.unmount()
       return shown
     }
-    expect(visible('editor')).toEqual(['01', '02', '05', '06', '07', '08', '09', '12'])
-    expect(visible('viewer')).toEqual(['01', '02', '06', '07', '08', '09', '12'])
+    expect(visible('editor')).toEqual(['documents', 'import', 'releases', 'personas', 'prompt', 'qa', 'settings', 'guide'])
+    expect(visible('viewer')).toEqual(['documents', 'import', 'personas', 'prompt', 'qa', 'settings', 'guide'])
   })
 
   it('gives every kept-alive dialog its own name', () => {
@@ -115,14 +173,15 @@ describe('RAG workspace shell', () => {
   })
 
   it('tells editors that conversations and interaction history are owner-only', () => {
-    const { container } = render(<Workspace api={createFakeRagApi({ role: 'editor' })} role="editor" renderPage={() => <p>真實內容</p>} />)
-    for (const id of ['conversations', 'logs']) {
-      fireEvent.change(screen.getByLabelText('切換管理功能'), { target: { value: id } })
+    const view = render(<WorkspaceHost api={createFakeRagApi({ role: 'editor' })} role="editor" renderPage={() => <p>真實內容</p>} />)
+    const { container } = view
+    for (const id of ['conversations', 'logs'] as PageId[]) {
+      showPage(view, id)
       const current = container.querySelector(`[data-page="${id}"]`)!
       expect(current.textContent).toContain('只有 owner 可以查看')
       expect(current.textContent).not.toContain('真實內容')
     }
-    fireEvent.change(screen.getByLabelText('切換管理功能'), { target: { value: 'documents' } })
+    showPage(view, 'documents')
     expect(container.querySelector('[data-page="documents"]')!.textContent).toContain('真實內容')
   })
 

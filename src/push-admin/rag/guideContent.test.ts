@@ -52,6 +52,12 @@ describe('architecture guide content', () => {
       `最多 ${round.requestLimit} 題、US$${round.budgetUsd.toFixed(2)}、${round.days} 天`, `${LIMITS.retentionDays} 天`]) expect(all, fact).toContain(fact)
   })
 
+  it('points to conversation users by its top tab, not an old page number', () => {
+    const all = JSON.stringify(GUIDE_ROUTES)
+    for (const old of ['11 對話使用者', '12 技術架構導覽']) expect(all).not.toContain(old)
+    expect(GUIDE_ROUTES[1].steps[7].plain).toContain('「對話使用者」分頁')
+  })
+
   it('has six safeguards and a glossary of the words the page uses', () => {
     expect(GUIDE_SAFEGUARDS).toHaveLength(6)
     expect(GUIDE_GLOSSARY.map(g => g.term)).toEqual(['RAG', '段落', '向量', '混合檢索', 'RRF', '知識版本', '驗收評測', '引用核對'])

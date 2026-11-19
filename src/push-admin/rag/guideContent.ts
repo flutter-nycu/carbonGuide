@@ -1,4 +1,4 @@
-// Text for 12 技術架構導覽. Facts follow the backend's docs/rag.md as checked on GUIDE_MODELS.checkedAt;
+// Text for the 技術架構導覽 tab. Facts follow the backend's docs/rag.md as checked on GUIDE_MODELS.checkedAt;
 // update this file together with that document when the architecture changes.
 import { LIMITS } from './api/types'
 import { formatUsd } from './labels'
@@ -86,7 +86,7 @@ export const GUIDE_ROUTES: readonly GuideRoute[] = [
       plain: 'rag-v1 逐句檢查引用的原文是否存在，數字和單位能不能在引用的那段原文找到。任何一句對不上，整個回答就改成「資料不足」。',
       tech: '引用只能指向伺服器提供的原文片段，由伺服器插入逐字摘錄；數字與單位逐句比對原文。' },
     { title: '記下流程與費用', node: 'database', page: 'logs',
-      plain: '每次問答都會記下問題、回答、每一步花了多少時間和估計費用，實際金額以 Google 收費為準。10 互動紀錄和 11 對話使用者看到的就是這些資料。',
+      plain: '每次問答都會記下問題、回答、每一步花了多少時間和估計費用，實際金額以 Google 收費為準。10 互動紀錄和上方的「對話使用者」分頁，看到的就是這些資料。',
       tech: `存在 rag_v1_requests 和 rag_v1_request_details；細節保存 ${LIMITS.retentionDays} 天，之後只留時間、結果、版本和費用。費用帳本不刪除。` },
   ] },
 ]

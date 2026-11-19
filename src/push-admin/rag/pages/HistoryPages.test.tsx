@@ -51,7 +51,7 @@ describe('10 interaction history', () => {
   })
 })
 
-describe('11 conversation users', () => {
+describe('conversation users (top tab)', () => {
   it('lists everyone who asked, including deleted accounts', async () => {
     const { page } = openPage('conversations')
     await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))

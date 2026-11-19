@@ -4,7 +4,7 @@ Start the Vite dev server first, then run:
   npx vite --host 127.0.0.1 --port 5199 --strictPort
   python3 test/verify-rag-workspace.py http://127.0.0.1:5199 ../verify-out/rag-workspace
 
-Checks the twelve pages at 1440, 1024, 768 and 390 px wide: page-level horizontal overflow, dialogs (focus moves
+Checks the ten sidebar pages and the two top-tab pages (conversation users, the guide) at 1440, 1024, 768 and 390 px wide: page-level horizontal overflow, dialogs (focus moves
 in, Esc closes, focus returns), the guide's steps by mouse and keyboard, the main flows, the viewer role, console
 errors and requests leaving the page.
 Nothing here talks to Supabase; real data is checked separately after the backend is deployed.
@@ -20,6 +20,7 @@ out.mkdir(parents=True, exist_ok=True)
 PAGES = [('documents', '知識庫與文件'), ('import', '匯入與預檢'), ('playground', '檢索試問台'), ('evaluation', 'RAG 評測'),
          ('releases', '知識版本'), ('personas', '人格設定'), ('prompt', '全域提示詞'), ('qa', '基本通用 QA'),
          ('settings', '檢索設定'), ('logs', '互動紀錄'), ('conversations', '對話使用者'), ('guide', '技術架構導覽')]
+TAB_PAGES = {'conversations': '對話使用者', 'guide': '技術架構導覽'}
 WIDTHS = [1440, 1024, 768, 390]
 checks, errors, outside = [], [], []
 
@@ -34,7 +35,21 @@ def open_workspace(context, role):
     return page
 
 
+def top_tab(page, name):
+    return page.get_by_role('navigation', name='切換工作台').get_by_role('button', name=name, exact=True)
+
+
 def go(page, page_id, title):
+    if page_id in TAB_PAGES:
+        top_tab(page, TAB_PAGES[page_id]).click()
+        section = page.locator(f'[data-page="{page_id}"]')
+        expect(section.get_by_role('heading', level=1)).to_have_text(title)
+        expect(section.locator('.empty[role="status"]')).to_have_count(0)
+        # A top-tab page has no sidebar column: its content is as wide as the workspace.
+        main, shell = page.locator('#host').evaluate('h => ["main", ".shell"].map(s => h.shadowRoot.querySelector(s).getBoundingClientRect().width)')
+        assert main >= min(shell, 1550) - 1, f'{page_id} is not full width: {main} of {shell}'
+        return section
+    top_tab(page, 'RAG 知識工作台').click()
     select = page.locator('#page-select')
     if select.is_visible():
         select.select_option(page_id)
@@ -80,7 +95,7 @@ with sync_playwright() as p:
             no_overflow(page, f'{width} {page_id}')
             if width in (1440, 390):
                 page.screenshot(path=str(out / f'{width}-{number:02d}-{page_id}.png'), full_page=True)
-        checks.append(f'All 12 pages open at {width}px without page-level horizontal scrolling')
+        checks.append(f'All 10 sidebar pages and both top-tab pages open at {width}px without page-level horizontal scrolling')
 
         shot = width in (1440, 390)
         section = go(page, 'documents', '知識庫與文件')
@@ -96,10 +111,14 @@ with sync_playwright() as p:
         expect(section.get_by_role('table', name='張俊隆 的對話')).to_be_visible()
         no_overflow(page, f'{width} person')
         if shot: page.screenshot(path=str(out / f'{width}-11-person.png'), full_page=True)
+        # Switching top tabs keeps the open list.
+        top_tab(page, 'RAG 知識工作台').click()
+        top_tab(page, '對話使用者').click()
+        expect(section.get_by_role('table', name='張俊隆 的對話')).to_be_visible()
         check_dialog(page, section, section.get_by_role('table', name='張俊隆 的對話').get_by_role('button').first, f'{width} person detail', False)
         section.get_by_role('button', name='← 回到使用者列表').click()
         expect(section.get_by_role('table', name='對話使用者')).to_be_visible()
-        checks.append(f'Dialogs at {width}px take focus, close with Esc and return focus to their button')
+        checks.append(f'Dialogs at {width}px take focus, close with Esc and return focus to their button; switching top tabs keeps the open list')
 
         section = go(page, 'guide', '技術架構導覽')
         tabs = section.get_by_role('tablist', name='選擇流程')
@@ -120,7 +139,8 @@ with sync_playwright() as p:
         section.get_by_role('button', name=re.compile('^到這一頁看看')).focus()
         page.keyboard.press('Enter')
         expect(page.locator('[data-page="settings"]').get_by_role('heading', level=1)).to_have_text('檢索設定')
-        checks.append(f'The guide at {width}px follows both routes by mouse and keyboard and opens the related page')
+        expect(top_tab(page, 'RAG 知識工作台')).to_have_attribute('aria-current', 'page')
+        checks.append(f'The guide at {width}px follows both routes by mouse and keyboard and opens the related page in the RAG tab')
 
     page.set_viewport_size({'width': 1440, 'height': 1000})
     section = go(page, 'playground', '檢索試問台')

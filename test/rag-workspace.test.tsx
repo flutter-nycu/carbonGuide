@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Checks that span all twelve RAG pages. Each page's own behaviour is tested next to it in src/push-admin/rag/pages.
+// Checks that span every RAG page: the ten sidebar pages and the two top-tab pages. Each page's own behaviour is tested next to it in src/push-admin/rag/pages.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -8,9 +8,8 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { createFakeRagApi } from '../src/push-admin/rag/api/fake'
 import { clearRequestKeys } from '../src/push-admin/rag/api/requestKeys'
 import type { Role } from '../src/push-admin/rag/api/types'
-import { PAGES, type PageId } from '../src/push-admin/rag/pageList'
-import Workspace from '../src/push-admin/rag/Workspace'
-import { ALL_PAGES_TIMEOUT } from '../src/push-admin/rag/pages/testing'
+import { PAGES, SIDEBAR_PAGES, type PageId } from '../src/push-admin/rag/pageList'
+import { ALL_PAGES_TIMEOUT, WorkspaceHost, showPage } from '../src/push-admin/rag/pages/testing'
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
@@ -23,10 +22,10 @@ const NOW = new Date('2026-11-05T08:00:00Z')
 
 function open(role: Role) {
   const api = createFakeRagApi({ role, now: () => NOW })
-  const view = render(<Workspace api={api} role={role} />)
+  const view = render(<WorkspaceHost api={api} role={role} />)
   const page = (id: PageId) => view.container.querySelector(`[data-page="${id}"]`) as HTMLElement
   async function visit(id: PageId) {
-    fireEvent.change(view.getByLabelText('切換管理功能'), { target: { value: id } })
+    showPage(view, id)
     // Every page shows a table, a list, a form or a notice once its data has arrived.
     await waitFor(() => expect(page(id).querySelector('[role="status"].empty')).toBeNull())
     return page(id)
@@ -35,14 +34,15 @@ function open(role: Role) {
 }
 
 describe('RAG workspace', () => {
-  it('shows twelve pages in order, with nothing about coefficients or service connections', () => {
+  it('shows ten sidebar pages in order, with nothing about coefficients or service connections', () => {
     const { view } = open('owner')
     const nav = within(view.getByRole('navigation', { name: 'RAG 工作台頁面' }))
     expect(nav.getAllByRole('button').map(b => b.textContent)).toEqual([
       '01知識庫與文件', '02匯入與預檢', '03檢索試問台', '04RAG 評測', '05知識版本', '06人格設定',
-      '07System Prompt', '08基本通用 QA', '09進階檢索設定', '10互動紀錄', '11對話使用者', '12技術架構導覽',
+      '07System Prompt', '08基本通用 QA', '09進階檢索設定', '10互動紀錄',
     ])
-    expect([...(view.getByLabelText('切換管理功能') as HTMLSelectElement).options].map(o => o.value)).toEqual(PAGES.map(p => p.id))
+    expect([...(view.getByLabelText('切換管理功能') as HTMLSelectElement).options].map(o => o.value)).toEqual(SIDEBAR_PAGES.map(p => p.id))
+    expect(PAGES.length - SIDEBAR_PAGES.length).toBe(2)
   })
 
   it('has a subtitle on every page, and onboarding only on the architecture guide', async () => {

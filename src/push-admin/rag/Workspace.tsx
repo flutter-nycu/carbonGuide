@@ -1,8 +1,9 @@
 // The RAG workspace: sidebar, mobile page select, and pages that stay mounted after the first visit.
-import { Fragment, useRef, useState, type ComponentType, type ReactNode } from 'react'
+// The admin's top tabs pick the view: the sidebar pages, or conversation users or the guide on their own.
+import { Fragment, useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import type { RagApi, Role } from './api/types'
 import { ROLE_LABEL } from './labels'
-import { PAGES, type PageId } from './pageList'
+import { PAGES, SIDEBAR_PAGES, viewOf, type PageId, type RagView } from './pageList'
 import ArchitecturePage from './pages/ArchitecturePage'
 import ConversationsPage from './pages/ConversationsPage'
 import DocumentsPage from './pages/DocumentsPage'
@@ -22,6 +23,10 @@ interface Props {
   role: Role
   /** False while the push workspace is shown; pages pause polling and close dialogs. */
   active?: boolean
+  /** Set by the admin's top tabs. */
+  view?: RagView
+  /** Asks the top tabs to switch, e.g. when a page links to the guide. */
+  onView?: (view: RagView) => void
   /** Replaces a page's content in tests; returning null keeps the built-in page. The guide always renders itself. */
   renderPage?: (id: PageId) => ReactNode
 }
@@ -31,14 +36,26 @@ const PAGE_COMPONENTS: Record<Exclude<PageId, 'guide'>, ComponentType<PageProps>
   personas: PersonasPage, prompt: PromptPage, qa: QaPage, settings: SettingsPage, logs: LogsPage, conversations: ConversationsPage,
 }
 
-export default function Workspace({ api, role, active = true, renderPage }: Props) {
+export default function Workspace({ api, role, active = true, view = 'workspace', onView, renderPage }: Props) {
+  // The sidebar page stays chosen while another view is shown, so coming back lands where the admin left.
   const [page, setPage] = useState<PageId>('documents')
-  const [visited, setVisited] = useState<ReadonlySet<PageId>>(() => new Set<PageId>(['documents']))
+  const shown: PageId = view === 'workspace' ? page : view
+  const [visited, setVisited] = useState<ReadonlySet<PageId>>(() => new Set<PageId>([shown]))
+  if (!visited.has(shown)) setVisited(new Set(visited).add(shown))
   const main = useRef<HTMLElement>(null)
+  const sidebar = useRef<HTMLElement>(null)
+
+  // A top tab hides the sidebar; focus inside it (e.g. after the browser's back button) would fall to the page.
+  useEffect(() => {
+    if (view === 'workspace') return
+    const root = sidebar.current?.getRootNode() as Document | ShadowRoot | undefined
+    if (root?.activeElement && sidebar.current?.contains(root.activeElement)) main.current?.focus()
+  }, [view])
 
   function go(id: PageId) {
-    setPage(id)
-    setVisited(previous => (previous.has(id) ? previous : new Set(previous).add(id)))
+    const target = viewOf(id)
+    if (target === 'workspace') setPage(id)
+    if (target !== view) onView?.(target)
     main.current?.focus()
   }
 
@@ -54,16 +71,16 @@ export default function Workspace({ api, role, active = true, renderPage }: Prop
 
   return <ToastProvider><NavigateContext.Provider value={go}>
     <a className="skip" href="#main" onClick={event => { event.preventDefault(); main.current?.focus() }}>跳至主要內容</a>
-    <div className="shell">
-      <aside className="sidebar">
+    <div className={view === 'workspace' ? 'shell' : 'shell single'}>
+      <aside ref={sidebar} className="sidebar" hidden={view !== 'workspace'}>
         <div className="workspace"><span className="workspace-mark">TW</span><div><strong>臺灣日常減碳</strong><small>RAG 知識工作台</small></div></div>
         <label className="mobile-nav">前往功能
           <select id="page-select" aria-label="切換管理功能" value={page} onChange={event => go(event.target.value as PageId)}>
-            {PAGES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+            {SIDEBAR_PAGES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
         </label>
         <nav id="nav" aria-label="RAG 工作台頁面">
-          {PAGES.map(p => <Fragment key={p.id}>
+          {SIDEBAR_PAGES.map(p => <Fragment key={p.id}>
             {p.group && <p className="nav-label">{p.group}</p>}
             <button type="button" className="nav-button" aria-current={page === p.id ? 'page' : undefined} onClick={() => go(p.id)}>
               <span>{p.number}</span>{p.label}
@@ -74,8 +91,8 @@ export default function Workspace({ api, role, active = true, renderPage }: Prop
       </aside>
       <main id="main" ref={main} tabIndex={-1}>
         {PAGES.filter(p => visited.has(p.id)).map(p => (
-          <PageActiveContext.Provider key={p.id} value={active && page === p.id}>
-            <section data-page={p.id} hidden={page !== p.id}>
+          <PageActiveContext.Provider key={p.id} value={active && shown === p.id}>
+            <section data-page={p.id} hidden={shown !== p.id}>
               <PageHeader title={p.title} subtitle={p.subtitle} breadcrumb={p.label} />
               {content(p.id, p.readers)}
             </section>

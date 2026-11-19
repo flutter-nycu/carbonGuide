@@ -13,7 +13,7 @@ const click = (page: HTMLElement, name: string | RegExp) => fireEvent.click(with
 const currentBlock = (page: HTMLElement) => diagram(page).querySelector('[aria-current="true"]')?.textContent ?? ''
 const facts = (live: HTMLElement) => [...live.querySelectorAll('dt')].map(dt => dt.textContent)
 
-describe('12 technical architecture guide', () => {
+describe('technical architecture guide (top tab)', () => {
   it('shows the five blocks in the order data flows', () => {
     const { page } = openPage('guide')
     const blocks = within(diagram(page())).getAllByRole('listitem').map(item => item.textContent ?? '')
@@ -90,6 +90,8 @@ describe('12 technical architecture guide', () => {
     click(page(), /^到這一頁看看/)
     expect((view.container.querySelector('[data-page="settings"]') as HTMLElement).hidden).toBe(false)
     expect(page().hidden).toBe(true)
+    // The admin's top tab follows: the guide lives in its own tab, settings in the RAG workspace.
+    expect(view.getByRole('button', { name: 'RAG 知識工作台' }).getAttribute('aria-current')).toBe('page')
   })
 
   it('lists the safeguards and the glossary', () => {
@@ -140,8 +142,7 @@ describe('12 technical architecture guide', () => {
 
   it('still teaches when the backend is off, without sending any request', () => {
     const fetch = vi.spyOn(globalThis, 'fetch')
-    const view = render(<Workspace api={null} role="owner" />)
-    fireEvent.change(view.getByLabelText('切換管理功能'), { target: { value: 'guide' } })
+    const view = render(<Workspace api={null} role="owner" view="guide" />)
     const page = view.container.querySelector('[data-page="guide"]') as HTMLElement
     expect(within(page).getByRole('list', { name: '架構總覽圖' })).toBeTruthy()
     expect(page.textContent).toContain('上傳或登記網址')

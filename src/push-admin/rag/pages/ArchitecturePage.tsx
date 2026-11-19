@@ -1,10 +1,10 @@
-// 12 技術架構導覽: a diagram of the five blocks, two step-by-step routes, safeguards, live settings and a glossary.
+// 技術架構導覽 (a top tab): a diagram of the five blocks, two step-by-step routes, safeguards, live settings and a glossary.
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import type { KnowledgeDocument, RagApi, Role } from '../api/types'
 import { GUIDE_GLOSSARY, GUIDE_MODELS, GUIDE_NODES, GUIDE_ROUTES, GUIDE_SAFEGUARDS, type GuideNodeId } from '../guideContent'
 import { useLoader } from '../hooks'
 import { formatUsd } from '../labels'
-import { PAGES } from '../pageList'
+import { PAGES, pageName } from '../pageList'
 import { Notice, useNavigate, usePageActive } from '../ui'
 
 const TAB_KEYS: Record<string, (index: number, last: number) => number> = {
@@ -96,7 +96,7 @@ export default function ArchitecturePage({ api, role }: { api: RagApi | null; ro
         <div className="actions guide-actions">
           <button ref={previous} type="button" className="secondary" disabled={stepIndex === 0} onClick={() => stepTo(stepIndex - 1)}>上一步</button>
           <button ref={next} type="button" className="primary" disabled={stepIndex === last} onClick={() => stepTo(stepIndex + 1)}>下一步</button>
-          {target && <button type="button" className="text-button" onClick={() => navigate(target.id)}>到這一頁看看：{target.number} {target.label}</button>}
+          {target && <button type="button" className="text-button" onClick={() => navigate(target.id)}>到這一頁看看：{pageName(target)}</button>}
         </div>
       </div>
     </section>
