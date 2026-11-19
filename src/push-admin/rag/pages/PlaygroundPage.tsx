@@ -102,7 +102,9 @@ export default function PlaygroundPage({ api, role }: PageProps) {
         <dt>測試輪次</dt>
         <dd>{round
           ? `這一輪還可以問 ${round.requestLimit - round.requestCount} 題，已預留 ${formatUsd(round.reservedUsd)}／上限 ${formatUsd(round.budgetUsd)}，${formatDate(round.expiresAt)} 到期。`
-          : `第一次試問時會自動開一輪：最多 ${LIMITS.round.requestLimit} 題、費用上限 ${formatUsd(LIMITS.round.budgetUsd)}、${LIMITS.round.days} 天後到期。`}</dd>
+          : `第一次試問時會自動開一輪：最多 ${LIMITS.round.requestLimit} 題、費用上限取剩餘預算與 ${formatUsd(LIMITS.round.budgetUsd)} 的較小值、${LIMITS.round.days} 天後到期。`}</dd>
+        <dt>每日上限</dt>
+        <dd>每位使用者每日最多 {LIMITS.round.dailyLimit} 題，試問與評測合計，臺灣時間 08:00 換日；更換輪次不會重設。</dd>
         <dt>這期 AI 預算</dt>
         <dd>{budget.data ? (budget.data.active ? `已預留 ${formatUsd(budget.data.reservedUsd)}／總額 ${formatUsd(budget.data.budgetUsd)}` : '目前沒有可用的預算') : '—'}</dd>
       </dl>

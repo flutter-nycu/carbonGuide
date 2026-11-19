@@ -16,6 +16,8 @@ export interface SupabaseApiOptions { role: Role; supabaseUrl: string; now?: () 
 type Row = Record<string, unknown>
 interface Result { data: unknown; error: { code?: string } | null }
 const DAY = 24 * 3600 * 1000
+// PostgreSQL infinity is a supported campaign deadline, not a JavaScript date.
+const deadline = (value: string) => value === 'infinity' ? Infinity : new Date(value).getTime()
 const REVIEW_CONFIRMATION = '我已核對這個版本及其評測'
 const UPLOAD_PATH = /^originals\/[a-f0-9]{64}\.(pdf|docx|txt)$/
 const SOURCE_TYPES = new Set(['pdf', 'docx', 'txt'])
@@ -150,14 +152,24 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     if (!body) {
       const campaign = await openCampaign()
       if (!campaign) throw new RagError('campaign_closed')
+      const remaining = Number((num(campaign.budget_usd) - num(campaign.reserved_usd)).toFixed(8))
+      budgetUsd = Math.min(budgetUsd, remaining)
+      if (budgetUsd < 0.01) throw new RagError('budget_exhausted')
       // At most 7 days from the backend's clock; the margin keeps a browser clock that runs ahead from being refused.
-      const expires = Math.min(now().getTime() + LIMITS.round.days * DAY - 10 * 60 * 1000, new Date(str(campaign.expires_at)).getTime())
+      const expires = Math.min(now().getTime() + LIMITS.round.days * DAY - 10 * 60 * 1000, deadline(str(campaign.expires_at)))
       body = { action: 'round_create', requestKey, name, releaseId: versionId, campaignId: campaign.id, budgetUsd, requestLimit, dailyLimit, expiresAt: new Date(expires).toISOString() }
       roundByKey.set(requestKey, body)
     }
-    const id = idFrom(await action(body))
-    roundByKey.delete(requestKey)
-    return id
+    try {
+      const id = idFrom(await action(body))
+      roundByKey.delete(requestKey)
+      return id
+    } catch (error) {
+      // This explicit DB rejection rolls back round creation. A retry may read a smaller balance.
+      // Unknown/transport failures must keep the exact body for idempotent replay.
+      if (error instanceof RagError && error.code === 'budget_exhausted') roundByKey.delete(requestKey)
+      throw error
+    }
   }
 
   const roundFrom = (row: Row): TestRound => ({
@@ -385,11 +397,11 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
       const list = await rows(client.from('rag_v1_campaigns').select('budget_usd,reserved_usd,expires_at,state').eq('state', 'active').order('created_at', { ascending: false }).limit(1))
       if (!list.length) return { budgetUsd: 0, reservedUsd: 0, expiresAt: '', active: false }
       const c = list[0]
-      return { budgetUsd: num(c.budget_usd), reservedUsd: num(c.reserved_usd), expiresAt: str(c.expires_at), active: new Date(str(c.expires_at)) > now() }
+      return { budgetUsd: num(c.budget_usd), reservedUsd: num(c.reserved_usd), expiresAt: str(c.expires_at), active: deadline(str(c.expires_at)) > now().getTime() }
     },
     async getActiveRound(versionId) {
       const list = await rows(client.from('rag_v1_rounds').select('id,release_id,request_limit,request_count,budget_usd,reserved_usd,expires_at,state')
-        .eq('release_id', versionId).eq('state', 'active').gt('expires_at', now().toISOString()).order('created_at', { ascending: false }).limit(1))
+        .eq('release_id', versionId).eq('state', 'active').eq('per_user_daily_limit', LIMITS.round.dailyLimit).gt('expires_at', now().toISOString()).order('created_at', { ascending: false }).limit(1))
       return list.length ? roundFrom(list[0]) : null
     },
     async createRound(versionId, requestKey) {
@@ -456,8 +468,8 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
           if (error) throw tableError(error)
           if (count == null) throw new RagError('invalid_response')
           // The backend counts across rounds, so leave room for today's earlier questions.
-          dailyLimit = count + cases
-          if (dailyLimit > 100) throw new RagError('daily_limit')
+          dailyLimit = LIMITS.round.dailyLimit
+          if (count + cases > dailyLimit) throw new RagError('daily_limit')
         }
         const roundId = await createRoundRow(versionId, roundKey, `評測 ${now().toISOString().slice(0, 10)}`,
           Math.round(cases * 0.03 * 100) / 100, cases, dailyLimit)

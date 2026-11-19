@@ -161,13 +161,13 @@ describe('supabase RAG API: rag-v1 actions', () => {
     })
     expect(await api(mock).beginEvaluation('ds1', 'v2', 'ek')).toBe('batch-9')
     const [round, begin] = mock.actions
-    expect(round).toMatchObject({ action: 'round_create', releaseId: 'v2', requestLimit: 40, dailyLimit: 41, budgetUsd: 1.2 })
+    expect(round).toMatchObject({ action: 'round_create', releaseId: 'v2', requestLimit: 40, dailyLimit: 150, budgetUsd: 1.2 })
     expect(round.requestKey).not.toBe('ek')
     expect(begin).toEqual({ action: 'evaluation_begin', datasetId: 'ds1', roundId: 'round-9', requestKey: 'ek' })
   })
 
-  it('refuses a whole evaluation when it would exceed the global 100 request day limit', async () => {
-    const mock = mockClient({ tables: query => ({ data: query.table === 'rag_v1_datasets' ? { case_count: 40 } : null, count: 61, error: null }) })
+  it('refuses a whole evaluation when it would exceed the global 150 request day limit', async () => {
+    const mock = mockClient({ tables: query => ({ data: query.table === 'rag_v1_datasets' ? { case_count: 40 } : null, count: 111, error: null }) })
     expect(await code(api(mock).beginEvaluation('ds1', 'v2', 'over-day-limit'))).toBe('daily_limit')
     expect(mock.actions).toEqual([])
     const query = mock.queries.find(q => q.table === 'rag_v1_requests')!
@@ -362,13 +362,58 @@ describe('supabase RAG API: tables', () => {
     expect(mock.queries[mock.queries.length - 1].payload).toEqual({ retrieval_candidates: 30, context_chunks: 8 })
   })
 
+  it('keeps a non-expiring campaign available while preserving its consumed budget', async () => {
+    const campaign = { budget_usd: 5, reserved_usd: 4.61841375, call_limit: 2000, call_count: 776, state: 'active', expires_at: 'infinity' }
+    const mock = mockClient({ tables: () => ({ data: [campaign], error: null }) })
+    expect(await api(mock).getBudget()).toMatchObject({ active: true, budgetUsd: 5, reservedUsd: 4.61841375, expiresAt: 'infinity' })
+  })
+
+  it('opens a finite round from the remaining non-expiring campaign balance below USD 0.50', async () => {
+    const campaign = { id: 'camp-1', budget_usd: 5, reserved_usd: 4.61841375, call_limit: 2000, call_count: 776, expires_at: 'infinity' }
+    const round = { id: 'round-1', release_id: 'v1', request_limit: 20, request_count: 0, budget_usd: 0.38158625, reserved_usd: 0, expires_at: '2026-11-12T07:50:00.000Z', state: 'active' }
+    const mock = mockClient({ tables: q => ({ data: q.table === 'rag_v1_campaigns' ? [campaign] : [round], error: null }), actions: () => ({ id: 'round-1' }) })
+    await api(mock).createRound('v1', 'remaining-key')
+    expect(mock.actions[0]).toMatchObject({ budgetUsd: 0.38158625, requestLimit: 20, dailyLimit: 150, expiresAt: '2026-11-12T07:50:00.000Z' })
+  })
+
+  it('refreshes the balance after explicit round rejection without changing an uncertain request', async () => {
+    let reserved = 4.6
+    let attempt = 0
+    const mock = mockClient({
+      tables: query => ({ data: query.table === 'rag_v1_campaigns' ? [{ id: 'camp-1', budget_usd: 5, reserved_usd: reserved, call_limit: 2000, call_count: 776, expires_at: 'infinity' }] : { id: 'round-1' }, error: null }),
+      actions: () => ++attempt === 1 ? failure('budget_exhausted') : attempt === 2 ? new TypeError('Failed to fetch') : { id: 'round-1' },
+    })
+    const rag = api(mock)
+    expect(await code(rag.createRound('v1', 'balance-race'))).toBe('budget_exhausted')
+    reserved = 4.7
+    expect(await code(rag.createRound('v1', 'balance-race'))).toBe('network_error')
+    reserved = 4.8
+    await rag.createRound('v1', 'balance-race')
+    expect(mock.actions.map(body => body.budgetUsd)).toEqual([0.4, 0.3, 0.3])
+    expect(mock.actions[2]).toEqual(mock.actions[1])
+  })
+
+  it('rejects a new round when the remaining balance is below the database minimum', async () => {
+    const campaign = { id: 'camp-1', budget_usd: 5, reserved_usd: 4.995, call_limit: 2000, call_count: 776, expires_at: 'infinity' }
+    const mock = mockClient({ tables: () => ({ data: [campaign], error: null }) })
+    expect(await code(api(mock).createRound('v1', 'tiny-balance'))).toBe('budget_exhausted')
+    expect(mock.actions).toEqual([])
+  })
+
+  it('admits an evaluation ending exactly at the persistent daily limit of 150', async () => {
+    const campaign = { id: 'camp-1', budget_usd: 5, reserved_usd: 1, call_limit: 2000, call_count: 776, expires_at: 'infinity' }
+    const mock = mockClient({ tables: q => ({ data: q.table === 'rag_v1_datasets' ? { case_count: 40 } : [campaign], count: 110, error: null }), actions: b => ({ id: b.action === 'round_create' ? 'round-150' : 'batch-150' }) })
+    expect(await api(mock).beginEvaluation('ds1', 'v1', 'boundary-150')).toBe('batch-150')
+    expect(mock.actions[0]).toMatchObject({ requestLimit: 40, dailyLimit: 150 })
+  })
+
   it('creates a test round from the active campaign with the default limits', async () => {
     const campaign = { id: 'camp-1', budget_usd: 5, reserved_usd: 3.66, call_limit: 1000, call_count: 571, state: 'active', expires_at: '2026-12-31T00:00:00Z' }
     const round = { id: 'round-1', release_id: 'v1', request_limit: 20, request_count: 0, budget_usd: 0.5, reserved_usd: 0, expires_at: '2026-11-12T08:00:00.000Z', state: 'active' }
     const mock = mockClient({ tables: query => ({ data: query.table === 'rag_v1_campaigns' ? [campaign] : [round], error: null }), actions: () => ({ id: 'round-1' }) })
     const created = await api(mock).createRound('v1', 'rk')
     expect(mock.actions[0]).toEqual({ action: 'round_create', requestKey: 'rk', name: '試問台 2026-11-05', releaseId: 'v1', campaignId: 'camp-1',
-      budgetUsd: 0.5, requestLimit: 20, dailyLimit: 20, expiresAt: '2026-11-12T07:50:00.000Z' })
+      budgetUsd: 0.5, requestLimit: 20, dailyLimit: 150, expiresAt: '2026-11-12T07:50:00.000Z' })
     expect(created).toMatchObject({ id: 'round-1', versionId: 'v1', requestLimit: 20, budgetUsd: 0.5 })
   })
 

@@ -174,7 +174,7 @@ export const LIMITS = {
   qaCitations: 5,
   quoteChars: { min: 5, max: 800 },
   correctionBytes: 1800,
-  round: { requestLimit: 20, dailyLimit: 20, budgetUsd: 0.5, days: 7 },
+  round: { requestLimit: 20, dailyLimit: 150, budgetUsd: 0.5, days: 7 },
   retentionDays: 180,
 } as const
 

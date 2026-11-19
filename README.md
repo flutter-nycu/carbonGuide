@@ -2,21 +2,17 @@
 
 本 repo 維護公開網站、React 推播管理前端與 RAG 知識工作台。管理入口為 `/push-admin`，RAG 直達入口為 `/push-admin#rag`；舊 `/rag-preview/` 由 Vercel 導向同一登入入口。
 
-Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄、角色、資料契約、部署限制及分支現況。全專案文件中心在後端 `githyoung/carbon-navigation` 的 `feature/rag-backend-live`：[文件入口](https://github.com/githyoung/carbon-navigation/blob/feature/rag-backend-live/docs/README.md)、[整體架構](https://github.com/githyoung/carbon-navigation/blob/feature/rag-backend-live/docs/architecture.md)、[RAG 架構與進度](https://github.com/githyoung/carbon-navigation/blob/feature/rag-backend-live/docs/rag.md)。後者是部署、評測、預算與待辦的唯一完整紀錄。
+Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄、角色、資料契約、部署限制及分支現況。全專案文件中心在後端 `githyoung/carbon-navigation` 的 main：[文件入口](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md)、[整體架構](https://github.com/githyoung/carbon-navigation/blob/main/docs/architecture.md)、[RAG 架構與進度](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md)。後者是部署、評測、預算與待辦的唯一完整紀錄。
 
-## 最新進度（2026-11-16）
+## 最新進度（2026-11-19）
 
-| 範圍 | 已完成 | 尚未完成 |
-|---|---|---|
-| 網站 | 真實 RAG 11 頁工作台，位於 `preview/rag-admin-live-20261105`；受保護 Preview 已開啟 `VITE_RAG_ENABLED=true` | 合併 develop／main、Production 切換 |
-| 後端 | 正式 Supabase 5 個 live migration、`rag-v1` v10、Cloud Run 自動處理、即時觸發與每小時排程 | Git push 不會更新後端部署，之後變更仍須個別驗證 |
-| Chrome 驗收 | Google 登入、PDF 網址、原生選檔 signed URL 上傳、自動解析／向量化、問答引用、費用、對話查詢；舊 Gemini 503 文件恢復 | Safari 與本次手機版面 |
-| 回答品質 | 原 37／40 與因語意問題退回的首批 40／40 保留；修正後另建候選完整重測 40／40，數字錯誤與版本外來源 0，輔助複核未見重大錯誤 | 業主真人核准；保留兩處非阻擋措辭建議，公開服務仍停用 |
-| 程式驗證 | type-check、183 項測試（24 檔）、build、npm ci 通過 | 未重跑 Flutter；本機 mock 測試不代表真實服務驗收 |
+使用者已核准兩個 repo 整合 main／develop、正式網站切換及最新候選發布。Production 已設定 RAG 開關；正式入口 https://carbon-guide.vercel.app/push-admin#rag 。Git 推送與新部署驗收進行中，完整收據以後端 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md) 為準。
 
-已驗收 [Preview 工作台](https://carbon-guide-t1ufi6m6d-fluttermans-projects.vercel.app/push-admin#rag) 的部署 ID 為 `dpl_FCNfU7UyuYeHJtmdK1jNu42Hy5Qu`，需要 Vercel 與唯一管理員登入。該部署以 `a1d5360` 加同輪修正建立；本次將程式與交接文件 commit／push 到現有功能分支。push 若產生新 Preview，須另核對 source SHA 與 READY，不能把既有 Chrome 驗收當成新部署已驗證。正式網站仍是 `main` `88e4c90` 的舊靜態 RAG 示範。
-
-最新候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 仍 pending，報告 `fa436ba7-3291-49a1-a839-8297ccdf93ae` 為 40／40。完整證據與追查方式見後端 `docs/rag.md`。應用程式原 US$5 上限及舊費用紀錄保留，最後保守預留剩餘 US$0.38158625；每日 150 題只授權這次輪次至 2026-11-17 14:00（臺灣），最後累計 142 題。新工作前重新查額度，不因 Gemini 預付款或 GCP 試用金而自行提高預算。
+- 正式後端：原五個 live migration、rag-v1 v10、Cloud Run 即時觸發與排程；11/19 新增每日 150 題硬上限並通過 SQL rollback 驗證。
+- 配額：每位使用者每日 150 題持續有效；試問／評測共用 UTC 當日計數（臺灣 08:00 換日）。原 US$5 與歷史帳本保留，目前保守預留餘額 US$0.38158625；用完停止付費呼叫，不自動加值。
+- 工作輪次仍最多 20 題、7 天、US$0.50，預算依實際餘額縮小；低於 US$0.01 不開新輪次。這不代表整體服務到期。
+- 候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 已依使用者授權核准發布，沿用既有 40／40 報告；App 公開問答未接入，現行試問仍只有 owner。
+- 本輪 TypeScript、188 項測試（24 檔）、啟用 RAG 的 build 與獨立複審通過。11/16 Chrome PDF、網址、自動處理、503 恢復及完整問答驗收保留原日期；Safari／手機未驗。
 
 ## 架構與資料流
 
@@ -57,7 +53,7 @@ Google OAuth 已配置；以下是未來環境遷移的核對點，接手時不�
 |---|---|---|
 | 安裝 | `npm ci` | lockfile 已同步；不代表 main 同步完成 |
 | 型別 | `npm run type-check` | TypeScript 靜態檢查 |
-| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 183 項元件／資料層／整合測試，使用 mock，不收費、不發推播 |
+| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 188 項元件／資料層／整合測試，使用 mock，不收費、不發推播 |
 | 建置 | `npm run build` | 用假的公開 Supabase 值可做離線建置；另驗 `VITE_RAG_ENABLED=true` 的 bundle |
 | 歷史瀏覽器檢查 | `test/verify-rag-workspace.py`、`test/verify-admin-integration.py` | 2026-11-05 mock 驗證通過，涵蓋 1440／1024／768／390 寬度、11 頁、正式 CSP 及推播回歸；本輪不啟動 |
 | 規格 | `openspec validate --all --strict` | 規格一致性，不代替功能或部署驗收 |
@@ -66,11 +62,10 @@ Google OAuth 已配置；以下是未來環境遷移的核對點，接手時不�
 
 ## 部署與接手待辦
 
-Vercel 專案為 `carbon-guide`。推 `main` 直接部署正式站，會影響 App 的隱私政策、支援頁與密碼重設；其他分支部署 Preview，保留 Vercel Authentication。本次只授權現有功能分支 commit／push，不合併 main／develop、不切換 Production、不核准知識候選。Git push 不會部署 Supabase 或 Cloud Run。
+Vercel 專案為 carbon-guide；推 main 會直接部署正式站並影響首頁、隱私政策、支援與密碼重設。已整合原 main 的隱私政策與資料刪除文件。其他分支是受 Vercel Authentication 保護的 Preview；Git push 不部署 Supabase／Cloud Run。
 
-1. 業主審閱最新候選及兩處措辭意見；機械 40／40 和輔助複核不能代替真人核准。
-2. Safari 與本次手機版面驗收；先確認使用者允許的既有瀏覽器，不自動啟動。
-3. 另獲授權後整合 main 的隱私政策與資料刪除文件，再處理合併及 Production 開關（OpenSpec 11.3）。後端 main 的 Android 修改也須保留。
-4. 決定 OpenSpec 歸檔時機；App 氣候教練、多人管理員、Google 帳單核對均屬另立需求。
+本次正式切換已獲明確授權；下一輪仍依當次任務範圍執行，不把本次授權當成永久部署或加預算授權。候選已核准發布，後續新候選仍需人工核准。
 
-目前 `rag-admin-live-workspace` 為 33／34；11.2 真實 Preview 驗收完成，11.3 合併上線未完成。原 Phase 0 保留在 `preview/rag-phase0`；本分支的 `openspec/changes/rag-coach-phase0-preview/`、`rag-admin-integration/`、`rag-admin-static-uiux-cleanup/` 是歷史來源，不可執行舊 build 還原已停用的公開原型入口。
+剩餘事項為 Safari／手機驗收、OpenSpec 歸檔時機；App、多管理員與 Google 帳單整合另立需求。試問回應遺失且跨輪次到期時，先查互動紀錄，不盲目重問；此既有恢復邊界尚未擴充。
+
+舊 Phase 0、靜態工作台與參考分支保留歷史用途，不執行舊 build 還原公開原型。完整進度只在後端 docs/rag.md 維護。
