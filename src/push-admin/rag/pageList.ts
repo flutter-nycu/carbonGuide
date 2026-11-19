@@ -1,6 +1,6 @@
-// The eleven workspace pages: order, sidebar groups, headings and one-line subtitles.
+// The twelve workspace pages: order, sidebar groups, headings and one-line subtitles.
 
-export type PageId = 'documents' | 'import' | 'playground' | 'evaluation' | 'releases' | 'personas' | 'prompt' | 'qa' | 'settings' | 'logs' | 'conversations'
+export type PageId = 'documents' | 'import' | 'playground' | 'evaluation' | 'releases' | 'personas' | 'prompt' | 'qa' | 'settings' | 'logs' | 'conversations' | 'guide'
 
 export interface PageDefinition {
   id: PageId
@@ -25,4 +25,5 @@ export const PAGES: readonly PageDefinition[] = [
   { id: 'settings', number: '09', label: '進階檢索設定', group: '進階與紀錄', title: '檢索設定', subtitle: '調整教練找資料的方式。' },
   { id: 'logs', number: '10', label: '互動紀錄', title: '互動紀錄', subtitle: '看看每一次試問和評測的問題、回答與處理過程。', readers: 'owner' },
   { id: 'conversations', number: '11', label: '對話使用者', title: '對話使用者', subtitle: '看看有誰問過問題，點進去可以看每一次的對話和費用。', readers: 'owner' },
+  { id: 'guide', number: '12', label: '技術架構導覽', group: '認識系統', title: '技術架構導覽', subtitle: '一步一步看文件怎麼變成知識，問題又是怎麼被回答的。' },
 ]

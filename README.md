@@ -13,6 +13,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 工作輪次仍最多 20 題、7 天、US$0.50，預算依實際餘額縮小；低於 US$0.01 不開新輪次。這不代表整體服務到期。
 - 候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 已依使用者授權核准發布，沿用既有 40／40 報告；App 公開問答未接入，現行試問仍只有 owner。
 - 本輪 TypeScript、188 項測試（24 檔）、啟用 RAG 的 build 與獨立複審通過。11/16 Chrome PDF、網址、自動處理、503 恢復及完整問答驗收保留原日期；Safari／手機未驗。
+- 第 12 頁「技術架構導覽」在 `preview/rag-architecture-guide` 開發（規格 `openspec/changes/rag-architecture-guide/`），合併 main 前正式站仍是 11 頁。
 
 ## 架構與資料流
 
@@ -22,11 +23,11 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 | 管理登入 | `src/push-admin/App.tsx`、`auth.ts` | Supabase Google OAuth、唯一帳號白名單、`admin_users` 角色驗證 |
 | 推播管理 | `src/push-admin/` | 系統推播、個人化規則、發送紀錄、用量；沿用既有 Edge Functions／RLS |
 | RAG 外框 | `components/RagWorkspace.tsx`、`rag/Workspace.tsx` | 登入後 React.lazy 載入，React portal 掛入 Shadow DOM 隔離樣式 |
-| RAG 11 頁 | `rag/pages/`、`rag/pageList.ts` | 文件、匯入、試問、評測、版本、人格、Prompt、QA、設定、互動紀錄、對話使用者 |
+| RAG 12 頁 | `rag/pages/`、`rag/pageList.ts`、`rag/guideContent.ts` | 文件、匯入、試問、評測、版本、人格、Prompt、QA、設定、互動紀錄、對話使用者、技術架構導覽 |
 | RAG 資料層 | `rag/api/supabase.ts`、`types.ts`、`requestKeys.ts` | 讀取受 RLS 保護的資料表，寫入經 `rag-v1`，保存重送鍵與原始請求內容 |
 | 後端與 worker | 另一個 repo 的 `supabase/`、`scripts/rag/`、`deploy/cloud-run/` | 權限、snapshot、檢索、模型呼叫、帳本、文件自動處理及排程 |
 
-`VITE_RAG_ENABLED=true` 才讀寫真實 RAG 資料；沒有設定時各頁顯示尚未啟用，不送 RAG 請求。它是公開開關，不能取代後端授權。`rag/api/fake.ts` 只給測試使用，不進入正式 bundle。正式 CSP 限制 `style-src 'self'`，RAG 使用獨立 CSS，不能新增 inline style。
+`VITE_RAG_ENABLED=true` 才讀寫真實 RAG 資料；沒有設定時 01–11 頁顯示尚未啟用，12 技術架構導覽照常顯示教學內容，都不送 RAG 請求。它是公開開關，不能取代後端授權。`rag/api/fake.ts` 只給測試使用，不進入正式 bundle。正式 CSP 限制 `style-src 'self'`，RAG 使用獨立 CSS，不能新增 inline style。
 
 文件流程：管理員取 signed URL、上傳、核對 SHA-256；`rag-v1` 觸發 Cloud Run，worker 完成解析與向量化，管理員再建立不可變的知識候選。只收 PDF／DOCX／TXT，每檔 20 MB 以內；網址僅收公開 https PDF。disabled 文件及引用其段落的 QA 不進入新候選。候選需通過完整評測及 owner 人工核准才可發布，修改工作區不回寫既有 snapshot。
 
@@ -47,15 +48,15 @@ Google OAuth 已配置；以下是未來環境遷移的核對點，接手時不�
 
 ## 開發與驗證
 
-本輪禁止啟動本機瀏覽器、server 或 Docker，禁止新增分支／worktree，最多同時兩個子程序。下列離線檢查可使用；不要直接執行會開 server 或瀏覽器的歷史腳本。
+2026-11-19 正式切換那一輪禁止啟動本機瀏覽器、server 或 Docker；之後每一輪是否可以啟動，依當次授權。下列離線檢查隨時可用。
 
 | 檢查 | 指令或位置 | 驗證邊界 |
 |---|---|---|
 | 安裝 | `npm ci` | lockfile 已同步；不代表 main 同步完成 |
 | 型別 | `npm run type-check` | TypeScript 靜態檢查 |
-| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 188 項元件／資料層／整合測試，使用 mock，不收費、不發推播 |
+| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 205 項（26 檔）元件／資料層／整合測試，使用 mock，不收費、不發推播 |
 | 建置 | `npm run build` | 用假的公開 Supabase 值可做離線建置；另驗 `VITE_RAG_ENABLED=true` 的 bundle |
-| 歷史瀏覽器檢查 | `test/verify-rag-workspace.py`、`test/verify-admin-integration.py` | 2026-11-05 mock 驗證通過，涵蓋 1440／1024／768／390 寬度、11 頁、正式 CSP 及推播回歸；本輪不啟動 |
+| 瀏覽器檢查 | `test/verify-rag-workspace.py`、`test/verify-admin-integration.py` | 需要本機 server 與 Chromium，依當次授權執行。2026-11-19 導覽頁分支以 headless Chromium 通過：1440／1024／768／390 寬度、12 頁、導覽頁鍵盤操作、正式 CSP 與推播回歸；後端全部 mock |
 | 規格 | `openspec validate --all --strict` | 規格一致性，不代替功能或部署驗收 |
 
 未來另獲授權時，本機開發用 `npm run dev`，預覽用 `npm run preview`；Vite preview 不套用 Vercel rewrite，入口用 `/push-admin.html`。實際瀏覽器測試需要正確公開設定，結束後用已記錄 PID 關閉自己啟動的程序。不要關閉使用者既有 Chrome 或其他 App。

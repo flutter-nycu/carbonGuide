@@ -9,6 +9,9 @@ import Workspace from '../Workspace'
 
 export const NOW = new Date('2026-11-05T08:00:00Z')
 
+// Walking every page takes a few seconds when the whole suite shares a busy two-core machine.
+export const ALL_PAGES_TIMEOUT = 15_000
+
 /** jsdom has no modal dialogs; call once per test file. */
 export function setupPageTests() {
   beforeAll(() => {

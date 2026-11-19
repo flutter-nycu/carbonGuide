@@ -4,8 +4,9 @@ Start the Vite dev server first, then run:
   npx vite --host 127.0.0.1 --port 5199 --strictPort
   python3 test/verify-rag-workspace.py http://127.0.0.1:5199 ../verify-out/rag-workspace
 
-Checks the eleven pages at 1440, 1024, 768 and 390 px wide: page-level horizontal overflow, dialogs (focus moves
-in, Esc closes, focus returns), the main flows, the viewer role, console errors and requests leaving the page.
+Checks the twelve pages at 1440, 1024, 768 and 390 px wide: page-level horizontal overflow, dialogs (focus moves
+in, Esc closes, focus returns), the guide's steps by mouse and keyboard, the main flows, the viewer role, console
+errors and requests leaving the page.
 Nothing here talks to Supabase; real data is checked separately after the backend is deployed.
 """
 import json, re, sys
@@ -18,7 +19,7 @@ out = Path(sys.argv[2]) if len(sys.argv) > 2 else Path('../verify-out/rag-worksp
 out.mkdir(parents=True, exist_ok=True)
 PAGES = [('documents', '知識庫與文件'), ('import', '匯入與預檢'), ('playground', '檢索試問台'), ('evaluation', 'RAG 評測'),
          ('releases', '知識版本'), ('personas', '人格設定'), ('prompt', '全域提示詞'), ('qa', '基本通用 QA'),
-         ('settings', '檢索設定'), ('logs', '互動紀錄'), ('conversations', '對話使用者')]
+         ('settings', '檢索設定'), ('logs', '互動紀錄'), ('conversations', '對話使用者'), ('guide', '技術架構導覽')]
 WIDTHS = [1440, 1024, 768, 390]
 checks, errors, outside = [], [], []
 
@@ -79,7 +80,7 @@ with sync_playwright() as p:
             no_overflow(page, f'{width} {page_id}')
             if width in (1440, 390):
                 page.screenshot(path=str(out / f'{width}-{number:02d}-{page_id}.png'), full_page=True)
-        checks.append(f'All 11 pages open at {width}px without page-level horizontal scrolling')
+        checks.append(f'All 12 pages open at {width}px without page-level horizontal scrolling')
 
         shot = width in (1440, 390)
         section = go(page, 'documents', '知識庫與文件')
@@ -99,6 +100,27 @@ with sync_playwright() as p:
         section.get_by_role('button', name='← 回到使用者列表').click()
         expect(section.get_by_role('table', name='對話使用者')).to_be_visible()
         checks.append(f'Dialogs at {width}px take focus, close with Esc and return focus to their button')
+
+        section = go(page, 'guide', '技術架構導覽')
+        tabs = section.get_by_role('tablist', name='選擇流程')
+        current = section.locator('[aria-live="polite"] h3')
+        tabs.get_by_role('tab', name='文件怎麼變成知識').click()
+        for _ in range(3): section.get_by_role('button', name='下一步').click()
+        expect(current).to_have_text('轉成可搜尋的格式')
+        expect(section.get_by_role('list', name='架構總覽圖').locator('[aria-current="true"]')).to_contain_text('Gemini')
+        no_overflow(page, f'{width} guide')
+        if shot: page.screenshot(path=str(out / f'{width}-12-guide-step.png'), full_page=True)
+        tabs.get_by_role('tab', name='文件怎麼變成知識').focus()
+        page.keyboard.press('ArrowRight')
+        expect(tabs.get_by_role('tab', name='一個問題怎麼被回答')).to_have_attribute('aria-selected', 'true')
+        assert active_label(page) == '一個問題怎麼被回答', f'arrow key did not move focus: {width}'
+        section.get_by_role('button', name='第 4 步：找資料').focus()
+        page.keyboard.press('Enter')
+        expect(current).to_have_text('找資料')
+        section.get_by_role('button', name=re.compile('^到這一頁看看')).focus()
+        page.keyboard.press('Enter')
+        expect(page.locator('[data-page="settings"]').get_by_role('heading', level=1)).to_have_text('檢索設定')
+        checks.append(f'The guide at {width}px follows both routes by mouse and keyboard and opens the related page')
 
     page.set_viewport_size({'width': 1440, 'height': 1000})
     section = go(page, 'playground', '檢索試問台')
@@ -145,7 +167,10 @@ with sync_playwright() as p:
     section = go(viewer, 'prompt', '全域提示詞')
     expect(section.get_by_label('提示詞內容')).not_to_be_editable()
     viewer.screenshot(path=str(out / 'viewer-07-prompt.png'), full_page=True)
-    checks.append('A viewer can read but not change anything, and cannot open the owner-only pages')
+    section = go(viewer, 'guide', '技術架構導覽')
+    expect(section.get_by_role('region', name='目前的實際設定').locator('dt')).to_have_text(['文件', '檢索設定', '模型'])
+    viewer.screenshot(path=str(out / 'viewer-12-guide.png'), full_page=True)
+    checks.append('A viewer can read but not change anything, cannot open the owner-only pages, and sees only its own live settings in the guide')
     browser.close()
 
 result = {'mode': 'fake-api', 'checks': checks, 'errors': errors, 'requests_outside_page': outside}

@@ -3,6 +3,7 @@ import { Fragment, useRef, useState, type ComponentType, type ReactNode } from '
 import type { RagApi, Role } from './api/types'
 import { ROLE_LABEL } from './labels'
 import { PAGES, type PageId } from './pageList'
+import ArchitecturePage from './pages/ArchitecturePage'
 import ConversationsPage from './pages/ConversationsPage'
 import DocumentsPage from './pages/DocumentsPage'
 import EvaluationPage from './pages/EvaluationPage'
@@ -21,11 +22,11 @@ interface Props {
   role: Role
   /** False while the push workspace is shown; pages pause polling and close dialogs. */
   active?: boolean
-  /** Replaces a page's content in tests; returning null keeps the built-in page. */
+  /** Replaces a page's content in tests; returning null keeps the built-in page. The guide always renders itself. */
   renderPage?: (id: PageId) => ReactNode
 }
 
-const PAGE_COMPONENTS: Record<PageId, ComponentType<PageProps>> = {
+const PAGE_COMPONENTS: Record<Exclude<PageId, 'guide'>, ComponentType<PageProps>> = {
   documents: DocumentsPage, import: ImportPage, playground: PlaygroundPage, evaluation: EvaluationPage, releases: ReleasesPage,
   personas: PersonasPage, prompt: PromptPage, qa: QaPage, settings: SettingsPage, logs: LogsPage, conversations: ConversationsPage,
 }
@@ -42,6 +43,8 @@ export default function Workspace({ api, role, active = true, renderPage }: Prop
   }
 
   function content(id: PageId, readers?: 'owner' | 'editor') {
+    // The guide teaches even when the backend is off, and decides itself what each role may read.
+    if (id === 'guide') return <ArchitecturePage api={api} role={role} />
     if (!api) return <Notice tone="warn">RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。</Notice>
     if (readers === 'owner' && role !== 'owner') return <Notice>這一頁只有 owner 可以查看。</Notice>
     if (readers === 'editor' && role === 'viewer') return <Notice>這一頁只有 owner 和編輯者可以查看。</Notice>

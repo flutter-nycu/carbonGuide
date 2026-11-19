@@ -84,12 +84,16 @@ with sync_playwright() as p:
     checks.append('RAG and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
     page.set_viewport_size({'width':1440,'height':1000})
     nav=frame.get_by_role('navigation',name='RAG 工作台頁面')
-    assert nav.get_by_role('button').count()==11
+    assert nav.get_by_role('button').count()==12
+    nav.get_by_role('button',name='技術架構導覽').click()
+    frame.get_by_role('heading',name='技術架構導覽',exact=True).wait_for()
+    assert frame.get_by_role('list',name='架構總覽圖').is_visible()
+    assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式環境目前的設定。').filter(visible=True).count()==1
     for name,title in [('匯入與預檢','匯入與預檢'),('檢索試問台','檢索試問台'),('RAG 評測','RAG 評測'),('知識版本','知識版本'),('人格設定','人格設定'),('System Prompt','全域提示詞'),('基本通用 QA','基本通用 QA'),('進階檢索設定','檢索設定'),('互動紀錄','互動紀錄'),('對話使用者','對話使用者'),('知識庫與文件','知識庫與文件')]:
         nav.get_by_role('button',name=name).click()
         frame.get_by_role('heading',name=title,exact=True).wait_for()
         assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1, name
-    checks.append('All 11 RAG pages open and say the backend is not enabled yet')
+    checks.append('All 12 RAG pages open; 01–11 say the backend is not enabled yet and the guide still teaches')
     frame.locator('a.skip').focus()
     page.keyboard.press('Enter')
     assert page.evaluate('location.hash')=='#rag'

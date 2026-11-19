@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Checks that span all eleven RAG pages. Each page's own behaviour is tested next to it in src/push-admin/rag/pages.
+// Checks that span all twelve RAG pages. Each page's own behaviour is tested next to it in src/push-admin/rag/pages.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -10,6 +10,7 @@ import { clearRequestKeys } from '../src/push-admin/rag/api/requestKeys'
 import type { Role } from '../src/push-admin/rag/api/types'
 import { PAGES, type PageId } from '../src/push-admin/rag/pageList'
 import Workspace from '../src/push-admin/rag/Workspace'
+import { ALL_PAGES_TIMEOUT } from '../src/push-admin/rag/pages/testing'
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
@@ -34,25 +35,26 @@ function open(role: Role) {
 }
 
 describe('RAG workspace', () => {
-  it('shows eleven pages in order, with nothing about coefficients or service connections', () => {
+  it('shows twelve pages in order, with nothing about coefficients or service connections', () => {
     const { view } = open('owner')
     const nav = within(view.getByRole('navigation', { name: 'RAG 工作台頁面' }))
     expect(nav.getAllByRole('button').map(b => b.textContent)).toEqual([
       '01知識庫與文件', '02匯入與預檢', '03檢索試問台', '04RAG 評測', '05知識版本', '06人格設定',
-      '07System Prompt', '08基本通用 QA', '09進階檢索設定', '10互動紀錄', '11對話使用者',
+      '07System Prompt', '08基本通用 QA', '09進階檢索設定', '10互動紀錄', '11對話使用者', '12技術架構導覽',
     ])
     expect([...(view.getByLabelText('切換管理功能') as HTMLSelectElement).options].map(o => o.value)).toEqual(PAGES.map(p => p.id))
   })
 
-  it('has a subtitle and no onboarding or explanation blocks on any page', async () => {
+  it('has a subtitle on every page, and onboarding only on the architecture guide', async () => {
     const { visit } = open('owner')
     for (const { id } of PAGES) {
       const page = await visit(id)
       expect(page.querySelector('.subtitle')?.textContent?.trim()).not.toBe('')
-      expect(page.querySelector('details[data-help], .page-help, .quick-start, .guide-side')).toBeNull()
+      if (id === 'guide') continue
+      expect(page.querySelector('details[data-help], .page-help, .quick-start, .guide-side, [class*="guide-"]')).toBeNull()
       for (const text of ['第一次使用', '操作說明', '使用說明', '怎麼判斷有沒有變好', '假資料', '示範']) expect(page.textContent).not.toContain(text)
     }
-  })
+  }, ALL_PAGES_TIMEOUT)
 
   it('never shows the calculation flow, bill import or service settings', async () => {
     const { visit } = open('owner')
@@ -73,7 +75,7 @@ describe('RAG workspace', () => {
     const all = seen.join(' ')
     for (const word of ['計算', '排放係數', '係數與費率', '帳單匯入', '匯入帳單', '服務連線', '向量維度', 'Rerank', '重新排序']) expect(all).not.toContain(word)
     expect(within(await visit('import')).getByLabelText('選擇檔案').getAttribute('accept')).toBe('.pdf,.docx,.txt')
-  })
+  }, ALL_PAGES_TIMEOUT)
 
   it('shows text from the knowledge base as text, never as markup', async () => {
     const { api, visit } = open('owner')
@@ -94,7 +96,7 @@ describe('RAG workspace', () => {
       const fields = [...page.querySelectorAll('input:not([type="search"]), textarea')] as (HTMLInputElement | HTMLTextAreaElement)[]
       for (const field of fields.filter(f => f.closest('form, .panel') && !f.closest('.toolbar'))) expect(field.disabled || field.readOnly).toBe(true)
     }
-  })
+  }, ALL_PAGES_TIMEOUT)
 
   it('no longer ships the static demo, and keeps nothing in browser storage', () => {
     for (const name of ['app.js', 'app.d.ts', 'index.html']) expect(existsSync(join(RAG, name))).toBe(false)

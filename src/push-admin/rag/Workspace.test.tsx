@@ -7,6 +7,7 @@ import { createFakeRagApi } from './api/fake'
 import { Dialog } from './ui'
 import { PAGES } from './pageList'
 import Workspace from './Workspace'
+import { ALL_PAGES_TIMEOUT } from './pages/testing'
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
@@ -27,18 +28,19 @@ function TitledDialog({ title }: { title: string }) {
 }
 
 describe('RAG workspace shell', () => {
-  it('lists the eleven pages in order with matching mobile options', () => {
+  it('lists the twelve pages in order with matching mobile options', () => {
     render(<Workspace api={fake()} role="owner" />)
     const buttons = within(nav()).getAllByRole('button').map(b => b.textContent)
     expect(buttons).toEqual(PAGES.map(p => p.number + p.label))
     expect(buttons).toEqual(['01知識庫與文件', '02匯入與預檢', '03檢索試問台', '04RAG 評測', '05知識版本', '06人格設定', '07System Prompt',
-      '08基本通用 QA', '09進階檢索設定', '10互動紀錄', '11對話使用者'])
+      '08基本通用 QA', '09進階檢索設定', '10互動紀錄', '11對話使用者', '12技術架構導覽'])
     const options = [...(screen.getByLabelText('切換管理功能') as HTMLSelectElement).options].map(o => o.textContent)
     expect(options).toEqual(PAGES.map(p => p.label))
     expect(within(nav()).getByText('進階與紀錄')).toBeTruthy()
+    expect(within(nav()).getByText('認識系統')).toBeTruthy()
   })
 
-  it('gives every page a heading and a one-line subtitle, without help blocks', () => {
+  it('gives every page a heading and a one-line subtitle, and only the guide teaches', () => {
     const { container } = render(<Workspace api={fake()} role="owner" />)
     for (const page of PAGES) {
       fireEvent.click(within(nav()).getByRole('button', { name: page.number + page.label }))
@@ -46,8 +48,12 @@ describe('RAG workspace shell', () => {
       expect(current.querySelector('h1')!.textContent).toBe(page.title)
       expect(current.querySelector('.subtitle')!.textContent!.length).toBeGreaterThan(5)
     }
-    expect(container.querySelector('details, .page-help, .quick-start, .guide-side')).toBeNull()
-  })
+    for (const page of PAGES.filter(p => p.id !== 'guide')) {
+      const current = container.querySelector(`[data-page="${page.id}"]`)!
+      expect(current.querySelector('details, .page-help, .quick-start, .guide-side, [class*="guide-"]'), page.id).toBeNull()
+    }
+    expect(container.querySelector('[data-page="guide"] .guide-diagram')).toBeTruthy()
+  }, ALL_PAGES_TIMEOUT)
 
   it('keeps visited pages mounted so typed input survives switching', () => {
     render(<Workspace api={fake()} role="owner" renderPage={id => (id === 'prompt' ? <Draft /> : null)} />)
@@ -61,12 +67,17 @@ describe('RAG workspace shell', () => {
 
   it('shows a not-connected notice on every page when the backend is off', () => {
     const { container } = render(<Workspace api={null} role="owner" renderPage={() => <p>真實內容</p>} />)
-    for (const page of PAGES) {
+    for (const page of PAGES.filter(p => p.id !== 'guide')) {
       fireEvent.click(within(nav()).getByRole('button', { name: page.number + page.label }))
       const current = container.querySelector(`[data-page="${page.id}"]`)!
       expect(current.textContent).toContain('RAG 後端尚未啟用')
       expect(current.textContent).not.toContain('真實內容')
     }
+    // The guide still teaches; only its live-settings section says the backend is off.
+    fireEvent.click(within(nav()).getByRole('button', { name: '12技術架構導覽' }))
+    const guide = container.querySelector('[data-page="guide"]')!
+    expect(guide.querySelector('.guide-diagram')).toBeTruthy()
+    expect(guide.querySelector('.guide-live')!.textContent).toContain('RAG 後端尚未啟用')
   })
 
   it('shows each role only the pages its account can read', () => {
@@ -74,13 +85,14 @@ describe('RAG workspace shell', () => {
       const { container, unmount } = render(<Workspace api={createFakeRagApi({ role })} role={role} renderPage={() => <p>真實內容</p>} />)
       const shown = PAGES.filter(page => {
         fireEvent.change(screen.getByLabelText('切換管理功能'), { target: { value: page.id } })
-        return container.querySelector(`[data-page="${page.id}"]`)!.textContent!.includes('真實內容')
+        const current = container.querySelector(`[data-page="${page.id}"]`)!
+        return current.textContent!.includes('真實內容') || current.querySelector('.guide-diagram') !== null
       }).map(page => page.number)
       unmount()
       return shown
     }
-    expect(visible('editor')).toEqual(['01', '02', '05', '06', '07', '08', '09'])
-    expect(visible('viewer')).toEqual(['01', '02', '06', '07', '08', '09'])
+    expect(visible('editor')).toEqual(['01', '02', '05', '06', '07', '08', '09', '12'])
+    expect(visible('viewer')).toEqual(['01', '02', '06', '07', '08', '09', '12'])
   })
 
   it('gives every kept-alive dialog its own name', () => {

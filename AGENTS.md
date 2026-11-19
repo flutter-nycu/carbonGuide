@@ -55,16 +55,17 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 後端已套用每日 150 題 migration，原 US$5 campaign 無整體到期日，歷史帳本保留。試問／評測共用 UTC 當日計數，臺灣 08:00 換日；工作輪次仍為 20 題／7 天／最高 US$0.50，實際預算不超過總剩餘額度。
 - 最新 40／40 候選已依使用者明確授權核准發布。只開既有 owner 管理問答；App 公開服務未接入，不新增其他管理員。
 - 本次網站 188／188、TypeScript、RAG 啟用建置通過；配額與輪次餘額競態修正經獨立複審。Safari／手機未驗；11/16 Chrome 完整驗收仍是當日 Preview 的證據。
-- 規格沿用 `openspec/changes/rag-admin-live-workspace/`，新增第 12 節正式配額；37／37 完成（11.3 與 12.3 已驗證）；Chrome 未執行新正式站登入／試問，另列驗證邊界。歸檔另決定。
+- 原規格 `rag-admin-live-workspace`（37／37）已歸檔到 `openspec/changes/archive/2026-11-19-rag-admin-live-workspace/`，主規格在 `openspec/specs/rag-admin-live-workspace/spec.md`。Chrome 未執行新正式站登入／試問，另列驗證邊界。
+- 第 12 頁「技術架構導覽」在分支 `preview/rag-architecture-guide`（從 main `a831af7` 開出）開發，規格 `openspec/changes/rag-architecture-guide/`。推送 Preview、後端文件補充與合併 main 各需另外授權；合併前正式站仍是 11 頁。
 
 ### 怎麼運作
 
 - 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入（獨立 chunk，推播管理不用下載），用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM。樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
-- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時每一頁顯示「RAG 後端尚未啟用」，不送出任何 RAG 請求。後端部署並驗收之前不要在正式站開啟，11/19 已授權開啟 Production；實際部署證據見後端 docs/rag.md。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時 01–11 頁顯示「RAG 後端尚未啟用」，12 技術架構導覽照常顯示教學內容，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。後端部署並驗收之前不要在正式站開啟，11/19 已授權開啟 Production；實際部署證據見後端 docs/rag.md。
 - 資料層 `rag/api/`：`supabase.ts` 在 RLS 下直接讀表，所有寫入都經 App repo 的 `rag-v1` Edge Function；`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。
 - 不能重複的操作（試問、建立輪次、建立版本、開始評測、登記網址、審核、發布、改回、停用）都帶請求鍵（`requestKeys.ts`，存在元件外，成功之後才清掉）。重送時沿用第一次送出的內容，因為後端只接受同一個請求鍵、同樣內容的重送；試問回來是「還在處理中」時保留請求鍵，避免重複扣款。
 - 頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。輪詢只在頁面可見時每 15 秒一次。
-- 11 頁與可讀的角色：
+- 12 頁與可讀的角色：
 
 | 頁 | 檔案 | 可以看的角色 |
 |---|---|---|
@@ -79,6 +80,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | 09 進階檢索設定 | `pages/SettingsPage.tsx` | 全部；只有 owner 能改 |
 | 10 互動紀錄 | `pages/LogsPage.tsx` | owner |
 | 11 對話使用者 | `pages/ConversationsPage.tsx` | owner |
+| 12 技術架構導覽 | `pages/ArchitecturePage.tsx`、`guideContent.ts` | 全部；「目前的實際設定」只讀，知識版本只查給 owner／editor，AI 預算只查給 owner，不呼叫付費模型 |
 
 ### 資料與重送契約
 
@@ -95,7 +97,8 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 | 檔案 | 用途 |
 |---|---|
-| `rag/pageList.ts` | 11 頁的順序、標題、副標與可讀角色 |
+| `rag/pageList.ts` | 12 頁的順序、標題、副標與可讀角色 |
+| `rag/guideContent.ts` | 第 12 頁的文字：五個架構區塊、兩條路線（7 步、8 步）、把關小卡與名詞辭典。依後端 `docs/rag.md`（2026-11-19）撰寫，後端架構、模型或門檻改變時要一起更新 |
 | `rag/Workspace.tsx`、`rag/ui.tsx`、`rag/hooks.ts` | 外框、導覽、對話框（`useId` 產生 id）、toast、讀取與分頁、輪詢 |
 | `rag/api/types.ts` | `RagApi` 介面、各種資料型別、`LIMITS`、前端檢查（檔案、網址、設定、段落長度） |
 | `rag/api/supabase.ts` | 真實資料層：讀表、`rag-v1` action、上傳 signed URL 流程、段落修正的基準與排除推算 |
@@ -108,7 +111,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 ### 不做的事與驗證
 
 - 不做：App 端、計算與係數流程、Google 帳單匯入、多位管理員。
-- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、11 頁）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。驗證邊界見 README「開發與驗證」。2026-11-05 mock 驗證通過；2026-11-16 type-check、188 項測試（24 檔；11/19 重測）、build 及 npm ci 通過，真實 Google 登入、網址匯入、Chrome 原生選檔與 signed URL 上傳、自動處理、試問、引用與費用明細已驗證。實際逐頁結果及未驗證邊界見 App repo `docs/rag.md`；Safari 與本次手機版面未重測。
+- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、12 頁、導覽頁鍵盤操作）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。驗證邊界見 README「開發與驗證」。2026-11-05 mock 驗證通過；2026-11-16 type-check、188 項測試（24 檔；11/19 重測）、build 及 npm ci 通過，真實 Google 登入、網址匯入、Chrome 原生選檔與 signed URL 上傳、自動處理、試問、引用與費用明細已驗證。實際逐頁結果及未驗證邊界見 App repo `docs/rag.md`；Safari 與本次手機版面未重測。2026-11-19 導覽頁分支：type-check、205 項測試（26 檔）、啟用 RAG 的 build 通過；兩支瀏覽器腳本以本機 headless Chromium 跑過（記憶體資料層與未啟用 RAG 的 build，含正式 CSP），不是真實資料或 Safari／實機手機驗收。
 - 舊的靜態示範（`rag/app.js`、`index.html`）在這個分支已經刪除；`openspec/changes/rag-admin-static-uiux-cleanup/`（已完成、未歸檔）與 `rag-admin-integration/` 是歷史紀錄。下方 Phase 0 原型也是歷史紀錄，其建置與驗證工具只適用原分支。
 
 ## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）
@@ -141,7 +144,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 安裝：本分支的 `package-lock.json` 已同步，2026-11-16 `npm ci` 與 Vercel Preview 建置通過；不能推論 main 的 lockfile 已修復。
 - 驗證指令：`npm run type-check`、`npm test`、`npm run build`；README 另外列了 `npm audit --audit-level=moderate`。瀏覽器驗證使用 `test/verify-rag-workspace.py`（RAG 各頁）和 `test/verify-admin-integration.py`（整合與推播），後端請求全部 mock，不代表真實登入、推播或 RAG 資料驗收。
 - 本機驗證建置時用的是假的 `VITE_*` 值；`/push-admin` 在瀏覽器執行時需要真的值，缺少會直接報錯（`src/push-admin/lib/supabase.ts`）。
-- 本機預覽手冊只供未來另獲授權時使用：`npm run preview` 的 `/push-admin.html` 不套用 Vercel redirect/rewrite。本輪禁止啟動本機 server、Docker 或新瀏覽器；不可自動執行瀏覽器驗證腳本。
+- 本機預覽：`npm run preview` 的 `/push-admin.html` 不套用 Vercel redirect/rewrite。2026-11-19 正式切換那一輪禁止啟動本機 server、Docker 或新瀏覽器；之後每一輪是否可以啟動，依當次授權。
 - 過去 Linux 驗證環境曾缺 WebKit 系統函式庫；這不是目前 macOS Safari 的診斷。本輪只操作原本開啟的 Chrome，Safari 與手機版面仍無新證據。不要為此自行安裝或啟動瀏覽器。
 
 ## 分支與接手
