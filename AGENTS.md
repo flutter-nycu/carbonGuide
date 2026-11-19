@@ -149,11 +149,11 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 ## 分支與接手
 
-main 是正式網站來源。develop 與原 `preview/rag-admin-live-20261105` 停在 `a831af7`（11 頁），這次沒有同步；第 12 頁導覽只在 main 與 `preview/rag-architecture-guide`。最新遠端 SHA、deployment ID 與未驗證邊界統一見後端 main 的 `docs/rag.md`；不把舊 Preview URL 或 Git push 成功當成 Production 已驗收。
+main 是正式網站來源；develop 已依使用者授權 fast-forward 到 main，兩者相同。第 12 頁導覽的工作分支 `preview/rag-architecture-guide` 可能少最新的純文件 commit；原 `preview/rag-admin-live-20261105` 停在 `a831af7`（11 頁），只作歷史追查。最新遠端 SHA、deployment ID 與未驗證邊界統一見後端 main 的 `docs/rag.md`；不把舊 Preview URL 或 Git push 成功當成 Production 已驗收。
 
 本次沒有啟動本機 server、Docker 或新瀏覽器，測試單工、同時最多兩個子程序。既有 Chrome 只依當次授權用 Computer Use；不自行啟動 Safari，不關閉使用者原有程式或雲端排程。
 
-之後待辦：Safari／手機驗收、OpenSpec 歸檔時機（含 `rag-architecture-guide` 的 6.2／6.3 勾選）、develop 是否同步，以及另立需求的 App／多管理員。原 Phase 0 和參考分支僅供歷史追查，不執行舊 build 還原原型。
+之後待辦：Safari／手機驗收、OpenSpec 歸檔時機（含 `rag-architecture-guide` 的 6.2／6.3 勾選），以及另立需求的 App／多管理員。原 Phase 0 和參考分支僅供歷史追查，不執行舊 build 還原原型。
 
 已知重送邊界：試問回應遺失又跨過輪次到期時，先查互動紀錄，不盲目重問；跨到期 pending ask 恢復尚未擴充。新建輪次遭明確 budget_exhausted 拒絕可重讀餘額；不明或網路錯誤保持原 body 與 key。
 

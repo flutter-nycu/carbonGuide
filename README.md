@@ -13,7 +13,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 工作輪次仍最多 20 題、7 天、US$0.50，預算依實際餘額縮小；低於 US$0.01 不開新輪次。這不代表整體服務到期。
 - 候選 `8d90edb7-89f7-49a4-ae89-66ad279b20af` 已依使用者授權核准發布，沿用既有 40／40 報告；App 公開問答未接入，現行試問仍只有 owner。
 - 本輪 TypeScript、188 項測試（24 檔）、啟用 RAG 的 build 與獨立複審通過。11/16 Chrome PDF、網址、自動處理、503 恢復及完整問答驗收保留原日期；Safari／手機未驗。
-- 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站（規格 `openspec/changes/rag-architecture-guide/`），收據見後端 docs/rag.md；develop 這次沒有同步。
+- 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站（規格 `openspec/changes/rag-architecture-guide/`），收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
 
 ## 架構與資料流
 
