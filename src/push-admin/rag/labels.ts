@@ -1,5 +1,5 @@
 // Plain labels and formatting shared by the pages.
-import type { AnswerKind, ProcessStatus, Role } from './api/types'
+import type { AccountState, AnswerKind, ProcessStatus, Role } from './api/types'
 
 export const STATUS_LABEL: Record<ProcessStatus, string> = {
   pending: '待處理', processing: '處理中', completed: '完成', failed: '失敗', budget_paused: '預算不足暫停',
@@ -10,6 +10,14 @@ export const STATUS_TONE: Record<ProcessStatus, '' | 'warn' | 'error' | 'quiet'>
 export const KIND_LABEL: Record<AnswerKind, string> = { qa: 'QA 回答', document: '文件回答', insufficient: '資料不足', incomplete: '沒有完成' }
 export const KIND_TONE: Record<AnswerKind, '' | 'warn' | 'error'> = { qa: '', document: '', insufficient: 'warn', incomplete: 'error' }
 export const ROLE_LABEL: Record<Role, string> = { owner: '管理者', editor: '編輯者', viewer: '唯讀者' }
+export const ACCOUNT_LABEL: Record<AccountState, string> = { active: '帳號正常', disabled: '帳號已停用', unverified: 'email 未驗證', deleted: '帳號已刪除' }
+export const ACCOUNT_TONE: Record<AccountState, '' | 'warn' | 'error' | 'quiet'> = { active: '', disabled: 'error', unverified: 'warn', deleted: 'quiet' }
+
+/** Non-zero results in a fixed order, e.g. 「QA 回答 1、文件回答 2」. */
+export function formatOutcomes(outcomes: Record<AnswerKind, number>): string {
+  const parts = (Object.keys(KIND_LABEL) as AnswerKind[]).filter(kind => outcomes[kind] > 0).map(kind => `${KIND_LABEL[kind]} ${outcomes[kind]}`)
+  return parts.length ? parts.join('、') : '—'
+}
 
 export const PURPOSES = ['生活指引', '研究資料', '參考數據'] as const
 export const DOMAINS = ['居家', '交通', '飲食', '生活'] as const

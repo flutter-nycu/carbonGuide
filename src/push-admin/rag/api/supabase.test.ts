@@ -209,7 +209,44 @@ describe('supabase RAG API: rag-v1 actions', () => {
     const mock = mockClient({ actions: () => ({ items: [{ user_id: null, name: null, email: null, role: null, count: 2, last_at: NOW.toISOString(), reserved_usd: 0.01, estimated_usd: null, unknown_cost_calls: 2 }], next_cursor: 'c2' }) })
     const page = await api(mock).listConversationUsers('owner@', 'c1')
     expect(mock.actions[0]).toEqual({ action: 'conversation_users', search: 'owner@', cursor: 'c1' })
-    expect(page).toEqual({ items: [{ userId: null, name: null, email: null, role: null, count: 2, lastAt: NOW.toISOString(), reservedUsd: 0.01, estimatedUsd: null, unknownCostCalls: 2 }], nextCursor: 'c2' })
+    // A backend without the status migration leaves the status unknown rather than inventing one.
+    expect(page).toEqual({ items: [{ userId: null, name: null, email: null, role: null, count: 2, lastAt: NOW.toISOString(), reservedUsd: 0.01, estimatedUsd: null, unknownCostCalls: 2, status: null }], nextCursor: 'c2' })
+  })
+
+  it('maps each conversation user’s current status', async () => {
+    const status = {
+      account: 'disabled', joined_at: '2026-10-01T00:00:00Z', last_sign_in_at: null, today_requests: 7,
+      outcomes: { qa: 1, document: 2, insufficient: 1, incomplete: 2 },
+      active_rounds: [{ release_name: '2026-10 第一版', request_count: 3, request_limit: 20, reserved_usd: '0.12000000', budget_usd: 0.5, expires_at: '2026-11-07T00:00:00Z' }],
+    }
+    const mock = mockClient({ actions: () => ({ items: [
+      { user_id: 'u1', name: 'A', email: 'a@x.test', role: null, count: 6, last_at: NOW.toISOString(), reserved_usd: 0, estimated_usd: 0, unknown_cost_calls: 0, status },
+      { user_id: 'u2', name: 'B', email: 'b@x.test', role: 'owner', count: 1, last_at: NOW.toISOString(), reserved_usd: 0, estimated_usd: 0, unknown_cost_calls: 0, status: { account: 'someday' } },
+    ], next_cursor: null }) })
+    const [person, unknown] = (await api(mock).listConversationUsers('', null)).items
+    expect(person.status).toEqual({
+      account: 'disabled', joinedAt: '2026-10-01T00:00:00Z', lastSignInAt: null, todayRequests: 7,
+      outcomes: { qa: 1, document: 2, insufficient: 1, incomplete: 2 },
+      activeRounds: [{ versionName: '2026-10 第一版', requestCount: 3, requestLimit: 20, reservedUsd: 0.12, budgetUsd: 0.5, expiresAt: '2026-11-07T00:00:00Z' }],
+    })
+    expect(unknown.status).toBeNull()
+  })
+
+  it('leaves a malformed status unknown instead of filling in zeros', async () => {
+    const good = { account: 'active', joined_at: null, last_sign_in_at: null, today_requests: 0, outcomes: { qa: 0, document: 1, insufficient: 0, incomplete: 0 }, active_rounds: [] }
+    const broken = [
+      { ...good, outcomes: { qa: 0, document: 1, insufficient: 0 } },
+      { ...good, outcomes: null },
+      { ...good, today_requests: 'many' },
+      { ...good, today_requests: undefined },
+      { ...good, active_rounds: [{ release_name: '2026-10 第一版', request_count: 1, request_limit: 20, reserved_usd: 0, budget_usd: 0.5 }] },
+      { ...good, active_rounds: 'none' },
+    ]
+    const row = (status: unknown, n: number) => ({ user_id: `u${n}`, name: null, email: null, role: null, count: 1, last_at: NOW.toISOString(), reserved_usd: 0, estimated_usd: 0, unknown_cost_calls: 0, status })
+    const mock = mockClient({ actions: () => ({ items: [good, ...broken].map(row), next_cursor: null }) })
+    const [first, ...rest] = (await api(mock).listConversationUsers('', null)).items
+    expect(first.status).not.toBeNull()
+    expect(rest.map(u => u.status)).toEqual(broken.map(() => null))
   })
 
   it('asks the same conversation query for everyone, one person or deleted accounts', async () => {

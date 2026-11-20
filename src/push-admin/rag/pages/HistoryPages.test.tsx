@@ -2,9 +2,9 @@
 
 import { fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi, type MockInstance } from 'vitest'
-import type { FakeRagApi } from '../api/fake'
-import type { ConversationSummary } from '../api/types'
-import { openPage, setupPageTests } from './testing'
+import { createFakeRagApi, type FakeRagApi } from '../api/fake'
+import type { ConversationSummary, ConversationUser } from '../api/types'
+import { NOW, openPage, openWith, setupPageTests } from './testing'
 
 setupPageTests()
 
@@ -116,5 +116,96 @@ describe('conversation users (top tab)', () => {
     const list = vi.spyOn(api, 'listConversationUsers')
     await waitFor(() => expect(page().textContent).toContain('這一頁只有 owner 可以查看。'))
     expect(list).not.toHaveBeenCalled()
+  })
+})
+
+describe('conversation user status', () => {
+  const region = (page: HTMLElement) => within(page).getByRole('region', { name: '目前狀態' })
+  const person = (overrides: Partial<ConversationUser>): ConversationUser => ({
+    userId: 'u-1', name: '測試帳號', email: 'test@carbonguide.test', role: null, count: 2, lastAt: '2026-11-05T07:00:00Z',
+    reservedUsd: 0, estimatedUsd: 0, status: null, ...overrides,
+  })
+  const status = (account: NonNullable<ConversationUser['status']>['account']) => ({
+    account, joinedAt: '2026-10-01T00:00:00Z', lastSignInAt: null, todayRequests: 0,
+    outcomes: { qa: 0, document: 1, insufficient: 1, incomplete: 0 }, activeRounds: [],
+  })
+
+  it('shows the account, today’s questions and outcomes in the list', async () => {
+    const { page } = openPage('conversations')
+    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    expect(within(table(page(), '對話使用者')).getAllByRole('columnheader').map(h => h.textContent)).toContain('目前狀態')
+    const owner = within(table(page(), '對話使用者')).getByText('張俊隆').closest('tr') as HTMLElement
+    expect(owner.textContent).toContain('帳號正常')
+    expect(owner.textContent).toContain('今日 0／150 題')
+    expect(owner.textContent).toContain('QA 回答 1、文件回答 2')
+    const gone = within(table(page(), '對話使用者')).getAllByText('已刪除帳號')[0].closest('tr') as HTMLElement
+    expect(gone.textContent).toContain('帳號已刪除')
+    expect(gone.textContent).toContain('資料不足 1')
+    expect(gone.textContent).not.toContain('今日')
+  })
+
+  it('shows the full status above a person’s conversations, including an open round', async () => {
+    const api = createFakeRagApi({ role: 'owner', now: () => NOW })
+    const round = await api.createRound('v-1', 'status-round')
+    await api.ask(round.id, '如何減少食物浪費？', 'status-ask')
+    const { page } = openWith(api, 'conversations')
+    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    const owner = within(table(page(), '對話使用者')).getByText('張俊隆').closest('tr') as HTMLElement
+    expect(owner.textContent).toContain('今日 1／150 題')
+    expect(owner.textContent).toContain('1 個測試輪次進行中')
+    fireEvent.click(within(page()).getByRole('button', { name: '查看 張俊隆 的對話' }))
+    await waitFor(() => expect(region(page()).textContent).toContain('帳號正常'))
+    const text = region(page()).textContent
+    expect(text).toContain('管理者')
+    expect(text).toContain('加入時間')
+    expect(text).toContain('最近登入')
+    expect(text).toContain('1／150 題')
+    expect(text).toContain('2026-10 第一版：已問 1／20 題')
+    expect(text).toContain('QA 回答 2、文件回答 2')
+    expect(text).not.toContain('沒有進行中的測試輪次')
+  })
+
+  it('says when there is no open round', async () => {
+    const { page } = openPage('conversations')
+    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    fireEvent.click(within(page()).getByRole('button', { name: '查看 張俊隆 的對話' }))
+    await waitFor(() => expect(region(page()).textContent).toContain('沒有進行中的測試輪次'))
+  })
+
+  it('leaves sign-in, quota and rounds out for a deleted account', async () => {
+    const { page } = openPage('conversations')
+    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('已刪除帳號'))
+    fireEvent.click(within(page()).getByRole('button', { name: '查看 已刪除帳號 的對話' }))
+    await waitFor(() => expect(region(page()).textContent).toContain('帳號已刪除'))
+    const text = region(page()).textContent
+    expect(text).toContain('資料不足 1')
+    for (const label of ['最近登入', '今日用量', '測試輪次']) expect(text).not.toContain(label)
+  })
+
+  it('names accounts without admin access and the other account states', async () => {
+    const { page } = openPage('conversations', 'owner', {}, api => {
+      vi.spyOn(api, 'listConversationUsers').mockResolvedValue({ nextCursor: null, items: [
+        person({ userId: 'u-1', name: '停用帳號', status: status('disabled') }),
+        person({ userId: 'u-2', name: '未驗證帳號', status: status('unverified') }),
+      ] })
+    })
+    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('停用帳號'))
+    const row = (name: string) => within(table(page(), '對話使用者')).getByText(name).closest('tr') as HTMLElement
+    expect(row('停用帳號').textContent).toContain('沒有後台權限')
+    expect(row('停用帳號').textContent).toContain('帳號已停用')
+    expect(row('未驗證帳號').textContent).toContain('email 未驗證')
+  })
+
+  it('keeps working when the backend has no status yet', async () => {
+    const { page } = openPage('conversations', 'owner', {}, api => {
+      vi.spyOn(api, 'listConversationUsers').mockResolvedValue({ nextCursor: null, items: [person({ name: '舊後端帳號', role: 'owner' })] })
+    })
+    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('舊後端帳號'))
+    const row = within(table(page(), '對話使用者')).getByText('舊後端帳號').closest('tr') as HTMLElement
+    expect(row.textContent).not.toContain('帳號正常')
+    expect(row.textContent).not.toContain('今日')
+    fireEvent.click(within(page()).getByRole('button', { name: '查看 舊後端帳號 的對話' }))
+    await waitFor(() => expect(region(page()).textContent).toContain('後端還沒有提供使用者狀態'))
+    expect(region(page()).textContent).not.toContain('帳號正常')
   })
 })

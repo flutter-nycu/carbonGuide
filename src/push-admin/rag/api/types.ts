@@ -124,6 +124,31 @@ export interface ConversationDetail extends ConversationSummary {
   priceVersion: string
 }
 
+/** Normal, banned until a later time, email not confirmed, or the account no longer exists. */
+export type AccountState = 'active' | 'disabled' | 'unverified' | 'deleted'
+
+export interface OpenRound {
+  versionName: string
+  requestCount: number
+  requestLimit: number
+  reservedUsd: number
+  budgetUsd: number
+  expiresAt: string
+}
+
+/** What a person can do right now. Deleted accounts have no sign-in, quota or rounds. */
+export interface ConversationUserStatus {
+  account: AccountState
+  joinedAt: string | null
+  lastSignInAt: string | null
+  /** Questions and evaluations counted against today's (UTC) daily limit. */
+  todayRequests: number | null
+  /** Manual questions by result; adds up to the user's count. */
+  outcomes: Record<AnswerKind, number>
+  /** Open rounds the person may ask in, the five that end first. */
+  activeRounds: OpenRound[]
+}
+
 export interface ConversationUser {
   userId: string | null
   name: string | null
@@ -134,6 +159,8 @@ export interface ConversationUser {
   reservedUsd: number
   estimatedUsd: number | null
   unknownCostCalls?: number
+  /** Null until the backend provides it. */
+  status: ConversationUserStatus | null
 }
 
 export interface Page<T> { items: T[]; nextCursor: string | null }

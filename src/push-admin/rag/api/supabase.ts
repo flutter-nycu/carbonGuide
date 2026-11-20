@@ -5,7 +5,8 @@ import { requestKeyFor } from './requestKeys'
 import { answerKind, documentStatus, versionView } from './status'
 import {
   LIMITS, fileProblem, urlProblem, validateSettings,
-  type Budget, type ChunkEdit, type ConversationDetail, type ConversationSummary, type ConversationUser, type DocumentChunk,
+  type AccountState, type Budget, type ChunkEdit, type ConversationDetail, type ConversationSummary, type ConversationUser,
+  type ConversationUserStatus, type DocumentChunk, type OpenRound,
   type EvaluationBatch, type EvaluationDataset, type EvaluationReport, type KnowledgeDocument, type KnowledgeVersion, type Page,
   type Persona, type PromptVersion, type QaEntry, type RagApi, type Role, type TestRound, type UrlEntry,
 } from './types'
@@ -73,6 +74,40 @@ function detailFrom(row: Row): ConversationDetail {
     calls: list(row.calls).map(c => ({ id: str(c.id), model: str(c.model), purpose: str(c.purpose), status: str(c.status),
       reservedUsd: num(c.reserved_usd), estimatedUsd: nullableNum(c.estimated_usd), durationMs: nullableNum(c.duration_ms) })),
     priceVersion: str(row.price_version),
+  }
+}
+
+const ACCOUNT_STATES = new Set<string>(['active', 'disabled', 'unverified', 'deleted'])
+const nullableStr = (value: unknown) => (typeof value === 'string' ? value : null)
+// Numbers in the status must be real numbers; a missing or garbled one makes the whole status unknown.
+const finiteNum = (value: unknown) => {
+  const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN
+  return Number.isFinite(n) ? n : null
+}
+
+function openRoundFrom(row: unknown): OpenRound | null {
+  if (!row || typeof row !== 'object') return null
+  const r = row as Row
+  const numbers = [r.request_count, r.request_limit, r.reserved_usd, r.budget_usd].map(finiteNum)
+  if (typeof r.release_name !== 'string' || typeof r.expires_at !== 'string' || numbers.some(n => n === null)) return null
+  const [requestCount, requestLimit, reservedUsd, budgetUsd] = numbers as number[]
+  return { versionName: r.release_name, requestCount, requestLimit, reservedUsd, budgetUsd, expiresAt: r.expires_at }
+}
+
+/** Null when the backend predates the status or sends one this page cannot read in full. */
+function userStatusFrom(value: unknown): ConversationUserStatus | null {
+  if (!value || typeof value !== 'object') return null
+  const status = value as Row
+  if (typeof status.account !== 'string' || !ACCOUNT_STATES.has(status.account)) return null
+  const outcomes = (status.outcomes && typeof status.outcomes === 'object' ? status.outcomes : {}) as Row
+  const [qa, document, insufficient, incomplete] = [outcomes.qa, outcomes.document, outcomes.insufficient, outcomes.incomplete].map(finiteNum)
+  const today = status.today_requests === null ? null : finiteNum(status.today_requests)
+  const rounds = Array.isArray(status.active_rounds) ? status.active_rounds.map(openRoundFrom) : null
+  if (qa === null || document === null || insufficient === null || incomplete === null) return null
+  if ((status.today_requests !== null && today === null) || !rounds || rounds.some(r => r === null)) return null
+  return {
+    account: status.account as AccountState, joinedAt: nullableStr(status.joined_at), lastSignInAt: nullableStr(status.last_sign_in_at),
+    todayRequests: today, outcomes: { qa, document, insufficient, incomplete }, activeRounds: rounds as OpenRound[],
   }
 }
 
@@ -535,6 +570,7 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
       return pageFrom(await action({ action: 'conversation_users', search, cursor }), (row): ConversationUser => ({
         userId: (row.user_id as string | null) ?? null, name: (row.name as string | null) ?? null, email: (row.email as string | null) ?? null,
         role: (row.role as Role | null) ?? null, count: num(row.count), lastAt: str(row.last_at), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd), unknownCostCalls: num(row.unknown_cost_calls),
+        status: userStatusFrom(row.status),
       }))
     },
     async listUserConversations(userId, cursor) {

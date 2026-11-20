@@ -3,7 +3,7 @@ import { RagError } from './errors'
 import {
   LIMITS, correctionBytes, fileProblem, urlProblem, validateSettings,
   type AnswerKind, type Budget, type ChunkEdit, type Citation, type ConversationDetail, type ConversationSummary,
-  type ConversationUser, type DocumentChunk, type DocumentDetail, type EvaluationBatch, type EvaluationDataset,
+  type ConversationUser, type ConversationUserStatus, type DocumentChunk, type DocumentDetail, type EvaluationBatch, type EvaluationDataset,
   type EvaluationReport, type EvaluationStep, type FlowStep, type KnowledgeDocument, type KnowledgeVersion,
   type ModelCall, type Origin, type Page, type Persona, type PersonaInput, type PromptInput, type PromptVersion,
   type QaCitation, type QaEntry, type QaInput, type RagApi, type RetrievalSettings, type Role, type SettingsInput,
@@ -26,15 +26,15 @@ export interface FakeRagApi extends RagApi {
 
 interface StoredDocument { doc: KnowledgeDocument; chunks: DocumentChunk[]; size: number; revision?: number }
 interface StoredUrl extends UrlEntry { step: number }
-interface Account { userId: string; name: string; email: string; role: Role | null }
+interface Account { userId: string; name: string; email: string; role: Role | null; joinedDaysAgo: number; lastSignInHoursAgo: number }
 interface StoredRequest { detail: ConversationDetail; userId: string | null; roundId: string | null; key: string | null }
 
 const PRICE_VERSION = 'google-standard-text-2026-10-26'
 const DAY = 24 * 3600 * 1000
 const PAGE_SIZE = 20
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, owner: 2 }
-const OWNER: Account = { userId: 'u-owner', name: '張俊隆', email: 'owner@carbonguide.test', role: 'owner' }
-const EDITOR: Account = { userId: 'u-editor', name: '林編輯', email: 'editor@carbonguide.test', role: 'editor' }
+const OWNER: Account = { userId: 'u-owner', name: '張俊隆', email: 'owner@carbonguide.test', role: 'owner', joinedDaysAgo: 240, lastSignInHoursAgo: 2 }
+const EDITOR: Account = { userId: 'u-editor', name: '林編輯', email: 'editor@carbonguide.test', role: 'editor', joinedDaysAgo: 60, lastSignInHoursAgo: 30 }
 const KEYWORDS = ['度電', '用電', '冷氣', '照明', '食物', '剩菜', '買菜', '碳排']
 const CATEGORY_MINIMUMS: Record<string, number> = { retrieval: 10, abstention: 6, safety: 6, qa: 2, persona: 2 }
 const CATEGORIES = ['retrieval', 'qa', 'calculation', 'abstention', 'safety', 'persona']
@@ -520,6 +520,23 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
     }),
     listConversationUsers: (search, cursor) => resolve(() => {
       guard('owner')
+      // Same rules as rag_private.v1_admin_conversation_users: today is the UTC day, rounds are open ones the person may ask in.
+      const today = now().toISOString().slice(0, 10)
+      const statusOf = (account: Account | null, list: StoredRequest[]): ConversationUserStatus => {
+        const outcomes = { qa: 0, document: 0, insufficient: 0, incomplete: 0 }
+        for (const r of list) outcomes[r.detail.kind] += 1
+        if (!account) return { account: 'deleted', joinedAt: null, lastSignInAt: null, todayRequests: null, outcomes, activeRounds: [] }
+        const open = account === OWNER ? rounds.filter(r => r.state === 'active' && new Date(r.expiresAt) > now()) : []
+        return {
+          account: 'active', joinedAt: at(-account.joinedDaysAgo * DAY), lastSignInAt: at(-account.lastSignInHoursAgo * 3600 * 1000),
+          todayRequests: requests.filter(r => r.userId === account.userId && r.detail.createdAt.slice(0, 10) === today).length,
+          outcomes,
+          activeRounds: [...open].sort((a, b) => a.expiresAt.localeCompare(b.expiresAt)).slice(0, 5).map(r => ({
+            versionName: findVersion(r.versionId).name, requestCount: r.requestCount, requestLimit: r.requestLimit,
+            reservedUsd: r.reservedUsd, budgetUsd: r.budgetUsd, expiresAt: r.expiresAt,
+          })),
+        }
+      }
       const groups = new Map<string, StoredRequest[]>()
       for (const r of requests.filter(r => r.detail.origin === 'query')) {
         const keyOf = r.userId ?? 'deleted'
@@ -533,6 +550,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
           count: list.length, lastAt: list.map(r => r.detail.createdAt).sort().reverse()[0],
           reservedUsd: list.reduce((sum, r) => sum + r.detail.reservedUsd, 0),
           estimatedUsd: list.reduce((sum, r) => sum + (r.detail.estimatedUsd ?? 0), 0),
+          status: statusOf(account, list),
         }
       }).filter(u => !term || (u.name ?? '').toLowerCase().includes(term) || (u.email ?? '').toLowerCase().includes(term))
         .sort((a, b) => b.lastAt.localeCompare(a.lastAt))

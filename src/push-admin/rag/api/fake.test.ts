@@ -115,9 +115,28 @@ describe('fake RAG API: conversations', () => {
     expect([...times].sort().reverse()).toEqual(times)
     expect(page.items.some(u => u.userId === null)).toBe(true)
     for (const user of page.items) expect(user.count).toBeGreaterThan(0)
-    expect(page.items.every(u => Object.keys(u).sort().join() === 'count,email,estimatedUsd,lastAt,name,reservedUsd,role,userId')).toBe(true)
+    expect(page.items.every(u => Object.keys(u).sort().join() === 'count,email,estimatedUsd,lastAt,name,reservedUsd,role,status,userId')).toBe(true)
     const found = await api().listConversationUsers('owner@', null)
     expect(found.items).toHaveLength(1)
+  })
+
+  it('gives every user a current status whose outcomes add up to the count', async () => {
+    const owner = api()
+    const round = await owner.createRound('v-1', 'round')
+    await owner.ask(round.id, '如何減少食物浪費？', 'ask-1')
+    const page = await owner.listConversationUsers('', null)
+    for (const user of page.items) {
+      const outcomes = user.status!.outcomes
+      expect(outcomes.qa + outcomes.document + outcomes.insufficient + outcomes.incomplete).toBe(user.count)
+    }
+    const me = page.items.find(u => u.userId !== null && u.role === 'owner')!
+    expect(me.status).toMatchObject({ account: 'active', todayRequests: 1, outcomes: { qa: 2, document: 2, insufficient: 0, incomplete: 0 } })
+    expect(me.status!.activeRounds).toEqual([{ versionName: '2026-10 第一版', requestCount: 1, requestLimit: 20, reservedUsd: 0, budgetUsd: 0.5, expiresAt: round.expiresAt }])
+    const gone = page.items.find(u => u.userId === null)!
+    expect(gone.status).toMatchObject({ account: 'deleted', joinedAt: null, lastSignInAt: null, todayRequests: null, activeRounds: [] })
+    await owner.stopRound(round.id)
+    const after = (await owner.listConversationUsers('owner@', null)).items[0]
+    expect(after.status!.activeRounds).toEqual([])
   })
 
   it('shows a person’s conversations and marks expired details', async () => {
