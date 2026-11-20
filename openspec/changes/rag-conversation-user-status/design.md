@@ -43,7 +43,17 @@
 
 5. **畫面配置。** 列表新增「目前狀態」欄（帳號狀態 tag、今日用量；有輪次時加「N 個測試輪次進行中」），「對話次數」下方用 small 文字列出結果分布。個人頁把既有的 metadata 區塊包成「目前狀態」一區，依序是 Email、角色、帳號狀態、加入時間、最近登入、今日用量、測試輪次、對話次數、對話結果、累計估計費用。沿用 `dl.metadata`、`tag` 等既有樣式，只加一個 `.nowrap` class 讓角色欄在窄螢幕不被拆字；不用 inline style（正式站 CSP 是 `style-src 'self'`），也不新增說明卡。
 
+6. **第二階段：列出所有帳號（2026-11-20）。** `20261119100000` 已套用到正式庫，所以另開 migration `20261120100000` 重新定義同一個函式，而不是改舊檔。
+   - 以 `auth.users`（`created_at <= cutoff`）與提問彙總做 full join：沒有提問的帳號次數為 0、`last_at` 為 null、費用 0／null；「已刪除帳號」這一組仍只在有提問時出現。
+   - 排序是 `(tier, sort_at desc, actor_id nulls last)`：tier 0 是有提問的帳號，`sort_at` 為最近提問；tier 1 是其他帳號，`sort_at` 為加入時間（缺值時用 epoch，只影響排序）。cursor 沿用 `v1_cursor` 的格式再加 `tier`，filter 雜湊改用 `users-all`，舊列表的 cursor 一律回 `invalid_cursor`，前端已有「列表已經變動，請重新整理頁面」的提示。
+   - cutoff 限制提問時間，也限制沒有提問的帳號的建立時間（有提問的帳號一律保留，因為 GoTrue 與資料庫的時鐘可能有些微差距），所以翻頁中途有人加入或第一次提問，都不會讓後面的頁重複或漏掉。翻頁中途有人刪除帳號時，他的提問併入「已刪除帳號」組、時間往前跳，這一組可能要重新整理才看得到；舊版也有同樣的情況。加入時間缺值或不是有限值時用 epoch 排在最後，cursor 只會帶有限的時間。
+   - 每頁仍 50 筆；沒有提問的帳號不跑費用子查詢。搜尋比對所有帳號的 email 與顯示名稱。
+   - 網站不需要和 migration 同時上線：舊後端只回有提問的人，新網站照常顯示；新後端搭配舊網站，沒有提問的帳號會顯示「0 次」、最近對話「—」、費用「尚無資料」，可以用但文字較粗。
+
 ## Risks / Trade-offs
+
+- [每頁都掃一次 `auth.users` 並和提問彙總 full join] → 數千個帳號沒有問題；到數萬、數十萬筆時單次查詢可能接近 Edge 或 PostgREST 的逾時，屆時再加索引或改成先取帳號頁、再補彙總。
+- [列出所有 App 使用者的 email、登入時間] → 這是個資可見範圍的擴大：原本只有提問過的管理員帳號，現在是所有 App 帳號。仍只給 owner、只經 `rag-v1` 的 owner 檢查與 service_role 函式，不新增 authenticated 可讀的資料；後端 `docs/security-and-privacy.md` 同步更新。上線前需要人工確認這個範圍。
 
 - [正式環境 `auth.users` 欄位與本機替身不同] → 只用 GoTrue 長期存在的四個欄位；套用前用後端 `openspec/changes/rag-backend-live/verify/sql_dry_run.sh`，在正式環境的同一個 transaction 裡先跑 migration 內容、再跑測試，最後 rollback，失敗就不套用。plpgsql 在執行時才檢查欄位，所以這一步不能省。測試本身要求 `status` 欄位，單獨在套用前跑一定失敗，必須用這支腳本。
 - [dry run 期間的鎖] → 測試建立的輪次以外鍵指向 campaign，會短暫擋住同時間的試問（最多到 30 秒 statement timeout），挑沒有人試問時執行，跑完就結束連線。

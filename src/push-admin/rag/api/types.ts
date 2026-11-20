@@ -154,8 +154,10 @@ export interface ConversationUser {
   name: string | null
   email: string | null
   role: Role | null
+  /** Manual questions; 0 for an account that never asked. */
   count: number
-  lastAt: string
+  /** Latest manual question; null when there is none. */
+  lastAt: string | null
   reservedUsd: number
   estimatedUsd: number | null
   unknownCostCalls?: number

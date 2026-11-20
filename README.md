@@ -18,6 +18,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站，使用者已用真實資料驗證；規格已歸檔，需求併入 `openspec/specs/rag-admin-live-workspace/spec.md`，收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
 - 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；部署收據與驗證見後端 `docs/rag.md`。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-top-tabs/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；正式站的真實資料畫面待使用者登入確認。
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站，同日依 Ken 授權在正式庫套用 migration（前後 SQL 測試通過並 rollback），後端分支合併 main。管理員登入確認狀態欄的真實畫面後再歸檔規格。收據見後端 `docs/rag.md`。
+- 對話使用者列出所有帳號（James 2026-11-20 補充，PR 審查中）：有提問的排前面，其他帳號依加入時間排列，顯示「0 次」「還沒有對話」。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`；owner 會看到所有 App 帳號的 email 與登入時間，合併與套用前需要人工確認。細節見 AGENTS 與後端 `docs/rag.md`。
 
 ## 架構與資料流
 

@@ -26,15 +26,22 @@ export interface FakeRagApi extends RagApi {
 
 interface StoredDocument { doc: KnowledgeDocument; chunks: DocumentChunk[]; size: number; revision?: number }
 interface StoredUrl extends UrlEntry { step: number }
-interface Account { userId: string; name: string; email: string; role: Role | null; joinedDaysAgo: number; lastSignInHoursAgo: number }
+interface Account {
+  userId: string; name: string; email: string; role: Role | null; state: 'active' | 'unverified'
+  joinedDaysAgo: number; lastSignInHoursAgo: number | null
+}
 interface StoredRequest { detail: ConversationDetail; userId: string | null; roundId: string | null; key: string | null }
 
 const PRICE_VERSION = 'google-standard-text-2026-10-26'
 const DAY = 24 * 3600 * 1000
 const PAGE_SIZE = 20
 const RANK: Record<Role, number> = { viewer: 0, editor: 1, owner: 2 }
-const OWNER: Account = { userId: 'u-owner', name: '張俊隆', email: 'owner@carbonguide.test', role: 'owner', joinedDaysAgo: 240, lastSignInHoursAgo: 2 }
-const EDITOR: Account = { userId: 'u-editor', name: '林編輯', email: 'editor@carbonguide.test', role: 'editor', joinedDaysAgo: 60, lastSignInHoursAgo: 30 }
+const OWNER: Account = { userId: 'u-owner', name: '張俊隆', email: 'owner@carbonguide.test', role: 'owner', state: 'active', joinedDaysAgo: 240, lastSignInHoursAgo: 2 }
+const EDITOR: Account = { userId: 'u-editor', name: '林編輯', email: 'editor@carbonguide.test', role: 'editor', state: 'active', joinedDaysAgo: 60, lastSignInHoursAgo: 30 }
+// App accounts that never asked: the users page lists every account, not only people who asked.
+const ACCOUNTS: Account[] = [OWNER, EDITOR,
+  { userId: 'u-app-hua', name: '陳小華', email: 'hua@example.test', role: null, state: 'active', joinedDaysAgo: 3, lastSignInHoursAgo: 5 },
+  { userId: 'u-app-new', name: '', email: 'newcomer@example.test', role: null, state: 'unverified', joinedDaysAgo: 1, lastSignInHoursAgo: null }]
 const KEYWORDS = ['度電', '用電', '冷氣', '照明', '食物', '剩菜', '買菜', '碳排']
 const CATEGORY_MINIMUMS: Record<string, number> = { retrieval: 10, abstention: 6, safety: 6, qa: 2, persona: 2 }
 const CATEGORIES = ['retrieval', 'qa', 'calculation', 'abstention', 'safety', 'persona']
@@ -127,7 +134,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
     return found
   }
   const titleOf = (chunkId: string) => documents.find(d => d.chunks.some(c => c.id === chunkId))?.doc.title ?? '已移除的文件'
-  const userOf = (userId: string | null) => [OWNER, EDITOR].find(a => a.userId === userId) ?? null
+  const userOf = (userId: string | null) => ACCOUNTS.find(a => a.userId === userId) ?? null
   const label = (userId: string | null) => userOf(userId)?.name ?? '已刪除帳號'
   const expired = (createdAt: string) => now().getTime() - new Date(createdAt).getTime() > LIMITS.retentionDays * DAY
   const paginate = <T>(items: T[], cursor: string | null): Page<T> => {
@@ -528,7 +535,8 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
         if (!account) return { account: 'deleted', joinedAt: null, lastSignInAt: null, todayRequests: null, outcomes, activeRounds: [] }
         const open = account === OWNER ? rounds.filter(r => r.state === 'active' && new Date(r.expiresAt) > now()) : []
         return {
-          account: 'active', joinedAt: at(-account.joinedDaysAgo * DAY), lastSignInAt: at(-account.lastSignInHoursAgo * 3600 * 1000),
+          account: account.state, joinedAt: at(-account.joinedDaysAgo * DAY),
+          lastSignInAt: account.lastSignInHoursAgo === null ? null : at(-account.lastSignInHoursAgo * 3600 * 1000),
           todayRequests: requests.filter(r => r.userId === account.userId && r.detail.createdAt.slice(0, 10) === today).length,
           outcomes,
           activeRounds: [...open].sort((a, b) => a.expiresAt.localeCompare(b.expiresAt)).slice(0, 5).map(r => ({
@@ -542,18 +550,22 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
         const keyOf = r.userId ?? 'deleted'
         groups.set(keyOf, [...(groups.get(keyOf) ?? []), r])
       }
+      for (const account of ACCOUNTS) if (!groups.has(account.userId)) groups.set(account.userId, [])
       const term = search.trim().toLowerCase()
-      const users: ConversationUser[] = [...groups.values()].map(list => {
-        const account = userOf(list[0].userId)
-        return {
+      const rows = [...groups.entries()].map(([key, list]) => {
+        const account = key === 'deleted' ? null : userOf(key)
+        const user: ConversationUser = {
           userId: account?.userId ?? null, name: account?.name ?? null, email: account?.email ?? null, role: account?.role ?? null,
-          count: list.length, lastAt: list.map(r => r.detail.createdAt).sort().reverse()[0],
+          count: list.length, lastAt: list.map(r => r.detail.createdAt).sort().reverse()[0] ?? null,
           reservedUsd: list.reduce((sum, r) => sum + r.detail.reservedUsd, 0),
-          estimatedUsd: list.reduce((sum, r) => sum + (r.detail.estimatedUsd ?? 0), 0),
+          estimatedUsd: list.length ? list.reduce((sum, r) => sum + (r.detail.estimatedUsd ?? 0), 0) : null,
           status: statusOf(account, list),
         }
-      }).filter(u => !term || (u.name ?? '').toLowerCase().includes(term) || (u.email ?? '').toLowerCase().includes(term))
-        .sort((a, b) => b.lastAt.localeCompare(a.lastAt))
+        // Same order as the backend: people who asked by latest question, then everyone else by join time.
+        return { user, tier: list.length ? 0 : 1, sortAt: user.lastAt ?? user.status!.joinedAt ?? '' }
+      }).filter(({ user: u }) => !term || (u.name ?? '').toLowerCase().includes(term) || (u.email ?? '').toLowerCase().includes(term))
+        .sort((x, y) => x.tier - y.tier || y.sortAt.localeCompare(x.sortAt))
+      const users = rows.map(r => r.user)
       return paginate(users, cursor)
     }),
     listUserConversations: (userId, cursor) => resolve(() => {

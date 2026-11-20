@@ -7,7 +7,7 @@ import { ACCOUNT_LABEL, ACCOUNT_TONE, ROLE_LABEL, formatDate, formatOutcomes, fo
 import { Notice, type PageProps } from '../ui'
 
 const displayName = (u: ConversationUser) => (u.userId === null ? '已刪除帳號' : u.name || u.email || '沒有名稱的帳號')
-const roleText = (u: ConversationUser) => (u.role ? ROLE_LABEL[u.role] : u.userId === null ? '—' : '沒有後台權限')
+const roleText = (u: ConversationUser) => (u.role ? ROLE_LABEL[u.role] : u.userId === null ? '—' : '一般使用者')
 const accountTag = (status: ConversationUserStatus) =>
   <span className={`tag ${ACCOUNT_TONE[status.account]}`.trim()}>{ACCOUNT_LABEL[status.account]}</span>
 
@@ -15,7 +15,7 @@ function StatusCell({ status }: { status: ConversationUserStatus | null }) {
   if (!status) return <>—</>
   return <>
     {accountTag(status)}
-    {status.todayRequests !== null && <small>今日 {status.todayRequests}／{LIMITS.round.dailyLimit} 題</small>}
+    {status.todayRequests !== null && status.todayRequests > 0 && <small>今日 {status.todayRequests}／{LIMITS.round.dailyLimit} 題</small>}
     {status.activeRounds.length > 0 && <small>{status.activeRounds.length} 個測試輪次進行中</small>}
   </>
 }
@@ -60,19 +60,19 @@ export default function ConversationsPage({ api }: PageProps) {
               <td><strong>{displayName(u)}</strong><small>{u.email ?? '—'}</small></td>
               <td className="nowrap">{roleText(u)}</td>
               <td><StatusCell status={u.status} /></td>
-              <td>{u.count} 次{u.status && <small>{formatOutcomes(u.status.outcomes)}</small>}</td>
-              <td>{formatDate(u.lastAt)}</td>
-              <td>{formatEstimate(u.estimatedUsd, u.unknownCostCalls)}<small>預留 {formatUsd(u.reservedUsd)}</small></td>
+              <td>{u.count} 次{u.count === 0 ? <small>還沒有對話</small> : u.status && <small>{formatOutcomes(u.status.outcomes)}</small>}</td>
+              <td>{u.lastAt ? formatDate(u.lastAt) : '—'}</td>
+              <td>{u.count === 0 ? '—' : <>{formatEstimate(u.estimatedUsd, u.unknownCostCalls)}<small>預留 {formatUsd(u.reservedUsd)}</small></>}</td>
               <td><button type="button" className="text-button" aria-label={`查看 ${displayName(u)} 的對話`}
                 onClick={event => { opener.current = event.currentTarget; setPerson(u) }}>查看對話 →</button></td>
             </tr>)}
-            {!users.items.length && <tr><td colSpan={7}><div className="empty">{query ? '沒有符合的使用者。' : '還沒有人問過問題。'}</div></td></tr>}
+            {!users.items.length && <tr><td colSpan={7}><div className="empty">{query ? '沒有符合的使用者。' : '還沒有任何帳號。'}</div></td></tr>}
           </tbody>
         </table></div>
         <p className="scroll-hint">表格可以左右滑動</p>
         {users.hasMore && <div className="actions"><button type="button" className="secondary" disabled={users.loading} onClick={() => void users.more()}>載入更多</button></div>}
       </>}
-      <p className="caption">只列出在試問台問過問題的帳號，對話次數不含自動評測；今日用量是試問與評測合計，每天臺灣時間 08:00 換日。費用是依 Google 公告單價的估計，實際金額以 Google 帳單為準。</p>
+      <p className="caption">有對話的使用者排在前面（最近對話的在上面），其他帳號依加入時間由新到舊排列。對話次數只算試問台的提問，不含自動評測；今日用量是試問與評測合計，每天臺灣時間 08:00 換日。費用是依 Google 公告單價的估計，實際金額以 Google 帳單為準。</p>
     </section>
     {person && <PersonConversations key={person.userId ?? 'deleted'} api={api} person={person} onBack={back} onOpen={setOpenId} />}
     <ConversationDialog api={api} id={openId} onClose={() => setOpenId(null)} />
@@ -96,9 +96,9 @@ function PersonConversations({ api, person, onBack, onOpen }: { api: RagApi; per
         <dt>Email</dt><dd>{person.email ?? '—'}</dd>
         <dt>角色</dt><dd>{roleText(person)}</dd>
         {person.status ? <StatusDetails status={person.status} /> : <><dt>帳號狀態</dt><dd>後端還沒有提供使用者狀態</dd></>}
-        <dt>對話次數</dt><dd>{person.count} 次，最近一次在 {formatDate(person.lastAt)}</dd>
-        {person.status && <><dt>對話結果</dt><dd>{formatOutcomes(person.status.outcomes)}</dd></>}
-        <dt>累計估計費用</dt><dd>{formatEstimate(person.estimatedUsd, person.unknownCostCalls)}（預留 {formatUsd(person.reservedUsd)}）</dd>
+        <dt>對話次數</dt><dd>{person.lastAt ? `${person.count} 次，最近一次在 ${formatDate(person.lastAt)}` : '還沒有對話'}</dd>
+        {person.count > 0 && person.status && <><dt>對話結果</dt><dd>{formatOutcomes(person.status.outcomes)}</dd></>}
+        {person.count > 0 && <><dt>累計估計費用</dt><dd>{formatEstimate(person.estimatedUsd, person.unknownCostCalls)}（預留 {formatUsd(person.reservedUsd)}）</dd></>}
       </dl>
     </section>
     <ConversationTable label={`${name} 的對話`} paged={conversations} onOpen={onOpen} />

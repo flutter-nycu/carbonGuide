@@ -569,7 +569,7 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     async listConversationUsers(search, cursor) {
       return pageFrom(await action({ action: 'conversation_users', search, cursor }), (row): ConversationUser => ({
         userId: (row.user_id as string | null) ?? null, name: (row.name as string | null) ?? null, email: (row.email as string | null) ?? null,
-        role: (row.role as Role | null) ?? null, count: num(row.count), lastAt: str(row.last_at), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd), unknownCostCalls: num(row.unknown_cost_calls),
+        role: (row.role as Role | null) ?? null, count: num(row.count), lastAt: nullableStr(row.last_at), reservedUsd: num(row.reserved_usd), estimatedUsd: nullableNum(row.estimated_usd), unknownCostCalls: num(row.unknown_cost_calls),
         status: userStatusFrom(row.status),
       }))
     },

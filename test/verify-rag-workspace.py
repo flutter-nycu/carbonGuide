@@ -108,6 +108,7 @@ with sync_playwright() as p:
         check_dialog(page, section, section.get_by_role('button', name='檢視').first, f'{width} log', shot and f'{width}-dialog-log.png')
         section = go(page, 'conversations', '對話使用者')
         expect(section.get_by_role('table', name='對話使用者').get_by_role('row').filter(has_text='張俊隆')).to_contain_text('帳號正常')
+        expect(section.get_by_role('table', name='對話使用者').get_by_role('row').filter(has_text='陳小華')).to_contain_text('還沒有對話')
         section.get_by_role('button', name='查看 張俊隆 的對話').click()
         expect(section.get_by_role('table', name='張俊隆 的對話')).to_be_visible()
         expect(section.get_by_role('region', name='目前狀態')).to_contain_text('今日用量')
@@ -120,7 +121,7 @@ with sync_playwright() as p:
         check_dialog(page, section, section.get_by_role('table', name='張俊隆 的對話').get_by_role('button').first, f'{width} person detail', False)
         section.get_by_role('button', name='← 回到使用者列表').click()
         expect(section.get_by_role('table', name='對話使用者')).to_be_visible()
-        checks.append(f'Dialogs at {width}px take focus, close with Esc and return focus to their button; switching top tabs keeps the open list; conversation users show each person’s current status')
+        checks.append(f'Dialogs at {width}px take focus, close with Esc and return focus to their button; switching top tabs keeps the open list; conversation users list every account with its current status')
 
         section = go(page, 'guide', '技術架構導覽')
         tabs = section.get_by_role('tablist', name='選擇流程')

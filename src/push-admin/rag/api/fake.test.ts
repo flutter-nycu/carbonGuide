@@ -108,13 +108,18 @@ describe('fake RAG API: playground', () => {
 })
 
 describe('fake RAG API: conversations', () => {
-  it('lists users who asked questions, newest first, for owners only', async () => {
+  it('lists every account, people who asked first, for owners only', async () => {
     expect(await code(api('editor').listConversationUsers('', null))).toBe('owner_required')
     const page = await api().listConversationUsers('', null)
-    const times = page.items.map(u => u.lastAt)
+    const times = page.items.filter(u => u.count > 0).map(u => u.lastAt!)
     expect([...times].sort().reverse()).toEqual(times)
     expect(page.items.some(u => u.userId === null)).toBe(true)
-    for (const user of page.items) expect(user.count).toBeGreaterThan(0)
+    // People who asked come first, latest question first; accounts that never asked follow, newest first.
+    const firstQuiet = page.items.findIndex(u => u.count === 0)
+    expect(firstQuiet).toBeGreaterThan(0)
+    expect(page.items.slice(firstQuiet).every(u => u.count === 0 && u.lastAt === null)).toBe(true)
+    const joins = page.items.slice(firstQuiet).map(u => u.status!.joinedAt!)
+    expect([...joins].sort().reverse()).toEqual(joins)
     expect(page.items.every(u => Object.keys(u).sort().join() === 'count,email,estimatedUsd,lastAt,name,reservedUsd,role,status,userId')).toBe(true)
     const found = await api().listConversationUsers('owner@', null)
     expect(found.items).toHaveLength(1)

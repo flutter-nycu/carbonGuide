@@ -34,3 +34,12 @@
 - [x] 6.2 正式環境以 `sql_dry_run.sh` 試跑 migration 與兩份測試（rollback），通過後套用 migration，套用後再跑一次測試（2026-11-20 依 Ken 授權完成；環境沒有 `psql`，用 Supabase MCP 執行等效流程，紀錄見後端 `docs/rag.md`）
 - [x] 6.3 推送網站 main 部署 Production，部署後驗證（deployment `7931096289`，HTTP 與 mock 驗證見後端 `docs/rag.md`；真實資料畫面待管理員登入確認）
 - [ ] 6.4 歸檔本 change
+
+## 7. 第二階段：列出所有帳號（2026-11-20，James 補充需求）
+
+- [x] 7.1 同步兩個 repo 到 origin/main（網站 `6b3017a`、後端 `b2b06c5`）；確認 `20261119100000` 已由 Ken 套用到正式庫
+- [x] 7.2 新 SQL 測試 `rag_conversation_users_all_accounts.sql`（沒有提問的帳號、排序、同加入時間以 id 排、跨分組翻頁、翻頁中途加入或提問不影響），先失敗
+- [x] 7.3 新 migration `20261120100000_rag_conversation_users_all_accounts.sql`；`sql_local.sh` 先 dry run 再套用，8 份 SQL 測試通過
+- [x] 7.4 網站：`lastAt` 可為 null、fake 加入沒有提問的帳號、列表與個人頁的「還沒有對話」、角色「一般使用者」、今日用量只在有題數時顯示、副標與說明文字
+- [x] 7.5 驗證：type-check、231 項測試、啟用 RAG 的 build、兩支瀏覽器腳本（mock）、SQL 變異 10 個（9 個抓到、1 個等價）與前端變異 5 個、子代理審查（無 Critical／Important，Minor 已修）
+- [ ] 7.6 開 PR（個資可見範圍擴大，需要人工確認）；正式庫以 dry run 試跑後套用 migration；合併網站 PR 部署並驗證

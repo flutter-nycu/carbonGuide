@@ -206,11 +206,18 @@ describe('supabase RAG API: rag-v1 actions', () => {
   })
 
   it('maps conversation users and keeps the cursor', async () => {
-    const mock = mockClient({ actions: () => ({ items: [{ user_id: null, name: null, email: null, role: null, count: 2, last_at: NOW.toISOString(), reserved_usd: 0.01, estimated_usd: null, unknown_cost_calls: 2 }], next_cursor: 'c2' }) })
+    const mock = mockClient({ actions: () => ({ items: [
+      { user_id: null, name: null, email: null, role: null, count: 2, last_at: NOW.toISOString(), reserved_usd: 0.01, estimated_usd: null, unknown_cost_calls: 2 },
+      { user_id: 'u-quiet', name: null, email: 'quiet@x.test', role: null, count: 0, last_at: null, reserved_usd: 0, estimated_usd: null, unknown_cost_calls: 0 },
+    ], next_cursor: 'c2' }) })
     const page = await api(mock).listConversationUsers('owner@', 'c1')
     expect(mock.actions[0]).toEqual({ action: 'conversation_users', search: 'owner@', cursor: 'c1' })
     // A backend without the status migration leaves the status unknown rather than inventing one.
-    expect(page).toEqual({ items: [{ userId: null, name: null, email: null, role: null, count: 2, lastAt: NOW.toISOString(), reservedUsd: 0.01, estimatedUsd: null, unknownCostCalls: 2, status: null }], nextCursor: 'c2' })
+    expect(page).toEqual({ items: [
+      { userId: null, name: null, email: null, role: null, count: 2, lastAt: NOW.toISOString(), reservedUsd: 0.01, estimatedUsd: null, unknownCostCalls: 2, status: null },
+      // An account that never asked has no latest conversation.
+      { userId: 'u-quiet', name: null, email: 'quiet@x.test', role: null, count: 0, lastAt: null, reservedUsd: 0, estimatedUsd: null, unknownCostCalls: 0, status: null },
+    ], nextCursor: 'c2' })
   })
 
   it('maps each conversation user’s current status', async () => {
