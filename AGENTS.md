@@ -62,6 +62,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；部署收據與驗證見後端 `docs/rag.md`。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-top-tabs/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；正式站的真實資料畫面待使用者登入確認。
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站（deployment `7931096289`）；同日依 Ken 授權用 Supabase MCP 在正式庫套用 migration，套用前後兩份 SQL 測試都通過並 rollback，後端分支合併 main。後端套用前狀態欄顯示「—」，套用後應顯示真實狀態；管理員登入確認真實畫面後再歸檔規格（tasks 6.4）。部署與套用收據見後端 `docs/rag.md`。
 - 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面；網址仍是 `#conversations`。同日 James 與 Ken 確認 owner 可看到所有 App 帳號的資料，Ken 用 Supabase MCP 在正式庫套用 migration，三份 SQL 測試前後都通過並 rollback；PR #1 `092051a` fast-forward 合併 main 部署正式站，develop 同步。部署與驗證收據見後端 `docs/rag.md`）：列表改成所有帳號，有提問的排前面（最近提問在上），其他帳號依加入時間排列，顯示「0 次」「還沒有對話」，角色「一般使用者」；列表上的今日用量只在當天有題數時顯示。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`（cursor 多一個分組鍵，舊 cursor 回「列表已經變動，請重新整理頁面」）。這會讓 owner 看得到所有 App 帳號的 email 與登入時間，已於 2026-11-20 經人工確認。新網站搭配舊後端仍只列有提問的人，舊網站搭配新後端會多出 0 次的帳號、時間顯示「—」，兩邊可以先後上線。
+- 「使用者」分頁的分頁與字體（James 2026-11-20 下午）：每頁 10 位，上一頁／下一頁／頁碼，已知總數時顯示「第 N／M 頁，共 X 位」；表格文字 14px。只改網站：後端仍以 cursor 每次給 50 位，頁數用完才取下一批，不送頁碼或 offset。
 
 ### 怎麼運作
 
@@ -95,7 +96,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | 上傳 | `upload_begin` 取 signed URL → 瀏覽器上傳 → `upload_verify` 核對 SHA-256 → 後端觸發 worker；上傳成功不等於解析／向量化成功 |
 | 建立版本 | 只凍結有效文件與引用有效段落的 QA；disabled 驗收文件及其 QA 不得進入新 snapshot，既有 snapshot 不回寫 |
 | 評測 | 題組與輪次固定；先扣除當日已用額度，進度只計 terminal requests。回應遺失時沿用原輪次／批次／請求鍵，離頁停止前端接續，不清除已完成結果 |
-| 對話分頁 | 後端 cursor 綁定 cutoff、使用者與來源；保留 cursor，換篩選重開列表，不用 offset 或自行拼頁碼 |
+| 對話分頁 | 後端 cursor 綁定 cutoff、使用者與來源；保留 cursor，換篩選重開列表，不用 offset 或自行拼頁碼。「使用者」分頁的頁碼只在瀏覽器裡切已載入的資料，向後端仍只送 cursor |
 | 使用者狀態 | 帳號、今日用量（UTC 日，試問與評測合計）與輪次以查詢當下計算；結果分布跟對話次數用同一個 cutoff，四項合計等於次數。後端沒提供 `status` 時顯示「—」，不補 0 或「正常」 |
 | 費用 | 未取得模型用量不得顯示成零；呈現已知估計與未知筆數。campaign 預留、模型估計與 Google 帳單是不同數字 |
 | 發布 | 自動評測與引用驗證通過仍需 owner 人工核准；候選 pending 不可直接發布，正式網站切換另需授權 |
