@@ -6,7 +6,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 
 ## 最新進度（2026-11-20）
 
-一句話：管理員 RAG 工作台已在正式站營運，main 的程式基線是 `e92e010`（對話使用者狀態），後端 migration `20261119100000` 已於 2026-11-20 套用到正式庫；兩個 repo 的 main 與 develop 相同。App 端未接入，Safari／手機未驗。下列為歷次經過，最新狀態與核對方式以後端 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md) 的「目前狀態總表」為準。
+一句話：管理員 RAG 工作台已在正式站營運，main 的程式基線是 `092051a`（上方分頁「使用者」列出所有 App 帳號並顯示目前狀態），後端 migration `20261119100000` 與 `20261120100000` 都已於 2026-11-20 套用到正式庫；兩個 repo 的 main 與 develop 相同。App 端未接入，Safari／手機未驗。下列為歷次經過，最新狀態與核對方式以後端 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md) 的「目前狀態總表」為準。
 
 2026-11-19：使用者已核准兩個 repo 整合 main／develop、正式網站切換及最新候選發布。Production 已設定 RAG 開關；正式入口 https://carbon-guide.vercel.app/push-admin#rag 。兩個 repo 的 main／develop 已完成推送，Production READY；正式入口、靜態資產及匿名拒絕驗證通過，完整收據以後端 [docs/rag.md](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md) 為準。
 
@@ -18,7 +18,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 第 12 頁「技術架構導覽」2026-11-19 依使用者授權合併 main 並部署正式站，使用者已用真實資料驗證；規格已歸檔，需求併入 `openspec/specs/rag-admin-live-workspace/spec.md`，收據見後端 docs/rag.md；之後依使用者授權把 develop fast-forward 到 main。
 - 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；部署收據與驗證見後端 `docs/rag.md`。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-top-tabs/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；正式站的真實資料畫面待使用者登入確認。
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站，同日依 Ken 授權在正式庫套用 migration（前後 SQL 測試通過並 rollback），後端分支合併 main。管理員登入確認狀態欄的真實畫面後再歸檔規格。收據見後端 `docs/rag.md`。
-- 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面，PR 審查中）：有提問的排前面，其他帳號依加入時間排列，顯示「0 次」「還沒有對話」。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`；owner 會看到所有 App 帳號的 email 與登入時間，合併與套用前需要人工確認。細節見 AGENTS 與後端 `docs/rag.md`。
+- 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面）：有提問的排前面，其他帳號依加入時間排列，顯示「0 次」「還沒有對話」。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`；owner 會看到所有 App 帳號的 email 與登入時間，James 與 Ken 已於 11/20 確認。同日 Ken 用 Supabase MCP 在正式庫套用（三份 SQL 測試前後都通過並 rollback），PR #1 合併 main 部署正式站、develop 同步。細節見 AGENTS 與後端 `docs/rag.md`。
 
 ## 架構與資料流
 
@@ -59,7 +59,7 @@ Google OAuth 已配置；以下是未來環境遷移的核對點，接手時不�
 |---|---|---|
 | 安裝 | `npm ci` | lockfile 已同步；不代表 main 同步完成 |
 | 型別 | `npm run type-check` | TypeScript 靜態檢查 |
-| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 228 項（27 檔，`e92e010` 推送前紀錄）元件／資料層／整合測試，使用 mock，不收費、不發推播 |
+| 測試 | `npm test`；受限環境直接用 `node node_modules/vitest/vitest.mjs run --maxWorkers=1 --no-file-parallelism --pool=threads` | 231 項（27 檔，2026-11-20 `092051a` 合併前在本機單執行緒重跑）元件／資料層／整合測試，使用 mock，不收費、不發推播 |
 | 建置 | `npm run build` | 用假的公開 Supabase 值可做離線建置；另驗 `VITE_RAG_ENABLED=true` 的 bundle |
 | 瀏覽器檢查 | `test/verify-rag-workspace.py`、`test/verify-admin-integration.py` | 需要本機 server 與 Chromium，依當次授權執行。2026-11-19 導覽頁分支以 headless Chromium 通過：1440／1024／768／390 寬度、12 頁、導覽頁鍵盤操作、正式 CSP 與推播回歸；同日上方分頁分支重跑通過，另驗上方分頁網址、角色與 editor 權限；後端全部 mock |
 | 規格 | `openspec validate --all --strict` | 規格一致性，不代替功能或部署驗收 |
@@ -72,7 +72,7 @@ Vercel 專案為 carbon-guide；推 main 會直接部署正式站並影響首頁
 
 本次正式切換已獲明確授權；下一輪仍依當次任務範圍執行，不把本次授權當成永久部署或加預算授權。候選已核准發布，後續新候選仍需人工核准。
 
-剩餘事項為管理員確認對話使用者狀態欄真實畫面後歸檔 `rag-conversation-user-status`、Safari／手機驗收、其餘歷史 OpenSpec change 的歸檔時機；App、多管理員與 Google 帳單整合另立需求。試問回應遺失且跨輪次到期時，先查互動紀錄，不盲目重問；此既有恢復邊界尚未擴充。
+剩餘事項為管理員確認「使用者」分頁列出所有帳號的真實畫面後歸檔 `rag-conversation-user-status`、Safari／手機驗收、其餘歷史 OpenSpec change 的歸檔時機；App、多管理員與 Google 帳單整合另立需求。試問回應遺失且跨輪次到期時，先查互動紀錄，不盲目重問；此既有恢復邊界尚未擴充。
 
 舊 Phase 0、靜態工作台與參考分支保留歷史用途，不執行舊 build 還原公開原型。完整進度只在後端 docs/rag.md 維護。
 
