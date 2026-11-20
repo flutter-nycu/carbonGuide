@@ -30,7 +30,7 @@
 
 ## 6. 交付（每一步都要另外授權）
 
-- [ ] 6.1 commit 與推送兩個 repo
-- [ ] 6.2 正式環境以 `sql_dry_run.sh` 試跑 migration 與兩份測試（rollback），通過後套用 migration，套用後再跑一次測試
-- [ ] 6.3 推送網站 main 部署 Production，部署後驗證
+- [x] 6.1 commit 與推送兩個 repo（網站 `e92e010` 推 main；後端 `b8c9334` 推 `agent/cto/f26ad673dc53`，2026-11-20 合併後端 main／develop）
+- [x] 6.2 正式環境以 `sql_dry_run.sh` 試跑 migration 與兩份測試（rollback），通過後套用 migration，套用後再跑一次測試（2026-11-20 依 Ken 授權完成；環境沒有 `psql`，用 Supabase MCP 執行等效流程，紀錄見後端 `docs/rag.md`）
+- [x] 6.3 推送網站 main 部署 Production，部署後驗證（deployment `7931096289`，HTTP 與 mock 驗證見後端 `docs/rag.md`；真實資料畫面待管理員登入確認）
 - [ ] 6.4 歸檔本 change
