@@ -53,7 +53,7 @@ export default function ConversationsPage({ api }: PageProps) {
       {users.error && <Notice tone="error">{users.error}</Notice>}
       {!users.items && !users.error && <p className="empty" role="status">正在讀取使用者…</p>}
       {users.items && <>
-        <div className="table-wrap"><table aria-label="對話使用者">
+        <div className="table-wrap"><table aria-label="使用者">
           <thead><tr><th>使用者</th><th>角色</th><th>目前狀態</th><th>對話次數</th><th>最近對話</th><th>累計估計費用</th><th>操作</th></tr></thead>
           <tbody>
             {users.items.map(u => <tr key={u.userId ?? 'deleted'}>

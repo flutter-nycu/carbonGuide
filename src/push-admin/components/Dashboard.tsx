@@ -22,7 +22,7 @@ type TopTab = 'push' | 'rag' | 'conversations' | 'guide'
 const WORKSPACES: readonly { key: TopTab; label: string; tag?: string; ownerOnly?: boolean }[] = [
   { key: 'push', label: '推播管理', tag: '正式功能' },
   { key: 'rag', label: 'RAG 知識工作台', tag: '內部測試' },
-  { key: 'conversations', label: '對話使用者', ownerOnly: true },
+  { key: 'conversations', label: '使用者', ownerOnly: true },
   { key: 'guide', label: '技術架構導覽' },
 ]
 const ragView = (key: Exclude<TopTab, 'push'>): RagView => (key === 'rag' ? 'workspace' : key)

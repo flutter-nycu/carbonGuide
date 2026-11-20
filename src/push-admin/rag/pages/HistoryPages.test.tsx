@@ -54,29 +54,29 @@ describe('10 interaction history', () => {
 describe('conversation users (top tab)', () => {
   it('lists everyone who asked, including deleted accounts', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
-    const owner = within(table(page(), '對話使用者')).getByText('張俊隆').closest('tr') as HTMLElement
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
+    const owner = within(table(page(), '使用者')).getByText('張俊隆').closest('tr') as HTMLElement
     expect(owner.textContent).toContain('owner@carbonguide.test')
     expect(owner.textContent).toContain('管理者')
     expect(owner.textContent).toContain('3 次')
-    expect(table(page(), '對話使用者').textContent).toContain('已刪除帳號')
-    expect(table(page(), '對話使用者').textContent).not.toContain('照明怎麼省電？')
+    expect(table(page(), '使用者').textContent).toContain('已刪除帳號')
+    expect(table(page(), '使用者').textContent).not.toContain('照明怎麼省電？')
   })
 
   it('searches by name or email', async () => {
     const { api, page } = openPage('conversations')
     const list = vi.spyOn(api, 'listConversationUsers')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
     fireEvent.change(within(page()).getByLabelText('搜尋名稱或 email'), { target: { value: 'editor@' } })
     fireEvent.click(within(page()).getByRole('button', { name: '搜尋' }))
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).not.toContain('張俊隆'))
-    expect(table(page(), '對話使用者').textContent).toContain('林編輯')
+    await waitFor(() => expect(table(page(), '使用者').textContent).not.toContain('張俊隆'))
+    expect(table(page(), '使用者').textContent).toContain('林編輯')
     expect(list).toHaveBeenLastCalledWith('editor@', null)
   })
 
   it('goes from a person to their conversations and one detail, then back', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
     fireEvent.click(within(page()).getByRole('button', { name: '查看 張俊隆 的對話' }))
     await waitFor(() => expect(table(page(), '張俊隆 的對話').textContent).toContain('如何減少食物浪費？'))
     expect(within(table(page(), '張俊隆 的對話')).getAllByRole('row')).toHaveLength(4)
@@ -87,13 +87,13 @@ describe('conversation users (top tab)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '關閉' }))
 
     fireEvent.click(within(page()).getByRole('button', { name: '← 回到使用者列表' }))
-    await waitFor(() => expect(table(page(), '對話使用者')).toBeTruthy())
+    await waitFor(() => expect(table(page(), '使用者')).toBeTruthy())
   })
 
   it('opens the conversations of a deleted account', async () => {
     const { api, page } = openPage('conversations')
     const list = vi.spyOn(api, 'listUserConversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('已刪除帳號'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('已刪除帳號'))
     fireEvent.click(within(page()).getByRole('button', { name: '查看 已刪除帳號 的對話' }))
     await waitFor(() => expect(table(page(), '已刪除帳號 的對話').textContent).toContain('騎機車和搭公車'))
     expect(list).toHaveBeenCalledWith(null, null)
@@ -101,7 +101,7 @@ describe('conversation users (top tab)', () => {
 
   it('shows only the expiry note for a conversation older than 180 days', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
     fireEvent.click(within(page()).getByRole('button', { name: '查看 張俊隆 的對話' }))
     await waitFor(() => expect(table(page(), '張俊隆 的對話').textContent).toContain('內容已超過保存期限'))
     const buttons = within(table(page(), '張俊隆 的對話')).getAllByRole('button', { name: /^檢視/ })
@@ -132,14 +132,14 @@ describe('conversation user status', () => {
 
   it('shows the account, today’s questions and outcomes in the list', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
-    expect(within(table(page(), '對話使用者')).getAllByRole('columnheader').map(h => h.textContent)).toContain('目前狀態')
-    const owner = within(table(page(), '對話使用者')).getByText('張俊隆').closest('tr') as HTMLElement
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
+    expect(within(table(page(), '使用者')).getAllByRole('columnheader').map(h => h.textContent)).toContain('目前狀態')
+    const owner = within(table(page(), '使用者')).getByText('張俊隆').closest('tr') as HTMLElement
     expect(owner.textContent).toContain('帳號正常')
     // Today's questions only show once there are some, so a long list of App accounts stays readable.
     expect(owner.textContent).not.toContain('今日')
     expect(owner.textContent).toContain('QA 回答 1、文件回答 2')
-    const gone = within(table(page(), '對話使用者')).getAllByText('已刪除帳號')[0].closest('tr') as HTMLElement
+    const gone = within(table(page(), '使用者')).getAllByText('已刪除帳號')[0].closest('tr') as HTMLElement
     expect(gone.textContent).toContain('帳號已刪除')
     expect(gone.textContent).toContain('資料不足 1')
     expect(gone.textContent).not.toContain('今日')
@@ -150,8 +150,8 @@ describe('conversation user status', () => {
     const round = await api.createRound('v-1', 'status-round')
     await api.ask(round.id, '如何減少食物浪費？', 'status-ask')
     const { page } = openWith(api, 'conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
-    const owner = within(table(page(), '對話使用者')).getByText('張俊隆').closest('tr') as HTMLElement
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
+    const owner = within(table(page(), '使用者')).getByText('張俊隆').closest('tr') as HTMLElement
     expect(owner.textContent).toContain('今日 1／150 題')
     expect(owner.textContent).toContain('1 個測試輪次進行中')
     fireEvent.click(within(page()).getByRole('button', { name: '查看 張俊隆 的對話' }))
@@ -168,14 +168,14 @@ describe('conversation user status', () => {
 
   it('says when there is no open round', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
     fireEvent.click(within(page()).getByRole('button', { name: '查看 張俊隆 的對話' }))
     await waitFor(() => expect(region(page()).textContent).toContain('沒有進行中的測試輪次'))
   })
 
   it('leaves sign-in, quota and rounds out for a deleted account', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('已刪除帳號'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('已刪除帳號'))
     fireEvent.click(within(page()).getByRole('button', { name: '查看 已刪除帳號 的對話' }))
     await waitFor(() => expect(region(page()).textContent).toContain('帳號已刪除'))
     const text = region(page()).textContent
@@ -190,8 +190,8 @@ describe('conversation user status', () => {
         person({ userId: 'u-2', name: '未驗證帳號', status: status('unverified') }),
       ] })
     })
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('停用帳號'))
-    const row = (name: string) => within(table(page(), '對話使用者')).getByText(name).closest('tr') as HTMLElement
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('停用帳號'))
+    const row = (name: string) => within(table(page(), '使用者')).getByText(name).closest('tr') as HTMLElement
     expect(row('停用帳號').textContent).toContain('一般使用者')
     expect(row('停用帳號').textContent).toContain('帳號已停用')
     expect(row('未驗證帳號').textContent).toContain('email 未驗證')
@@ -201,8 +201,8 @@ describe('conversation user status', () => {
     const { page } = openPage('conversations', 'owner', {}, api => {
       vi.spyOn(api, 'listConversationUsers').mockResolvedValue({ nextCursor: null, items: [person({ name: '舊後端帳號', role: 'owner' })] })
     })
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('舊後端帳號'))
-    const row = within(table(page(), '對話使用者')).getByText('舊後端帳號').closest('tr') as HTMLElement
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('舊後端帳號'))
+    const row = within(table(page(), '使用者')).getByText('舊後端帳號').closest('tr') as HTMLElement
     expect(row.textContent).not.toContain('帳號正常')
     expect(row.textContent).not.toContain('今日')
     fireEvent.click(within(page()).getByRole('button', { name: '查看 舊後端帳號 的對話' }))
@@ -212,17 +212,17 @@ describe('conversation user status', () => {
 })
 
 describe('every account in conversation users', () => {
-  const rows = (page: HTMLElement) => within(table(page, '對話使用者')).getAllByRole('row').slice(1)
+  const rows = (page: HTMLElement) => within(table(page, '使用者')).getAllByRole('row').slice(1)
 
   it('lists accounts that never asked after the people who did', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('陳小華'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('陳小華'))
     const names = rows(page()).map(r => r.textContent ?? '')
     const firstQuiet = names.findIndex(text => text.includes('還沒有對話'))
     expect(firstQuiet).toBeGreaterThan(0)
     expect(names.slice(0, firstQuiet).every(text => !text.includes('還沒有對話'))).toBe(true)
     expect(names.slice(firstQuiet).every(text => text.includes('還沒有對話'))).toBe(true)
-    const quiet = within(table(page(), '對話使用者')).getByText('陳小華').closest('tr') as HTMLElement
+    const quiet = within(table(page(), '使用者')).getByText('陳小華').closest('tr') as HTMLElement
     expect(quiet.textContent).toContain('一般使用者')
     expect(quiet.textContent).toContain('0 次')
     expect(quiet.textContent).toContain('帳號正常')
@@ -231,7 +231,7 @@ describe('every account in conversation users', () => {
 
   it('opens an account that never asked', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('陳小華'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('陳小華'))
     fireEvent.click(within(page()).getByRole('button', { name: '查看 陳小華 的對話' }))
     await waitFor(() => expect(table(page(), '陳小華 的對話').textContent).toContain('還沒有對話紀錄。'))
     const status = within(page()).getByRole('region', { name: '目前狀態' }).textContent
@@ -242,10 +242,10 @@ describe('every account in conversation users', () => {
 
   it('finds an account that never asked by email', async () => {
     const { page } = openPage('conversations')
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).toContain('張俊隆'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).toContain('張俊隆'))
     fireEvent.change(within(page()).getByLabelText('搜尋名稱或 email'), { target: { value: 'newcomer@' } })
     fireEvent.click(within(page()).getByRole('button', { name: '搜尋' }))
-    await waitFor(() => expect(table(page(), '對話使用者').textContent).not.toContain('張俊隆'))
+    await waitFor(() => expect(table(page(), '使用者').textContent).not.toContain('張俊隆'))
     expect(rows(page())).toHaveLength(1)
     expect(rows(page())[0].textContent).toContain('email 未驗證')
   })

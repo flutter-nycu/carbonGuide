@@ -29,7 +29,7 @@ export const PAGES: readonly PageDefinition[] = [
   { id: 'qa', placement: 'sidebar', number: '08', label: '基本通用 QA', title: '基本通用 QA', subtitle: '常見問題先寫好標準答案，並連到來源文件的原文。' },
   { id: 'settings', placement: 'sidebar', number: '09', label: '進階檢索設定', group: '進階與紀錄', title: '檢索設定', subtitle: '調整教練找資料的方式。' },
   { id: 'logs', placement: 'sidebar', number: '10', label: '互動紀錄', title: '互動紀錄', subtitle: '看看每一次試問和評測的問題、回答與處理過程。', readers: 'owner' },
-  { id: 'conversations', placement: 'tab', label: '對話使用者', title: '對話使用者', subtitle: '看看所有使用者的帳號狀態，點進去可以看他的每一次對話和費用。', readers: 'owner' },
+  { id: 'conversations', placement: 'tab', label: '使用者', title: '使用者', subtitle: '看看所有使用者的帳號狀態，點進去可以看他的每一次對話和費用。', readers: 'owner' },
   { id: 'guide', placement: 'tab', label: '技術架構導覽', title: '技術架構導覽', subtitle: '一步一步看文件怎麼變成知識，問題又是怎麼被回答的。' },
 ]
 

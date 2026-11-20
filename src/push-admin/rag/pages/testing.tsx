@@ -24,7 +24,7 @@ export function setupPageTests() {
 
 // The admin's top tabs that hold the RAG workspace. Dashboard shows the same names (plus a tag on the RAG tab);
 // this host does not hide tabs by role or follow the address, which Dashboard's own tests cover.
-const VIEW_LABEL: Record<RagView, string> = { workspace: 'RAG 知識工作台', conversations: '對話使用者', guide: '技術架構導覽' }
+const VIEW_LABEL: Record<RagView, string> = { workspace: 'RAG 知識工作台', conversations: '使用者', guide: '技術架構導覽' }
 
 /** Stands in for the admin's top tabs: one workspace, switched between its three views. */
 export function WorkspaceHost({ initialView = 'workspace', ...props }: Omit<ComponentProps<typeof Workspace>, 'view' | 'onView'> & { initialView?: RagView }) {

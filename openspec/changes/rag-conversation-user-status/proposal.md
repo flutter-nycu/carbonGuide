@@ -14,7 +14,9 @@ James 在 Multica C-3 提出：對話使用者分頁現在只看得出「誰問�
 - 第一階段：後端 `conversation_users` 的每一列多一個 `status` 物件（新增 migration 取代 `rag_private.v1_admin_conversation_users`）。當時原有欄位、排序、搜尋、cursor 與權限都不變；舊版網站會忽略新欄位。第二階段改了排序與 cursor，見上一項。
 - 網站在後端還沒套用 migration 時照常顯示列表，狀態欄顯示「—」，個人頁註明後端還沒提供狀態。
 
-**不做：** App 使用者的其他資料（問卷、碳足跡、推播訂閱）、「只看有對話的人」篩選（需要改 Edge Function 的參數檢查）、分頁改名、停用或修改帳號的操作、新角色或新權限、`rag-v1` Edge Function 的程式變更、即時更新（狀態在載入列表時讀取一次）。
+- 分頁名稱由「對話使用者」改為「使用者」（James 2026-11-20 確認畫面後要求），頁面標題、表格名稱與導覽頁文字一起改；網址仍是 `#conversations`。
+
+**不做：** App 使用者的其他資料（問卷、碳足跡、推播訂閱）、「只看有對話的人」篩選（James 確認不需要：列表已顯示最近對話）、停用或修改帳號的操作、新角色或新權限、`rag-v1` Edge Function 的程式變更、即時更新（狀態在載入列表時讀取一次）。
 
 ## Capabilities
 
@@ -24,7 +26,7 @@ James 在 Multica C-3 提出：對話使用者分頁現在只看得出「誰問�
 
 ### Modified Capabilities
 
-- `rag-admin-live-workspace`：「對話使用者」需求加入每位使用者目前狀態的顯示內容與後端尚未提供時的行為。
+- `rag-admin-live-workspace`：「對話使用者」需求加入每位使用者目前狀態、列出所有帳號與後端尚未提供時的行為；「工作台頁面與上方分頁」把分頁名稱改為「使用者」。
 
 ## Impact
 

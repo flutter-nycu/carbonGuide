@@ -71,7 +71,7 @@ with sync_playwright() as p:
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
         assert not frame.evaluate('(host)=>host.scrollWidth>innerWidth')
         if width==390: page.screenshot(path=str(out/'rag-mobile.png'),full_page=True)
-        for tab in ['技術架構導覽','對話使用者']:
+        for tab in ['技術架構導覽','使用者']:
             page.get_by_role('navigation',name='切換工作台').get_by_role('button',name=tab,exact=True).click()
             frame.get_by_role('heading',name=tab,exact=True).wait_for()
             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth'), (width,tab)
@@ -91,11 +91,11 @@ with sync_playwright() as p:
     checks.append('RAG, both new top tabs and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
     page.set_viewport_size({'width':1440,'height':1000})
     tabs=page.get_by_role('navigation',name='切換工作台')
-    assert [' '.join(b.text_content().split()) for b in tabs.get_by_role('button').all()]==['推播管理 正式功能','RAG 知識工作台 內部測試','對話使用者','技術架構導覽']
+    assert [' '.join(b.text_content().split()) for b in tabs.get_by_role('button').all()]==['推播管理 正式功能','RAG 知識工作台 內部測試','使用者','技術架構導覽']
     # The tab bar scrolls sideways, so a keyboard focus ring has to sit inside it rather than be clipped.
     tabs.get_by_role('button',name='RAG 知識工作台 內部測試').focus()
     page.keyboard.press('Tab')
-    assert tabs.get_by_role('button',name='對話使用者').evaluate('b => b === document.activeElement && b.matches(":focus-visible") && getComputedStyle(b).outlineOffset')=='-3px'
+    assert tabs.get_by_role('button',name='使用者').evaluate('b => b === document.activeElement && b.matches(":focus-visible") && getComputedStyle(b).outlineOffset')=='-3px'
     nav=frame.get_by_role('navigation',name='RAG 工作台頁面')
     assert nav.get_by_role('button').count()==10
     tabs.get_by_role('button',name='技術架構導覽').click()
@@ -103,9 +103,9 @@ with sync_playwright() as p:
     frame.get_by_role('heading',name='技術架構導覽',exact=True).wait_for()
     assert frame.get_by_role('list',name='架構總覽圖').is_visible()
     assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式環境目前的設定。').filter(visible=True).count()==1
-    tabs.get_by_role('button',name='對話使用者').click()
+    tabs.get_by_role('button',name='使用者').click()
     assert page.evaluate('location.hash')=='#conversations'
-    frame.get_by_role('heading',name='對話使用者',exact=True).wait_for()
+    frame.get_by_role('heading',name='使用者',exact=True).wait_for()
     assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1
     # A fresh load, not a same-page hash change, so the first render reads the address.
     page.evaluate("location.hash='#guide'")

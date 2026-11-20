@@ -25,7 +25,7 @@ describe('Dashboard links between top tabs', () => {
     render(<Dashboard role="owner" onLogout={() => undefined} />)
     fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 內部測試' }))
     fireEvent.click(await screen.findByRole('button', { name: '連到 conversations' }))
-    expect(current()).toEqual(['對話使用者'])
+    expect(current()).toEqual(['使用者'])
     expect(window.location.hash).toBe('#conversations')
   })
 

@@ -21,11 +21,11 @@ const frameButton = (frame: HTMLElement, name: string | RegExp) => [...frame.sha
 describe('Dashboard top tabs', () => {
   it('shows owners four top tabs with the guide last', () => {
     render(<Dashboard role="owner" onLogout={() => undefined} />)
-    expect(topTabs().map(b => b.textContent)).toEqual(['推播管理 正式功能', 'RAG 知識工作台 內部測試', '對話使用者', '技術架構導覽'])
+    expect(topTabs().map(b => b.textContent)).toEqual(['推播管理 正式功能', 'RAG 知識工作台 內部測試', '使用者', '技術架構導覽'])
   })
 
   it('names the two new tabs after their pages', () => {
-    expect(PAGES.filter(p => p.placement === 'tab').map(p => p.label)).toEqual(['對話使用者', '技術架構導覽'])
+    expect(PAGES.filter(p => p.placement === 'tab').map(p => p.label)).toEqual(['使用者', '技術架構導覽'])
   })
 
   it('leaves conversation users out for editors and viewers', () => {
@@ -46,7 +46,7 @@ describe('Dashboard top tabs', () => {
     const panels = () => [(container.querySelector('.push-shell') as HTMLElement).hidden, (container.querySelector('.rag-panel') as HTMLElement).hidden]
     expect(panels()).toEqual([true, false])
 
-    fireEvent.click(screen.getByRole('button', { name: '對話使用者' }))
+    fireEvent.click(screen.getByRole('button', { name: '使用者' }))
     expect(window.location.hash).toBe('#conversations')
     await waitFor(() => expect(inFrame(frame, '[data-page="conversations"]').hidden).toBe(false))
     expect(inFrame(frame, '[data-page="conversations"]').textContent).toContain('RAG 後端尚未啟用')

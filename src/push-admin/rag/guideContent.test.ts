@@ -55,7 +55,8 @@ describe('architecture guide content', () => {
   it('points to conversation users by its top tab, not an old page number', () => {
     const all = JSON.stringify(GUIDE_ROUTES)
     for (const old of ['11 對話使用者', '12 技術架構導覽']) expect(all).not.toContain(old)
-    expect(GUIDE_ROUTES[1].steps[7].plain).toContain('「對話使用者」分頁')
+    expect(GUIDE_ROUTES[1].steps[7].plain).toContain('「使用者」分頁')
+    expect(all).not.toContain('對話使用者')
   })
 
   it('has six safeguards and a glossary of the words the page uses', () => {

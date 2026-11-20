@@ -61,17 +61,17 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 第 12 頁「技術架構導覽」在 `preview/rag-architecture-guide`（基準 main `a831af7`）完成，Preview `386f26e` 經使用者檢查後，2026-11-19 依使用者授權 fast-forward 合併 main 並部署正式站。使用者已登入正式站用真實資料驗證。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-architecture-guide/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；部署與驗證收據見後端 `docs/rag.md`。
 - 上方分頁調整（James 提出，2026-11-19 Ken 選方案 A）：對話使用者與技術架構導覽移出 RAG 側欄，改成管理後台上方分頁，技術架構導覽排最後。在 `preview/rag-top-tabs`（基準 main `c3b2d6a`）完成，2026-11-19 依使用者指示不經 Preview、直接 fast-forward 合併 main 部署正式站並同步 develop；部署收據與驗證見後端 `docs/rag.md`。規格已歸檔到 `openspec/changes/archive/2026-11-19-rag-top-tabs/`，需求併入主規格 `openspec/specs/rag-admin-live-workspace/spec.md`；正式站的真實資料畫面待使用者登入確認。
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站（deployment `7931096289`）；同日依 Ken 授權用 Supabase MCP 在正式庫套用 migration，套用前後兩份 SQL 測試都通過並 rollback，後端分支合併 main。後端套用前狀態欄顯示「—」，套用後應顯示真實狀態；管理員登入確認真實畫面後再歸檔規格（tasks 6.4）。部署與套用收據見後端 `docs/rag.md`。
-- 對話使用者列出所有帳號（James 2026-11-20 補充，PR 審查中）：列表改成所有帳號，有提問的排前面（最近提問在上），其他帳號依加入時間排列，顯示「0 次」「還沒有對話」，角色「一般使用者」；列表上的今日用量只在當天有題數時顯示。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`（cursor 多一個分組鍵，舊 cursor 回「列表已經變動，請重新整理頁面」）。這會讓 owner 看得到所有 App 帳號的 email 與登入時間，合併與套用前需要人工確認。新網站搭配舊後端仍只列有提問的人，可以先後上線。
+- 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面，PR 審查中；網址仍是 `#conversations`）：列表改成所有帳號，有提問的排前面（最近提問在上），其他帳號依加入時間排列，顯示「0 次」「還沒有對話」，角色「一般使用者」；列表上的今日用量只在當天有題數時顯示。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`（cursor 多一個分組鍵，舊 cursor 回「列表已經變動，請重新整理頁面」）。這會讓 owner 看得到所有 App 帳號的 email 與登入時間，合併與套用前需要人工確認。新網站搭配舊後端仍只列有提問的人，可以先後上線。
 
 ### 怎麼運作
 
 - 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入（獨立 chunk，推播管理不用下載），用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM。樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
-- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時 01–10 頁與對話使用者顯示「RAG 後端尚未啟用」，技術架構導覽照常顯示教學內容，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。後端部署並驗收之前不要在正式站開啟，11/19 已授權開啟 Production；實際部署證據見後端 docs/rag.md。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時 01–10 頁與使用者分頁顯示「RAG 後端尚未啟用」，技術架構導覽照常顯示教學內容，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。後端部署並驗收之前不要在正式站開啟，11/19 已授權開啟 Production；實際部署證據見後端 docs/rag.md。
 - 資料層 `rag/api/`：`supabase.ts` 在 RLS 下直接讀表，所有寫入都經 App repo 的 `rag-v1` Edge Function；`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。
 - 不能重複的操作（試問、建立輪次、建立版本、開始評測、登記網址、審核、發布、改回、停用）都帶請求鍵（`requestKeys.ts`，存在元件外，成功之後才清掉）。重送時沿用第一次送出的內容，因為後端只接受同一個請求鍵、同樣內容的重送；試問回來是「還在處理中」時保留請求鍵，避免重複扣款。
 - 頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。輪詢只在頁面可見時每 15 秒一次。
-- 上方分頁（`components/Dashboard.tsx`）依序是推播管理、RAG 知識工作台、對話使用者、技術架構導覽；對話使用者只給 owner。後三個共用同一個 `RagWorkspace`，由 `Workspace` 的 `view` 決定顯示側欄 10 頁或單一全寬頁，切換分頁不卸載頁面。網址 `#push`、`#rag`、`#conversations`、`#guide` 直接開分頁，角色看不到的分頁不會被網址打開。
-- 頁面與可讀的角色（01–10 在 RAG 側欄，對話使用者與技術架構導覽在上方分頁）：
+- 上方分頁（`components/Dashboard.tsx`）依序是推播管理、RAG 知識工作台、使用者、技術架構導覽；使用者只給 owner。後三個共用同一個 `RagWorkspace`，由 `Workspace` 的 `view` 決定顯示側欄 10 頁或單一全寬頁，切換分頁不卸載頁面。網址 `#push`、`#rag`、`#conversations`、`#guide` 直接開分頁，角色看不到的分頁不會被網址打開。
+- 頁面與可讀的角色（01–10 在 RAG 側欄，使用者與技術架構導覽在上方分頁）：
 
 | 頁 | 檔案 | 可以看的角色 |
 |---|---|---|
@@ -85,7 +85,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 | 08 基本通用 QA | `pages/QaPage.tsx` | 全部；editor 以上可編輯與核對引用 |
 | 09 進階檢索設定 | `pages/SettingsPage.tsx` | 全部；只有 owner 能改 |
 | 10 互動紀錄 | `pages/LogsPage.tsx` | owner |
-| 上方分頁：對話使用者 | `pages/ConversationsPage.tsx` | owner（其他角色看不到這個分頁） |
+| 上方分頁：使用者（原「對話使用者」） | `pages/ConversationsPage.tsx` | owner（其他角色看不到這個分頁） |
 | 上方分頁：技術架構導覽 | `pages/ArchitecturePage.tsx`、`guideContent.ts` | 全部；「目前的實際設定」只讀，知識版本只查給 owner／editor，AI 預算只查給 owner，不呼叫付費模型 |
 
 ### 資料與重送契約

@@ -41,7 +41,7 @@ describe('RAG workspace shell', () => {
     // Conversation users and the guide live in the admin's top tabs, without numbers.
     expect(PAGES.filter(p => p.placement === 'tab').map(p => [p.id, p.number])).toEqual([['conversations', undefined], ['guide', undefined]])
     for (const page of PAGES) expect(viewOf(page.id) === 'workspace', page.id).toBe(page.placement === 'sidebar')
-    expect(PAGES.map(pageName).slice(8)).toEqual(['09 進階檢索設定', '10 互動紀錄', '對話使用者', '技術架構導覽'])
+    expect(PAGES.map(pageName).slice(8)).toEqual(['09 進階檢索設定', '10 互動紀錄', '使用者', '技術架構導覽'])
   })
 
   it('shows a top-tab page full width, without the sidebar or other pages', () => {
@@ -74,7 +74,7 @@ describe('RAG workspace shell', () => {
     const tab = screen.getByRole('button', { name: 'RAG 知識工作台' })
     tab.focus()
     fireEvent.click(tab)
-    fireEvent.click(screen.getByRole('button', { name: '對話使用者' }))
+    fireEvent.click(screen.getByRole('button', { name: '使用者' }))
     expect(document.activeElement).toBe(tab)
     view.unmount()
   })
