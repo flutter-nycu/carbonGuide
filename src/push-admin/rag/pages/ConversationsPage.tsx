@@ -11,6 +11,35 @@ const roleText = (u: ConversationUser) => (u.role ? ROLE_LABEL[u.role] : u.userI
 const accountTag = (status: ConversationUserStatus) =>
   <span className={`tag ${ACCOUNT_TONE[status.account]}`.trim()}>{ACCOUNT_LABEL[status.account]}</span>
 
+// Accounts shown at once. The backend still hands out 50 per cursor page; the next batch is fetched when these run out.
+const PAGE_SIZE = 10
+
+/** Page numbers to offer: all of them when there are few, otherwise both ends and the neighbours of the current page. */
+export function pageWindow(current: number, count: number): (number | 'gap')[] {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i)
+  const keep = [...new Set([0, count - 1, current - 1, current, current + 1])].filter(n => n >= 0 && n < count).sort((a, b) => a - b)
+  return keep.flatMap((n, i) => (i > 0 && n - keep[i - 1] > 1 ? ['gap' as const, n] : [n]))
+}
+
+function Pager({ current, pages, loaded, hasMore, loading, onGo }: {
+  current: number; pages: number; loaded: number; hasMore: boolean; loading: boolean; onGo: (page: number) => void
+}) {
+  const several = pages > 1 || hasMore
+  const label = hasMore ? `第 ${current + 1} 頁，已載入 ${loaded} 位，還有更多`
+    : several ? `第 ${current + 1}／${pages} 頁，共 ${loaded} 位` : `共 ${loaded} 位`
+  return <nav className="pager" aria-label="使用者列表分頁">
+    {several && <>
+      <button type="button" className="secondary" disabled={current === 0} onClick={() => onGo(current - 1)}>上一頁</button>
+      {pageWindow(current, pages).map((n, i) => n === 'gap'
+        ? <span key={`gap-${i}`} className="pager-gap" aria-hidden="true">…</span>
+        : <button key={n} type="button" className={n === current ? 'primary' : 'secondary'} aria-current={n === current ? 'page' : undefined}
+          aria-label={`第 ${n + 1} 頁`} onClick={() => onGo(n)}>{n + 1}</button>)}
+      <button type="button" className="secondary" disabled={loading || (current + 1 >= pages && !hasMore)} onClick={() => onGo(current + 1)}>下一頁</button>
+    </>}
+    <span className="pager-status" role="status">{label}</span>
+  </nav>
+}
+
 function StatusCell({ status }: { status: ConversationUserStatus | null }) {
   if (!status) return <>—</>
   return <>
@@ -26,8 +55,25 @@ export default function ConversationsPage({ api }: PageProps) {
   const [problem, setProblem] = useState<string | null>(null)
   const [person, setPerson] = useState<ConversationUser | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [pageIndex, setPageIndex] = useState(0)
   const opener = useRef<HTMLElement | null>(null)
+  const listTop = useRef<HTMLDivElement>(null)
   const users = usePaged(cursor => api.listConversationUsers(query, cursor), query)
+  const loaded = users.items?.length ?? 0
+  const pages = Math.max(1, Math.ceil(loaded / PAGE_SIZE))
+  const current = Math.min(pageIndex, pages - 1)
+  const shown = users.items?.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE) ?? []
+  // A page answer that arrives after a new search belongs to the old list.
+  const searched = useRef(query)
+  searched.current = query
+
+  async function goTo(target: number) {
+    const forQuery = query
+    if (target >= pages && users.hasMore) await users.more()
+    if (searched.current !== forQuery) return
+    setPageIndex(target)
+    listTop.current?.scrollIntoView?.({ block: 'nearest' })
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -35,6 +81,7 @@ export default function ConversationsPage({ api }: PageProps) {
     if (value.length > 100) { setProblem(messageFor('invalid_query')); return }
     setProblem(null)
     setQuery(value)
+    setPageIndex(0)
   }
 
   function back() {
@@ -44,7 +91,7 @@ export default function ConversationsPage({ api }: PageProps) {
   }
 
   return <>
-    <section hidden={person !== null}>
+    <section className="users-page" hidden={person !== null}>
       <form className="toolbar" role="search" onSubmit={submit}>
         <label className="field">搜尋名稱或 email<input value={search} maxLength={100} placeholder="輸入名稱或 email" onChange={event => setSearch(event.target.value)} /></label>
         <button type="submit" className="secondary">搜尋</button>
@@ -53,10 +100,10 @@ export default function ConversationsPage({ api }: PageProps) {
       {users.error && <Notice tone="error">{users.error}</Notice>}
       {!users.items && !users.error && <p className="empty" role="status">正在讀取使用者…</p>}
       {users.items && <>
-        <div className="table-wrap"><table aria-label="使用者">
+        <div className="table-wrap" ref={listTop}><table aria-label="使用者">
           <thead><tr><th>使用者</th><th>角色</th><th>目前狀態</th><th>對話次數</th><th>最近對話</th><th>累計估計費用</th><th>操作</th></tr></thead>
           <tbody>
-            {users.items.map(u => <tr key={u.userId ?? 'deleted'}>
+            {shown.map(u => <tr key={u.userId ?? 'deleted'}>
               <td><strong>{displayName(u)}</strong><small>{u.email ?? '—'}</small></td>
               <td className="nowrap">{roleText(u)}</td>
               <td><StatusCell status={u.status} /></td>
@@ -70,7 +117,7 @@ export default function ConversationsPage({ api }: PageProps) {
           </tbody>
         </table></div>
         <p className="scroll-hint">表格可以左右滑動</p>
-        {users.hasMore && <div className="actions"><button type="button" className="secondary" disabled={users.loading} onClick={() => void users.more()}>載入更多</button></div>}
+        {loaded > 0 && <Pager current={current} pages={pages} loaded={loaded} hasMore={users.hasMore} loading={users.loading} onGo={page => void goTo(page)} />}
       </>}
       <p className="caption">有對話的使用者排在前面（最近對話的在上面），其他帳號依加入時間由新到舊排列。對話次數只算試問台的提問，不含自動評測；今日用量是試問與評測合計，每天臺灣時間 08:00 換日。費用是依 Google 公告單價的估計，實際金額以 Google 帳單為準。</p>
     </section>
@@ -85,7 +132,7 @@ function PersonConversations({ api, person, onBack, onOpen }: { api: RagApi; per
   const name = displayName(person)
   useEffect(() => { heading.current?.focus() }, [])
 
-  return <section>
+  return <section className="users-page">
     <div className="section-head">
       <h2 ref={heading} tabIndex={-1}>{name} 的對話</h2>
       <button type="button" className="secondary" onClick={onBack}>← 回到使用者列表</button>
