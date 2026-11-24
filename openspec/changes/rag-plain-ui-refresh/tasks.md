@@ -31,6 +31,6 @@
 
 ## 5. 交付（每一步都要另外取得同意）
 
-- [ ] 5.1 commit
-- [ ] 5.2 推送、Preview 或合併 main
+- [x] 5.1 commit（`6c5d097`，James 2026-11-25 同意）
+- [x] 5.2 推送 main 部署正式站（James 2026-11-25 指示；不經 Preview，develop 未同步）
 - [ ] 5.3 後端 `docs/rag.md`、歸檔本 change

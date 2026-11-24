@@ -20,7 +20,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站，同日依 Ken 授權在正式庫套用 migration（前後 SQL 測試通過並 rollback），後端分支合併 main。管理員登入確認狀態欄的真實畫面後再歸檔規格。收據見後端 `docs/rag.md`。
 - 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面）：有提問的排前面，其他帳號依加入時間排列，顯示「0 次」「還沒有對話」。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`；owner 會看到所有 App 帳號的 email 與登入時間，James 與 Ken 已於 11/20 確認。同日 Ken 用 Supabase MCP 在正式庫套用（三份 SQL 測試前後都通過並 rollback），PR #1 合併 main 部署正式站、develop 同步。細節見 AGENTS 與後端 `docs/rag.md`。
 - 「使用者」分頁每頁 10 位，有頁碼與總數，表格文字放大到 14px（James 2026-11-20 下午；只改網站，後端不變）。
-- 介面與文字整理（James 2026-11-24 提出並逐項確認，`openspec/changes/rag-plain-ui-refresh/`；**main 工作樹上還沒提交、沒部署**）：上方列一列 52px、分頁改名「知識庫」「運作原理」；側欄改白話頁名與四個分組、可收成圖示窄條；文字全面改白話，技術名詞只留在運作原理的技術細節；操作教學面板預設收起。細節見 AGENTS。
+- 介面與文字整理（James 2026-11-24 提出並逐項確認，`openspec/changes/rag-plain-ui-refresh/`；2026-11-25 提交 `6c5d097` 並依 James 指示推送 main，develop 未同步）：上方列一列 52px、分頁改名「知識庫」「運作原理」；側欄改白話頁名與四個分組、可收成圖示窄條；文字全面改白話，技術名詞只留在運作原理的技術細節；操作教學面板預設收起。細節見 AGENTS。
 
 ## 架構與資料流
 
