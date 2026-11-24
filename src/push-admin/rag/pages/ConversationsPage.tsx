@@ -4,7 +4,7 @@ import { LIMITS, type ConversationUser, type ConversationUserStatus, type RagApi
 import { ConversationDialog, ConversationTable } from '../ConversationList'
 import { usePaged } from '../hooks'
 import { ACCOUNT_LABEL, ACCOUNT_TONE, ROLE_LABEL, formatDate, formatOutcomes, formatUsd, formatEstimate } from '../labels'
-import { Notice, type PageProps } from '../ui'
+import { LoadError, Notice, type PageProps } from '../ui'
 
 const displayName = (u: ConversationUser) => (u.userId === null ? '已刪除帳號' : u.name || u.email || '沒有名稱的帳號')
 const roleText = (u: ConversationUser) => (u.role ? ROLE_LABEL[u.role] : u.userId === null ? '—' : '一般使用者')
@@ -45,7 +45,7 @@ function StatusCell({ status }: { status: ConversationUserStatus | null }) {
   return <>
     {accountTag(status)}
     {status.todayRequests !== null && status.todayRequests > 0 && <small>今日 {status.todayRequests}／{LIMITS.round.dailyLimit} 題</small>}
-    {status.activeRounds.length > 0 && <small>{status.activeRounds.length} 個測試輪次進行中</small>}
+    {status.activeRounds.length > 0 && <small>{status.activeRounds.length} 份測驗額度使用中</small>}
   </>
 }
 
@@ -97,11 +97,11 @@ export default function ConversationsPage({ api }: PageProps) {
         <button type="submit" className="secondary">搜尋</button>
       </form>
       {problem && <p className="form-error" role="alert">{problem}</p>}
-      {users.error && <Notice tone="error">{users.error}</Notice>}
+      {users.error && <LoadError message={users.error} onRetry={() => void users.reload()} />}
       {!users.items && !users.error && <p className="empty" role="status">正在讀取使用者…</p>}
       {users.items && <>
         <div className="table-wrap" ref={listTop}><table aria-label="使用者">
-          <thead><tr><th>使用者</th><th>角色</th><th>目前狀態</th><th>對話次數</th><th>最近對話</th><th>累計估計費用</th><th>操作</th></tr></thead>
+          <thead><tr><th>使用者</th><th>角色</th><th>目前狀態</th><th>對話次數</th><th>最近對話</th><th>累計估計費用</th><th><span className="sr-only">操作</span></th></tr></thead>
           <tbody>
             {shown.map(u => <tr key={u.userId ?? 'deleted'}>
               <td><strong>{displayName(u)}</strong><small>{u.email ?? '—'}</small></td>
@@ -111,15 +111,15 @@ export default function ConversationsPage({ api }: PageProps) {
               <td>{u.lastAt ? formatDate(u.lastAt) : '—'}</td>
               <td>{u.count === 0 ? '—' : <>{formatEstimate(u.estimatedUsd, u.unknownCostCalls)}<small>預留 {formatUsd(u.reservedUsd)}</small></>}</td>
               <td><button type="button" className="text-button" aria-label={`查看 ${displayName(u)} 的對話`}
-                onClick={event => { opener.current = event.currentTarget; setPerson(u) }}>查看對話 →</button></td>
+                onClick={event => { opener.current = event.currentTarget; setPerson(u) }}>查看對話</button></td>
             </tr>)}
-            {!users.items.length && <tr><td colSpan={7}><div className="empty">{query ? '沒有符合的使用者。' : '還沒有任何帳號。'}</div></td></tr>}
+            {!users.items.length && <tr><td colSpan={7}><div className="empty">{query ? '沒有符合的使用者。' : '還沒有帳號。'}</div></td></tr>}
           </tbody>
         </table></div>
         <p className="scroll-hint">表格可以左右滑動</p>
         {loaded > 0 && <Pager current={current} pages={pages} loaded={loaded} hasMore={users.hasMore} loading={users.loading} onGo={page => void goTo(page)} />}
       </>}
-      <p className="caption">有對話的使用者排在前面（最近對話的在上面），其他帳號依加入時間由新到舊排列。對話次數只算試問台的提問，不含自動評測；今日用量是試問與評測合計，每天臺灣時間 08:00 換日。費用是依 Google 公告單價的估計，實際金額以 Google 帳單為準。</p>
+      <p className="caption">有對話的人排前面，最近對話的在最上面；其他帳號依加入時間由新到舊排。對話次數只算試問，不含自動測驗；今日用量是試問和測驗一起算，臺灣時間早上 8 點換日。費用是依 Google 公告單價估計，實際金額以 Google 帳單為準。</p>
     </section>
     {person && <PersonConversations key={person.userId ?? 'deleted'} api={api} person={person} onBack={back} onOpen={setOpenId} />}
     <ConversationDialog api={api} id={openId} onClose={() => setOpenId(null)} />
@@ -135,17 +135,17 @@ function PersonConversations({ api, person, onBack, onOpen }: { api: RagApi; per
   return <section className="users-page">
     <div className="section-head">
       <h2 ref={heading} tabIndex={-1}>{name} 的對話</h2>
-      <button type="button" className="secondary" onClick={onBack}>← 回到使用者列表</button>
+      <button type="button" className="secondary" onClick={onBack}>回到使用者列表</button>
     </div>
     <section aria-label="目前狀態">
       <h3>目前狀態</h3>
       <dl className="metadata">
         <dt>Email</dt><dd>{person.email ?? '—'}</dd>
         <dt>角色</dt><dd>{roleText(person)}</dd>
-        {person.status ? <StatusDetails status={person.status} /> : <><dt>帳號狀態</dt><dd>後端還沒有提供使用者狀態</dd></>}
+        {person.status ? <StatusDetails status={person.status} /> : <><dt>帳號狀態</dt><dd>—</dd></>}
         <dt>對話次數</dt><dd>{person.lastAt ? `${person.count} 次，最近一次在 ${formatDate(person.lastAt)}` : '還沒有對話'}</dd>
         {person.count > 0 && person.status && <><dt>對話結果</dt><dd>{formatOutcomes(person.status.outcomes)}</dd></>}
-        {person.count > 0 && <><dt>累計估計費用</dt><dd>{formatEstimate(person.estimatedUsd, person.unknownCostCalls)}（預留 {formatUsd(person.reservedUsd)}）</dd></>}
+        {person.count > 0 && <><dt>累計估計費用</dt><dd>{formatEstimate(person.estimatedUsd, person.unknownCostCalls)}，預留 {formatUsd(person.reservedUsd)}</dd></>}
       </dl>
     </section>
     <ConversationTable label={`${name} 的對話`} paged={conversations} onOpen={onOpen} />
@@ -158,12 +158,12 @@ function StatusDetails({ status }: { status: ConversationUserStatus }) {
     {status.account !== 'deleted' && <>
       <dt>加入時間</dt><dd>{status.joinedAt ? formatDate(status.joinedAt) : '—'}</dd>
       <dt>最近登入</dt><dd>{status.lastSignInAt ? formatDate(status.lastSignInAt) : '還沒有登入紀錄'}</dd>
-      <dt>今日用量</dt><dd>{status.todayRequests === null ? '—' : `${status.todayRequests}／${LIMITS.round.dailyLimit} 題`}（試問與評測合計）</dd>
-      <dt>測試輪次</dt><dd>{status.activeRounds.length
+      <dt>今日用量</dt><dd>{status.todayRequests === null ? '—' : `${status.todayRequests}／${LIMITS.round.dailyLimit} 題，試問和測驗一起算`}</dd>
+      <dt>測驗額度</dt><dd>{status.activeRounds.length
         ? status.activeRounds.map((r, index) => <div key={index}>
           {r.versionName}：已問 {r.requestCount}／{r.requestLimit} 題，已預留 {formatUsd(r.reservedUsd)}／{formatUsd(r.budgetUsd)}，{formatDate(r.expiresAt)} 到期
         </div>)
-        : '沒有進行中的測試輪次'}</dd>
+        : '沒有使用中的測驗額度'}</dd>
     </>}
   </>
 }

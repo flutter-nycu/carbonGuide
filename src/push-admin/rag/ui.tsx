@@ -1,5 +1,6 @@
 // Shared workspace pieces. Class names come from rag/styles.css, which lives inside the shadow root.
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { RagApi, Role } from './api/types'
 import type { PageId } from './pageList'
 
@@ -13,18 +14,36 @@ export const useNavigate = () => useContext(NavigateContext)
 
 export interface PageProps { api: RagApi; role: Role }
 
-export function PageHeader({ title, subtitle, breadcrumb, action }: { title: string; subtitle: string; breadcrumb: string; action?: ReactNode }) {
-  return <>
-    <div className="breadcrumb">管理工作台 / 臺灣日常減碳 / {breadcrumb}</div>
+// Where a page's main button goes: the right end of its heading row. Undefined outside a PageHeader, where the
+// button stays in place; null until the heading row has mounted.
+const HeaderSlotContext = createContext<HTMLElement | null | undefined>(undefined)
+
+/** The page's heading, with the page under it so the page can put its main button in the heading row. */
+export function PageHeader({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
+  return <HeaderSlotContext.Provider value={slot}>
     <div className="page-head">
       <div><h1>{title}</h1><p className="subtitle">{subtitle}</p></div>
-      {action}
+      <div className="page-actions" ref={setSlot} />
     </div>
-  </>
+    {children}
+  </HeaderSlotContext.Provider>
+}
+
+/** The page's main button, shown at the right of the page heading. */
+export function PageAction({ children }: { children: ReactNode }) {
+  const slot = useContext(HeaderSlotContext)
+  if (slot === undefined) return <div className="actions">{children}</div>
+  return slot ? createPortal(children, slot) : null
 }
 
 export function Notice({ tone, children }: { tone?: 'warn' | 'error'; children: ReactNode }) {
   return <div className={tone ? `notice ${tone}` : 'notice'} role={tone === 'error' ? 'alert' : undefined}>{children}</div>
+}
+
+/** A read that failed, with a button to try again. */
+export function LoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <Notice tone="error">{message}<div className="actions"><button type="button" className="secondary" onClick={onRetry}>重新讀取</button></div></Notice>
 }
 
 function activeElement(node: Node | null): HTMLElement | null {

@@ -3,7 +3,7 @@ import { toRagError } from '../api/errors'
 import { LIMITS, type DocumentChunk, type QaCitation, type QaEntry, type QaInput, type RagApi } from '../api/types'
 import { useLoader } from '../hooks'
 import { canEdit, formatDate } from '../labels'
-import { Dialog, Notice, useToast, type PageProps } from '../ui'
+import { Dialog, LoadError, Notice, PageAction, useToast, type PageProps } from '../ui'
 
 export default function QaPage({ api, role }: PageProps) {
   const editable = canEdit(role)
@@ -14,12 +14,10 @@ export default function QaPage({ api, role }: PageProps) {
   const current = editing && editing !== 'new' ? list.find(q => q.id === editing) ?? null : null
 
   return <>
-    <div className="section-head">
-      <p className="muted">使用者的問題對到這裡的 QA 時，教練會直接用 QA 的答案。</p>
-      {editable && <button type="button" className="primary" onClick={() => setEditing('new')}>＋ 新增 QA</button>}
-    </div>
-    {entries.error && <Notice tone="error">{entries.error}</Notice>}
-    {!entries.data && entries.loading && <p className="empty" role="status">正在讀取 QA…</p>}
+    {editable && <PageAction><button type="button" className="primary" onClick={() => setEditing('new')}>新增問答</button></PageAction>}
+    <p className="muted">使用者問的和這裡的問題一樣時，教練直接用寫好的答案，不用花錢。</p>
+    {entries.error && <LoadError message={entries.error} onRetry={() => void entries.reload()} />}
+    {!entries.data && entries.loading && <p className="empty" role="status">正在讀取常見問答…</p>}
     {entries.data && <section className="panel">
       {list.map(q => <article key={q.id} className="qa-row">
         <div className="section-head"><h3>{q.question}</h3><span className={q.enabled ? 'tag' : 'tag quiet'}>{q.enabled ? '啟用中' : '已停用'}</span></div>
@@ -30,13 +28,13 @@ export default function QaPage({ api, role }: PageProps) {
           {editable && <button type="button" className="text-button" aria-label={`編輯 ${q.question}`} onClick={() => setEditing(q.id)}>編輯</button>}
         </div>
       </article>)}
-      {!list.length && <p className="empty">還沒有 QA。</p>}
+      {!list.length && <div className="empty">還沒有常見問答。{editable && <div className="actions empty-actions"><button type="button" className="primary" onClick={() => setEditing('new')}>新增問答</button></div>}</div>}
     </section>}
-    <p className="caption">QA 要有核對過的引用，才會放進知識版本。修改之後，下次建立知識版本才會生效。{editable ? '' : '唯讀權限只能檢視。'}</p>
-    <Dialog open={editing !== null} title={editing === 'new' ? '新增 QA' : '編輯 QA'} onClose={() => setEditing(null)}>
-      {editing === 'new' && <QaForm key="new" api={api} entry={null} onSaved={() => { setEditing(null); toast('已新增 QA，接著可以加上引用。'); void entries.reload() }} />}
+    <p className="caption">有核對過引用的問答才會放進版本。修改後，要建立新版本才會生效。{editable ? '' : '唯讀者只能看。'}</p>
+    <Dialog open={editing !== null} title={editing === 'new' ? '新增問答' : '編輯問答'} onClose={() => setEditing(null)}>
+      {editing === 'new' && <QaForm key="new" api={api} entry={null} onSaved={() => { setEditing(null); toast('已新增，接著打開它加上引用。'); void entries.reload() }} />}
       {current && <>
-        <QaForm key={current.id} api={api} entry={current} onSaved={() => { setEditing(null); toast('QA 已儲存。'); void entries.reload() }} />
+        <QaForm key={current.id} api={api} entry={current} onSaved={() => { setEditing(null); toast('已儲存。'); void entries.reload() }} />
         <CitationEditor key={`${current.id}-citations`} api={api} entry={current} onSaved={() => { toast('引用已儲存。'); void entries.reload() }} />
       </>}
     </Dialog>
@@ -73,7 +71,7 @@ function QaForm({ api, entry, onSaved }: { api: RagApi; entry: QaEntry | null; o
     <label className="check-label"><input type="checkbox" checked={values.enabled} onChange={e => setValues({ ...values, enabled: e.target.checked })} />啟用</label>
     {problem && <p className="form-error" role="alert">{problem}</p>}
     <button type="submit" className="primary" disabled={busy}>儲存</button>
-    {!entry && <p className="caption">先儲存 QA，再打開它加上引用。</p>}
+    {!entry && <p className="caption">先儲存，再打開它加上引用。</p>}
   </form>
 }
 
@@ -132,7 +130,7 @@ function CitationEditor({ api, entry, onSaved }: { api: RagApi; entry: QaEntry; 
   const ready = (documents.data ?? []).filter(d => d.status === 'completed')
   return <section className="panel stack" aria-label="引用">
     <h3>引用</h3>
-    {draft.length ? <ol className="release-manifest" aria-label="這筆 QA 的引用">
+    {draft.length ? <ol className="release-manifest" aria-label="這筆問答的引用">
       {draft.map((c, index) => <li key={`${c.chunkId}-${index}`}>
         {c.quote} <button type="button" className="text-button" aria-label={`移除第 ${index + 1} 筆引用`} onClick={() => setDraft(draft.filter((_, i) => i !== index))}>移除</button>
       </li>)}
@@ -146,7 +144,7 @@ function CitationEditor({ api, entry, onSaved }: { api: RagApi; entry: QaEntry; 
       {chunks.map(c => <option key={c.id} value={c.id}>第 {c.ordinal} 段{c.pageStart !== null ? ` · 第 ${c.pageStart} 頁` : ''}{c.sectionPath ? ` · ${c.sectionPath}` : ''}</option>)}
     </select></label>
     <label className="field">引用原文<textarea value={quote} onChange={e => setQuote(e.target.value)} /></label>
-    <p className="form-tip">最多 {LIMITS.qaCitations} 筆，同一段只能引用一次。引用原文要和段落裡的文字一字不差，可以只取其中幾句，長度 {LIMITS.quoteChars.min} 到 {LIMITS.quoteChars.max} 個字。</p>
+    <p className="form-tip">最多 {LIMITS.qaCitations} 筆，同一段只能引用一次。原文要和段落一字不差，可以只取幾句，{LIMITS.quoteChars.min} 到 {LIMITS.quoteChars.max} 個字。</p>
     {problem && <p className="form-error" role="alert">{problem}</p>}
     <div className="actions">
       <button type="button" className="secondary" disabled={full || busy} onClick={add}>加入引用</button>

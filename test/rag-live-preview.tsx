@@ -14,7 +14,7 @@ const shadow = document.getElementById('host')!.attachShadow({ mode: 'open' })
 shadow.innerHTML = '<link rel="stylesheet" href="' + styleUrl + '"><div class="rag-body"></div>'
 const api = createFakeRagApi({ role, autoAdvance: true })
 const VIEWS: readonly { view: RagView; label: string }[] = [
-  { view: 'workspace', label: 'RAG 知識工作台' }, { view: 'conversations', label: '使用者' }, { view: 'guide', label: '技術架構導覽' },
+  { view: 'workspace', label: '知識庫' }, { view: 'conversations', label: '使用者' }, { view: 'guide', label: '運作原理' },
 ]
 
 function Preview() {

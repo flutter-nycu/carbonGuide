@@ -15,8 +15,8 @@ function chooseFile(page: HTMLElement, content: string, name = 'cases.json') {
 async function start(page: HTMLElement, datasetId: string, versionId: string) {
   await waitFor(() => expect(within(page).getByRole('option', { name: /驗收題組 v1/ })).toBeTruthy())
   fireEvent.change(within(page).getByLabelText('題組'), { target: { value: datasetId } })
-  fireEvent.change(within(page).getByLabelText('知識版本'), { target: { value: versionId } })
-  fireEvent.click(within(page).getByRole('button', { name: '開始評測' }))
+  fireEvent.change(within(page).getByLabelText('版本'), { target: { value: versionId } })
+  fireEvent.click(within(page).getByRole('button', { name: '開始測驗' }))
 }
 
 describe('04 evaluation', () => {
@@ -34,7 +34,7 @@ describe('04 evaluation', () => {
     chooseFile(page(), 'x'.repeat(70_000))
     await waitFor(() => expect(page().textContent).toContain('題組檔案不能超過 64 KB。'))
     chooseFile(page(), '{ not json')
-    await waitFor(() => expect(page().textContent).toContain('題組格式不正確'))
+    await waitFor(() => expect(page().textContent).toContain('題組格式不對'))
     expect(register).not.toHaveBeenCalled()
   })
 
@@ -43,14 +43,14 @@ describe('04 evaluation', () => {
     chooseFile(page(), JSON.stringify(dataset('acceptance', 12)))
     await waitFor(() => expect(within(page()).getByRole('button', { name: '登記題組' })).toBeTruthy())
     fireEvent.click(within(page()).getByRole('button', { name: '登記題組' }))
-    await waitFor(() => expect(page().textContent).toContain('題組格式不正確'))
+    await waitFor(() => expect(page().textContent).toContain('題組格式不對'))
   })
 
   it('runs every case and shows the report', async () => {
     const { page } = openPage('evaluation')
     await start(page(), 'ds-acceptance', 'v-2')
-    await waitFor(() => expect(within(page()).getByRole('region', { name: '評測報告' }).textContent).toContain('40／40'))
-    const report = within(page()).getByRole('region', { name: '評測報告' }).textContent
+    await waitFor(() => expect(within(page()).getByRole('region', { name: '測驗報告' }).textContent).toContain('40／40'))
+    const report = within(page()).getByRole('region', { name: '測驗報告' }).textContent
     expect(report).toContain('95%')
     expect(report).toContain('97%')
     expect(report).toContain('驗收')
@@ -74,7 +74,7 @@ describe('04 evaluation', () => {
     go('evaluation')
     await waitFor(() => expect(page().textContent).toContain('已完成 12／40 題'))
     fireEvent.click(within(page()).getByRole('button', { name: '接續' }))
-    await waitFor(() => expect(within(page()).getByRole('region', { name: '評測報告' })).toBeTruthy())
+    await waitFor(() => expect(within(page()).getByRole('region', { name: '測驗報告' })).toBeTruthy())
     // 40 cases and one more call that reports completion, as in rag-v1.
     expect(next).toHaveBeenCalledTimes(41)
     expect(new Set(seen.filter(s => s.caseId).map(s => s.caseId)).size).toBe(40)
@@ -112,7 +112,7 @@ describe('04 evaluation', () => {
     await start(page(), 'ds-acceptance', 'v-2')
     await waitFor(() => expect((within(page()).getByRole('button', { name: '接續' }) as HTMLButtonElement).disabled).toBe(false), { timeout: 3000 })
     expect(next.mock.calls.length).toBeLessThanOrEqual(41)
-    expect(page().textContent).toContain('系統還沒回報完成')
+    expect(page().textContent).toContain('系統還在整理結果')
   })
 
   it('reuses the request key when starting again after a network failure', async () => {
@@ -120,14 +120,14 @@ describe('04 evaluation', () => {
     const begin = vi.spyOn(api, 'beginEvaluation').mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await start(page(), 'ds-acceptance', 'v-2')
     await waitFor(() => expect(page().textContent).toContain('連不上伺服器'))
-    fireEvent.click(within(page()).getByRole('button', { name: '開始評測' }))
+    fireEvent.click(within(page()).getByRole('button', { name: '開始測驗' }))
     await waitFor(() => expect(begin).toHaveBeenCalledTimes(2))
     expect(begin.mock.calls[1][2]).toBe(begin.mock.calls[0][2])
   })
 
   it('is closed to editors, whose account cannot read datasets', () => {
     const { page } = openPage('evaluation', 'editor')
-    expect(page().textContent).toContain('這一頁只有 owner 可以查看。')
+    expect(page().textContent).toContain('這一頁只有管理者可以看。')
     expect(within(page()).queryByRole('table', { name: '已登記的題組' })).toBeNull()
   })
 
@@ -137,10 +137,10 @@ describe('04 evaluation', () => {
     while (!(await api.nextEvaluation(batch)).complete) { /* run every case */ }
     await api.finishEvaluation(batch)
     const { page } = openWith(api, 'evaluation')
-    const table = () => within(page()).getByRole('table', { name: '評測紀錄' })
+    const table = () => within(page()).getByRole('table', { name: '測驗紀錄' })
     await waitFor(() => expect(table().textContent).toContain('已產生報告'))
     fireEvent.click(within(table()).getByRole('button', { name: '查看報告' }))
-    await waitFor(() => expect(within(page()).getByRole('region', { name: '評測報告' }).textContent).toContain('40／40'))
+    await waitFor(() => expect(within(page()).getByRole('region', { name: '測驗報告' }).textContent).toContain('40／40'))
   })
 
   it('does not ask for calculation cases', async () => {

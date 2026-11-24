@@ -3,7 +3,7 @@ import { messageFor, toRagError } from '../api/errors'
 import type { Persona, PersonaInput, RagApi } from '../api/types'
 import { useLoader } from '../hooks'
 import { canEdit, formatDate } from '../labels'
-import { Dialog, Notice, useToast, type PageProps } from '../ui'
+import { Dialog, LoadError, Notice, PageAction, useToast, type PageProps } from '../ui'
 
 const inputOf = (p: Persona): PersonaInput => ({ name: p.name, example: p.example, instruction: p.instruction, enabled: p.enabled })
 
@@ -33,11 +33,9 @@ export default function PersonasPage({ api, role }: PageProps) {
   }
 
   return <>
-    <div className="section-head">
-      <p className="persona-scenario">人格只改變說話的方式，回答的內容和來源都一樣。</p>
-      {editable && <button type="button" className="primary" onClick={() => setEditing('new')}>＋ 新增人格</button>}
-    </div>
-    {personas.error && <Notice tone="error">{personas.error}</Notice>}
+    {editable && <PageAction><button type="button" className="primary" onClick={() => setEditing('new')}>新增人格</button></PageAction>}
+    <p className="persona-scenario">人格只改變語氣，回答的內容和引用不變。</p>
+    {personas.error && <LoadError message={personas.error} onRetry={() => void personas.reload()} />}
     {problem && <p className="form-error" role="alert">{problem}</p>}
     {!personas.data && personas.loading && <p className="empty" role="status">正在讀取人格…</p>}
     <div className="grid persona-grid">
@@ -51,12 +49,12 @@ export default function PersonasPage({ api, role }: PageProps) {
         <div className="persona-tone"><h3>語氣範例</h3><blockquote>「{p.example}」</blockquote></div>
         <p className="persona-instruction"><strong>回答方式：</strong>{p.instruction}</p>
         <div className="section-head">
-          {editable ? <button type="button" className="text-button" aria-label={`編輯 ${p.name}`} onClick={() => setEditing(p)}>編輯人格 →</button> : <span />}
+          {editable ? <button type="button" className="text-button" aria-label={`編輯 ${p.name}`} onClick={() => setEditing(p)}>編輯</button> : <span />}
           <span className={p.enabled ? 'tag' : 'tag quiet'}>{p.enabled ? '啟用中' : '已停用'}</span>
         </div>
       </section>)}
     </div>
-    <p className="caption">至少要保留一個啟用中的人格。修改之後，下次建立知識版本才會生效。{editable ? '' : '唯讀權限只能檢視。'}</p>
+    <p className="caption">至少要留一個啟用中的人格。修改後，要建立新版本才會生效。{editable ? '' : '唯讀者只能看。'}</p>
     <Dialog open={editing !== null} title={editing === 'new' ? '新增人格' : '編輯人格'} onClose={() => setEditing(null)}>
       {editing && <PersonaForm key={editing === 'new' ? 'new' : editing.id} api={api} persona={editing === 'new' ? null : editing}
         lastEnabled={editing !== 'new' && editing.enabled && enabledCount <= 1}

@@ -27,8 +27,8 @@ describe('01 knowledge base', () => {
     const text = page().textContent!
     for (const label of ['完成', '處理中', '待處理', '失敗', '預算不足暫停']) expect(text).toContain(label)
     expect(text).toContain('讀不出這個檔案的內容')
-    expect(text).toContain('AI 預算不足，等補上預算後會自動接續。')
-    expect(within(page()).getByText('文件總數').parentElement!.textContent).toContain('6')
+    expect(text).toContain('AI 預算不足，補上預算後會自動繼續。')
+    expect(within(page()).getByText('全部文件').parentElement!.textContent).toContain('6')
   })
 
   it('filters by name, purpose and domain', async () => {
@@ -70,7 +70,7 @@ describe('01 knowledge base', () => {
     fireEvent.click(within(dialog).getAllByRole('button', { name: '排除這一段' })[0])
     fireEvent.change(within(dialog).getByLabelText('排除原因'), { target: { value: '內容過期' } })
     fireEvent.click(within(dialog).getByRole('button', { name: '確認排除' }))
-    await waitFor(() => expect(dialog.textContent).toContain('這份文件的段落剛被別人改過'))
+    await waitFor(() => expect(dialog.textContent).toContain('別人剛改過這份文件的段落'))
     await waitFor(() => expect(within(dialog).getByRole('region', { name: '已排除的段落' }).textContent).toContain('冷氣設定在 26 到 28 度'))
   })
 
@@ -85,7 +85,7 @@ describe('01 knowledge base', () => {
     fireEvent.change(within(dialog).getByLabelText('段落內容'), { target: { value: '字'.repeat(590) } })
     fireEvent.change(within(dialog).getByLabelText('修改原因'), { target: { value: '補充' } })
     fireEvent.click(within(dialog).getByRole('button', { name: '儲存修改' }))
-    await waitFor(() => expect(dialog.textContent).toContain('修改後的段落太長'))
+    await waitFor(() => expect(dialog.textContent).toContain('改過的段落太長'))
     expect(revise).not.toHaveBeenCalled()
   })
 
@@ -94,7 +94,7 @@ describe('01 knowledge base', () => {
     await waitFor(() => expect(rows(page())).toHaveLength(6))
     fireEvent.click(within(rows(page())[0]).getAllByRole('button')[0])
     const dialog = view.container.querySelector('dialog') as HTMLElement
-    await waitFor(() => expect(dialog.textContent).toContain('唯讀權限'))
+    await waitFor(() => expect(dialog.textContent).toContain('唯讀者'))
     expect(within(dialog).queryByRole('button', { name: '排除這一段' })).toBeNull()
     expect(within(dialog).queryByRole('button', { name: '儲存分類' })).toBeNull()
   })
@@ -123,7 +123,7 @@ describe('01 knowledge base', () => {
 
   it('opens the import page from the header button', async () => {
     const { page, view } = open('editor')
-    fireEvent.click(within(page()).getByRole('button', { name: '＋ 匯入來源' }))
+    fireEvent.click(within(page()).getByRole('button', { name: '上傳文件' }))
     expect((view.container.querySelector('[data-page="import"]') as HTMLElement).hidden).toBe(false)
   })
 
@@ -135,7 +135,7 @@ describe('01 knowledge base', () => {
     await waitFor(() => expect(list).toHaveBeenCalledTimes(1))
     await act(async () => { vi.advanceTimersByTime(15_000) })
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
-    fireEvent.change(view.getByLabelText('切換管理功能'), { target: { value: 'settings' } })
+    fireEvent.change(view.getByLabelText('切換頁面'), { target: { value: 'settings' } })
     await act(async () => { vi.advanceTimersByTime(45_000) })
     expect(list).toHaveBeenCalledTimes(2)
   })

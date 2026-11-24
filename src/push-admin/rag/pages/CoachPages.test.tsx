@@ -12,19 +12,29 @@ const type = (scope: HTMLElement, label: string, value: string) => fireEvent.cha
 const click = (scope: HTMLElement, name: string | RegExp) => fireEvent.click(within(scope).getByRole('button', { name }))
 
 describe('06 personas', () => {
+  it('offers to read the personas again after a failed read', async () => {
+    const { page } = openPage('personas', 'owner', {}, api => {
+      vi.spyOn(api, 'listPersonas').mockRejectedValueOnce(new TypeError('offline'))
+    })
+    await waitFor(() => expect(page().textContent).toContain('連不上伺服器'))
+    click(page(), '重新讀取')
+    await waitFor(() => expect(page().textContent).toContain('理性型'))
+    expect(page().textContent).not.toContain('連不上伺服器')
+  })
+
   it('shows each persona with its example and instruction', async () => {
     const { page } = openPage('personas', 'viewer')
     await waitFor(() => expect(page().textContent).toContain('理性型'))
     expect(page().textContent).toContain('先比較碳排、時間和花費')
     expect(page().textContent).toContain('先回應使用者的心情')
-    expect(within(page()).queryByRole('button', { name: '＋ 新增人格' })).toBeNull()
+    expect(within(page()).queryByRole('button', { name: '新增人格' })).toBeNull()
     expect((within(page()).getByRole('switch', { name: '理性型啟用狀態' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('adds a persona', async () => {
     const { page } = openPage('personas', 'editor')
     await waitFor(() => expect(page().textContent).toContain('理性型'))
-    click(page(), '＋ 新增人格')
+    click(page(), '新增人格')
     const dialog = within(page()).getByRole('dialog')
     type(dialog, '名稱', '鼓勵型')
     type(dialog, '語氣範例', '你已經做得很好了，再多一步就好。')
@@ -40,7 +50,7 @@ describe('06 personas', () => {
     await waitFor(() => expect(within(page()).getByRole('switch', { name: '理性型啟用狀態' }).getAttribute('aria-checked')).toBe('false'))
     const save = vi.spyOn(api, 'savePersona')
     fireEvent.click(within(page()).getByRole('switch', { name: '共感型啟用狀態' }))
-    await waitFor(() => expect(page().textContent).toContain('至少要保留一個啟用中的人格'))
+    await waitFor(() => expect(page().textContent).toContain('至少要有一個啟用中的人格'))
     expect(save).not.toHaveBeenCalled()
   })
 
@@ -52,7 +62,7 @@ describe('06 personas', () => {
     const dialog = within(page()).getByRole('dialog')
     type(dialog, '回答方式', '新的回答方式')
     click(dialog, '儲存')
-    await waitFor(() => expect(dialog.textContent).toContain('這筆內容剛被別人改過'))
+    await waitFor(() => expect(dialog.textContent).toContain('別人剛改過這筆內容'))
     expect(field(dialog, '回答方式').value).toBe('新的回答方式')
   })
 })
@@ -61,26 +71,26 @@ describe('07 system prompt', () => {
   it('saves the latest draft and keeps a version history', async () => {
     const { api, page } = openPage('prompt', 'editor')
     const save = vi.spyOn(api, 'savePrompt')
-    await waitFor(() => expect(field(page(), '提示詞內容').value).toContain('用繁體中文回答'))
-    type(page(), '提示詞內容', '用繁體中文回答，語氣親切。')
+    await waitFor(() => expect(field(page(), '規則內容').value).toContain('用繁體中文回答'))
+    type(page(), '規則內容', '用繁體中文回答，語氣親切。')
     click(page(), '儲存')
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
     expect(save.mock.calls[0][1]?.id).toBe('pr-1')
     await waitFor(() => expect(page().textContent).toContain('已儲存'))
 
-    type(page(), '版本名稱', '第二版')
-    type(page(), '提示詞內容', '第二版的規則')
-    click(page(), '另存成新版本')
+    type(page(), '名稱', '第二版')
+    type(page(), '規則內容', '第二版的規則')
+    click(page(), '另存新版')
     await waitFor(() => expect(within(page()).getByRole('list', { name: '歷次版本' }).textContent).toContain('第二版'))
     expect(save.mock.calls[1][1]).toBeUndefined()
     expect(within(page()).getByRole('list', { name: '歷次版本' }).textContent).toContain('第一版')
-    expect(page().textContent).toContain('下次建立知識版本')
+    expect(page().textContent).toContain('下次建立版本')
   })
 
   it('is read-only for a viewer', async () => {
     const { page } = openPage('prompt', 'viewer')
-    await waitFor(() => expect(field(page(), '提示詞內容').value).toContain('用繁體中文回答'))
-    expect(field(page(), '提示詞內容').readOnly).toBe(true)
+    await waitFor(() => expect(field(page(), '規則內容').value).toContain('用繁體中文回答'))
+    expect(field(page(), '規則內容').readOnly).toBe(true)
     expect(within(page()).queryByRole('button', { name: '儲存' })).toBeNull()
   })
 })
@@ -89,7 +99,7 @@ describe('08 QA', () => {
   it('adds, edits and disables a QA', async () => {
     const { page } = openPage('qa', 'editor')
     await waitFor(() => expect(page().textContent).toContain('如何減少食物浪費？'))
-    click(page(), '＋ 新增 QA')
+    click(page(), '新增問答')
     let dialog = within(page()).getByRole('dialog')
     type(dialog, '問題', '冷氣開幾度比較省電？')
     type(dialog, '答案', '設定在 26 到 28 度，搭配電扇。')
@@ -133,7 +143,7 @@ describe('08 QA', () => {
     await waitFor(() => expect(within(dialog).getByRole('option', { name: /買菜之前/ })).toBeTruthy())
     fireEvent.change(field(dialog, '段落'), { target: { value: 'c-food-1' } })
     click(dialog, '加入引用')
-    expect(within(dialog).getByRole('list', { name: '這筆 QA 的引用' }).children).toHaveLength(5)
+    expect(within(dialog).getByRole('list', { name: '這筆問答的引用' }).children).toHaveLength(5)
     expect((within(dialog).getByRole('button', { name: '加入引用' }) as HTMLButtonElement).disabled).toBe(true)
     expect(dialog.textContent).toContain('最多 5 筆')
   })
@@ -153,7 +163,7 @@ describe('08 QA', () => {
     type(dialog, '引用原文', '冷'.repeat(801))
     click(dialog, '加入引用')
     expect(dialog.textContent).toContain('引用原文要 5 到 800 個字')
-    expect(within(dialog).getByRole('list', { name: '這筆 QA 的引用' }).children).toHaveLength(1)
+    expect(within(dialog).getByRole('list', { name: '這筆問答的引用' }).children).toHaveLength(1)
   })
 
   it('shows when a quote does not match the passage', async () => {
@@ -197,7 +207,7 @@ describe('09 retrieval settings', () => {
     click(page(), '儲存設定')
     await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
     expect(save.mock.calls[0][0]).toEqual({ candidates: 20, contextChunks: 8 })
-    await waitFor(() => expect(page().textContent).toContain('設定已儲存，下次建立知識版本時才會生效。'))
+    await waitFor(() => expect(page().textContent).toContain('已儲存，建立新版本後才會生效。'))
   })
 
   it('lets only the owner change the settings', async () => {
@@ -205,6 +215,6 @@ describe('09 retrieval settings', () => {
     await waitFor(() => expect(field(page(), '先找幾筆資料').value).toBe('20'))
     expect(field(page(), '先找幾筆資料').disabled).toBe(true)
     expect((within(page()).getByRole('button', { name: '儲存設定' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(page().textContent).toContain('只有 owner 可以修改檢索設定')
+    expect(page().textContent).toContain('只有管理者可以修改搜尋設定')
   })
 })

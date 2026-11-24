@@ -7,7 +7,7 @@ import Dashboard from './Dashboard'
 
 // A stand-in workspace whose pages link to each top tab, to test what Dashboard lets a link open.
 vi.mock('./RagWorkspace', () => ({
-  default: ({ onView }: { onView: (view: RagView) => void }) => <div aria-label="RAG 知識工作台">
+  default: ({ onView }: { onView: (view: RagView) => void }) => <div aria-label="知識庫">
     {(['conversations', 'guide', 'workspace'] as const).map(view => <button key={view} type="button" onClick={() => onView(view)}>連到 {view}</button>)}
   </div>,
 }))
@@ -23,7 +23,7 @@ const current = () => screen.getAllByRole('button').filter(b => b.getAttribute('
 describe('Dashboard links between top tabs', () => {
   it('lets a page link open the tabs the role can see', async () => {
     render(<Dashboard role="owner" onLogout={() => undefined} />)
-    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 內部測試' }))
+    fireEvent.click(screen.getByRole('button', { name: '知識庫' }))
     fireEvent.click(await screen.findByRole('button', { name: '連到 conversations' }))
     expect(current()).toEqual(['使用者'])
     expect(window.location.hash).toBe('#conversations')
@@ -31,11 +31,11 @@ describe('Dashboard links between top tabs', () => {
 
   it('ignores a link to conversation users for an editor', async () => {
     render(<Dashboard role="editor" onLogout={() => undefined} />)
-    fireEvent.click(screen.getByRole('button', { name: 'RAG 知識工作台 內部測試' }))
+    fireEvent.click(screen.getByRole('button', { name: '知識庫' }))
     fireEvent.click(await screen.findByRole('button', { name: '連到 conversations' }))
-    expect(current()).toEqual(['RAG 知識工作台 內部測試'])
+    expect(current()).toEqual(['知識庫'])
     expect(window.location.hash).toBe('#rag')
     fireEvent.click(screen.getByRole('button', { name: '連到 guide' }))
-    expect(current()).toEqual(['技術架構導覽'])
+    expect(current()).toEqual(['運作原理'])
   })
 })

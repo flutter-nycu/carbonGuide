@@ -59,7 +59,7 @@ with sync_playwright() as p:
     page.reload()
     frame=page.locator('.rag-workspace')
     try:
-        frame.get_by_role('heading',name='知識庫與文件',exact=True).wait_for(timeout=10000)
+        frame.get_by_role('heading',name='文件',exact=True).wait_for(timeout=10000)
     except Exception:
         print(json.dumps({'errors':errors,'body':page.locator('body').inner_text()},ensure_ascii=True))
         page.screenshot(path=str(out/'failure.png'),full_page=True)
@@ -71,13 +71,13 @@ with sync_playwright() as p:
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
         assert not frame.evaluate('(host)=>host.scrollWidth>innerWidth')
         if width==390: page.screenshot(path=str(out/'rag-mobile.png'),full_page=True)
-        for tab in ['技術架構導覽','使用者']:
+        for tab in ['運作原理','使用者']:
             page.get_by_role('navigation',name='切換工作台').get_by_role('button',name=tab,exact=True).click()
             frame.get_by_role('heading',name=tab,exact=True).wait_for()
             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth'), (width,tab)
             if width in [390,375]:page.screenshot(path=str(out/f'rag-{tab}-{width}.png'),full_page=True)
-        page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
-        page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
+        page.get_by_role('button',name='知識庫',exact=True).click()
+        page.get_by_role('button',name='推播管理',exact=True).click()
         page.get_by_role('heading',name='系統推播',exact=True).wait_for()
         assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
         if width in [1440,390]:page.screenshot(path=str(out/f'push-{width}.png'),full_page=True)
@@ -87,36 +87,46 @@ with sync_playwright() as p:
             assert not page.evaluate('document.documentElement.scrollWidth>innerWidth'), (width,tab)
             if width in [1440,390]:page.screenshot(path=str(out/f'push-{tab}-{width}.png'),full_page=True)
         page.get_by_role('navigation',name='推播功能').get_by_role('button',name='系統推播',exact=True).click()
-        page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
+        page.get_by_role('button',name='知識庫',exact=True).click()
     checks.append('RAG, both new top tabs and all four populated push tabs fit 1440, 1024, 768, 390 and 375px')
+    # One 52px header row on wide screens that stays put while scrolling; two rows on phones.
+    page.set_viewport_size({'width':1440,'height':700})
+    header=page.locator('.admin-header')
+    assert abs(header.bounding_box()['height']-52)<=1, header.bounding_box()
+    assert header.evaluate('h => getComputedStyle(h).position')=='sticky'
+    page.set_viewport_size({'width':390,'height':844})
+    page.evaluate('scrollTo(0,0)')
+    assert 88<=header.bounding_box()['height']<=96, header.bounding_box()
+    assert page.locator('.admin-breadcrumb').count()==0
+    checks.append('The header is one 52px row that stays at the top on wide screens, two rows on phones; push pages have no breadcrumb')
     page.set_viewport_size({'width':1440,'height':1000})
     tabs=page.get_by_role('navigation',name='切換工作台')
-    assert [' '.join(b.text_content().split()) for b in tabs.get_by_role('button').all()]==['推播管理 正式功能','RAG 知識工作台 內部測試','使用者','技術架構導覽']
+    assert [' '.join(b.text_content().split()) for b in tabs.get_by_role('button').all()]==['推播管理','知識庫','使用者','運作原理']
     # The tab bar scrolls sideways, so a keyboard focus ring has to sit inside it rather than be clipped.
-    tabs.get_by_role('button',name='RAG 知識工作台 內部測試').focus()
+    tabs.get_by_role('button',name='知識庫',exact=True).focus()
     page.keyboard.press('Tab')
     assert tabs.get_by_role('button',name='使用者').evaluate('b => b === document.activeElement && b.matches(":focus-visible") && getComputedStyle(b).outlineOffset')=='-3px'
-    nav=frame.get_by_role('navigation',name='RAG 工作台頁面')
+    nav=frame.get_by_role('navigation',name='知識庫頁面')
     assert nav.get_by_role('button').count()==10
-    tabs.get_by_role('button',name='技術架構導覽').click()
+    tabs.get_by_role('button',name='運作原理').click()
     assert page.evaluate('location.hash')=='#guide'
-    frame.get_by_role('heading',name='技術架構導覽',exact=True).wait_for()
+    frame.get_by_role('heading',name='運作原理',exact=True).wait_for()
     assert frame.get_by_role('list',name='架構總覽圖').is_visible()
-    assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式環境目前的設定。').filter(visible=True).count()==1
+    assert frame.get_by_text('RAG 後端尚未啟用，這裡還沒有設定可以顯示。').filter(visible=True).count()==1
     tabs.get_by_role('button',name='使用者').click()
     assert page.evaluate('location.hash')=='#conversations'
     frame.get_by_role('heading',name='使用者',exact=True).wait_for()
-    assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1
+    assert frame.get_by_text('RAG 後端尚未啟用，這裡還沒有資料。').filter(visible=True).count()==1
     # A fresh load, not a same-page hash change, so the first render reads the address.
     page.evaluate("location.hash='#guide'")
     page.reload()
-    frame.get_by_role('heading',name='技術架構導覽',exact=True).wait_for()
-    assert tabs.get_by_role('button',name='技術架構導覽').get_attribute('aria-current')=='page'
-    tabs.get_by_role('button',name='RAG 知識工作台 內部測試').click()
-    for name,title in [('匯入與預檢','匯入與預檢'),('檢索試問台','檢索試問台'),('RAG 評測','RAG 評測'),('知識版本','知識版本'),('人格設定','人格設定'),('System Prompt','全域提示詞'),('基本通用 QA','基本通用 QA'),('進階檢索設定','檢索設定'),('互動紀錄','互動紀錄'),('知識庫與文件','知識庫與文件')]:
-        nav.get_by_role('button',name=name).click()
-        frame.get_by_role('heading',name=title,exact=True).wait_for()
-        assert frame.get_by_text('RAG 後端尚未啟用。開啟之後，這裡會顯示正式知識庫的資料。').filter(visible=True).count()==1, name
+    frame.get_by_role('heading',name='運作原理',exact=True).wait_for()
+    assert tabs.get_by_role('button',name='運作原理').get_attribute('aria-current')=='page'
+    tabs.get_by_role('button',name='知識庫',exact=True).click()
+    for name in ['上傳文件','教練人格','回答規則','常見問答','搜尋設定','版本與發布','試問','自動測驗','問答紀錄','文件']:
+        nav.get_by_role('button',name=name,exact=True).click()
+        frame.get_by_role('heading',name=name,exact=True).wait_for()
+        assert frame.get_by_text('RAG 後端尚未啟用，這裡還沒有資料。').filter(visible=True).count()==1, name
     checks.append('Owner sees four top tabs; #guide opens the guide; the 10 sidebar pages and conversation users say the backend is not enabled yet and the guide still teaches')
     frame.locator('a.skip').focus()
     page.keyboard.press('Enter')
@@ -126,14 +136,14 @@ with sync_playwright() as p:
     page.keyboard.press('Enter')
     assert page.evaluate('location.hash')=='#rag'
     assert page.evaluate('document.activeElement.id')=='workspace-content'
-    assert frame.get_by_role('heading',name='知識庫與文件',exact=True).is_visible()
+    assert frame.get_by_role('heading',name='文件',exact=True).is_visible()
     checks.append('Both skip links move focus without switching away from RAG')
-    nav.get_by_role('button',name='知識版本').click()
-    page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
+    nav.get_by_role('button',name='版本與發布',exact=True).click()
+    page.get_by_role('button',name='推播管理',exact=True).click()
     page.get_by_placeholder('例：本月碳排提醒').fill('驗證用草稿，未發送')
-    page.get_by_role('button',name='RAG 知識工作台 內部測試',exact=True).click()
-    assert frame.get_by_role('heading',name='知識版本',exact=True).is_visible()
-    page.get_by_role('button',name='推播管理 正式功能',exact=True).click()
+    page.get_by_role('button',name='知識庫',exact=True).click()
+    assert frame.get_by_role('heading',name='版本與發布',exact=True).is_visible()
+    page.get_by_role('button',name='推播管理',exact=True).click()
     assert page.get_by_placeholder('例：本月碳排提醒').input_value()=='驗證用草稿，未發送'
     checks.append('Workspace switching keeps the push draft and the open RAG page')
     page.get_by_role('button',name='登出',exact=True).click()
@@ -152,7 +162,7 @@ with sync_playwright() as p:
     editor.reload()
     editor.get_by_role('heading',name='系統推播',exact=True).wait_for()
     editor_tabs=editor.get_by_role('navigation',name='切換工作台')
-    assert [' '.join(b.text_content().split()) for b in editor_tabs.get_by_role('button').all()]==['推播管理 正式功能','RAG 知識工作台 內部測試','技術架構導覽']
+    assert [' '.join(b.text_content().split()) for b in editor_tabs.get_by_role('button').all()]==['推播管理','知識庫','運作原理']
     assert editor.locator('.rag-workspace').count()==0
     editor.screenshot(path=str(out/'editor-conversations-hash.png'),full_page=True)
     checks.append('An editor has three top tabs and #conversations stays on push management')

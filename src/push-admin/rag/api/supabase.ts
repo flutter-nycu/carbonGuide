@@ -375,15 +375,15 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     async uploadFile(file, onProgress) {
       const problem = fileProblem(file)
       if (problem) throw new RagError(problem)
-      onProgress?.('核對檔案內容…')
+      onProgress?.('檢查檔案…')
       const result = await action({ action: 'upload_begin', name: file.name, format: file.name.split('.').pop()!.toLowerCase(), sha256: await sha256(file), bytes: file.size })
       idFrom(result)
       if (result.verified === true) return { outcome: 'already_exists' }
       if (typeof result.path !== 'string' || !UPLOAD_PATH.test(result.path) || typeof result.token !== 'string') throw new RagError('invalid_response')
-      onProgress?.('上傳到私人儲存空間…')
+      onProgress?.('上傳中…')
       const { error } = await client.storage.from('rag-originals').uploadToSignedUrl(result.path, result.token, file, { upsert: false })
       // A lost response may hide a finished upload; verification checks the stored bytes either way.
-      onProgress?.(error ? '確認伺服器是否已經收到檔案…' : '伺服器正在核對檔案…')
+      onProgress?.(error ? '確認檔案有沒有傳到…' : '核對檔案…')
       await action({ action: 'upload_verify', originalId: result.id })
       return { outcome: 'uploaded' }
     },

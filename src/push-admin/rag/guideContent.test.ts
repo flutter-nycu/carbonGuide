@@ -19,10 +19,10 @@ describe('architecture guide content', () => {
       ['answer', '一個問題怎麼被回答', 8],
     ])
     expect(GUIDE_ROUTES[0].steps.map(s => s.title)).toEqual([
-      '上傳或登記網址', '自動開始處理', '讀出內容並切成段落', '轉成可搜尋的格式', '建立知識版本', '評測與人工審核', '發布',
+      '上傳檔案或網址', '自動開始整理', '讀出內容、切成段落', '轉成可搜尋的格式', '建立版本', '自動測驗和人工審核', '發布',
     ])
     expect(GUIDE_ROUTES[1].steps.map(s => s.title)).toEqual([
-      '確認身分與範圍', '先比對 QA', '把問題轉成可搜尋的格式', '找資料', '挑出要參考的段落', '產生回答', '核對引用與數字', '記下流程與費用',
+      '確認身分和版本', '先比對常見問答', '把問題轉成可搜尋的格式', '找資料', '挑出要參考的段落', '寫回答', '核對引用和數字', '記下過程和費用',
     ])
   })
 
@@ -61,7 +61,7 @@ describe('architecture guide content', () => {
 
   it('has six safeguards and a glossary of the words the page uses', () => {
     expect(GUIDE_SAFEGUARDS).toHaveLength(6)
-    expect(GUIDE_GLOSSARY.map(g => g.term)).toEqual(['RAG', '段落', '向量', '混合檢索', 'RRF', '知識版本', '驗收評測', '引用核對'])
+    expect(GUIDE_GLOSSARY.map(g => g.term)).toEqual(['RAG', '段落', '向量', '混合搜尋', 'RRF', '版本', '自動測驗', '引用核對'])
     for (const entry of [...GUIDE_SAFEGUARDS.map(s => s.text), ...GUIDE_GLOSSARY.map(g => g.meaning)]) expect(entry.length).toBeGreaterThan(10)
   })
 })

@@ -5,7 +5,7 @@ import { LIMITS, type ConversationDetail, type KnowledgeVersion, type TestRound 
 import ConversationView from '../ConversationView'
 import { useLoader } from '../hooks'
 import { formatDate, formatUsd } from '../labels'
-import { Notice, type PageProps } from '../ui'
+import { LoadError, Notice, useNavigate, type PageProps } from '../ui'
 
 /** A round can take another question: open, not expired, with questions and budget left. */
 const usable = (round: TestRound | null) => !!round && round.state === 'active' && new Date(round.expiresAt).getTime() > Date.now()
@@ -16,6 +16,7 @@ const versionLabel = (v: KnowledgeVersion) =>
 
 export default function PlaygroundPage({ api, role }: PageProps) {
   const owner = role === 'owner'
+  const navigate = useNavigate()
   const versions = useLoader(() => api.listVersions())
   const budget = useLoader(() => api.getBudget())
   const [versionId, setVersionId] = useState('')
@@ -83,35 +84,35 @@ export default function PlaygroundPage({ api, role }: PageProps) {
   return <div className="grid">
     <section className="panel">
       <h2>問一個問題</h2>
-      {versions.error && <Notice tone="error">{versions.error}</Notice>}
-      {!list.length && versions.data && <Notice tone="warn">還沒有知識版本。先到「知識版本」建立一個，才能試問。</Notice>}
+      {versions.error && <LoadError message={versions.error} onRetry={() => void versions.reload()} />}
+      {!list.length && versions.data && <Notice tone="warn">還沒有版本，要先建立版本才能試問。<div className="actions"><button type="button" className="secondary" onClick={() => navigate('releases')}>前往「版本與發布」</button></div></Notice>}
       <form onSubmit={event => void submit(event)}>
-        <label className="field">知識版本<select value={versionId} disabled={busy} onChange={event => { setVersionId(event.target.value); setRound(null); setResult(null) }}>
+        <label className="field">版本<select value={versionId} disabled={busy} onChange={event => { setVersionId(event.target.value); setRound(null); setResult(null) }}>
           {list.map(v => <option key={v.id} value={v.id}>{versionLabel(v)}</option>)}
         </select></label>
-        <p className="form-tip">每個知識版本都可以試問，發布前可以先確認回答。</p>
+        <p className="form-tip">還沒發布的版本也可以試問。</p>
         <label className="field">問題<textarea value={question} maxLength={2000} required disabled={!owner} placeholder="輸入想問教練的問題" onChange={event => setQuestion(event.target.value)} /></label>
         <div className="actions">
           <button type="submit" className="primary" disabled={!owner || busy || !versionId}>{busy ? '處理中…' : '試問'}</button>
-          {round && owner && <button type="button" className="secondary" onClick={() => void stop()}>停止這一輪</button>}
+          {round && owner && <button type="button" className="secondary" onClick={() => void stop()}>結束這份額度</button>}
         </div>
-        {!owner && <p className="caption">只有 owner 可以試問，試問會使用 AI 預算。</p>}
+        {!owner && <p className="caption">只有管理者可以試問。試問會用到 AI 預算。</p>}
         {problem && <p className="form-error" role="alert">{problem}</p>}
       </form>
       <dl className="metadata">
-        <dt>測試輪次</dt>
+        <dt>測驗額度</dt>
         <dd>{round
-          ? `這一輪還可以問 ${round.requestLimit - round.requestCount} 題，已預留 ${formatUsd(round.reservedUsd)}／上限 ${formatUsd(round.budgetUsd)}，${formatDate(round.expiresAt)} 到期。`
-          : `第一次試問時會自動開一輪：最多 ${LIMITS.round.requestLimit} 題、費用上限取剩餘預算與 ${formatUsd(LIMITS.round.budgetUsd)} 的較小值、${LIMITS.round.days} 天後到期。`}</dd>
+          ? `還可以問 ${round.requestLimit - round.requestCount} 題，已預留 ${formatUsd(round.reservedUsd)}／上限 ${formatUsd(round.budgetUsd)}，${formatDate(round.expiresAt)} 到期。`
+          : `第一次試問會自動開一份：最多 ${LIMITS.round.requestLimit} 題，${LIMITS.round.days} 天內有效，費用上限是剩餘預算和 ${formatUsd(LIMITS.round.budgetUsd)} 中較少的那個。`}</dd>
         <dt>每日上限</dt>
-        <dd>每位使用者每日最多 {LIMITS.round.dailyLimit} 題，試問與評測合計，臺灣時間 08:00 換日；更換輪次不會重設。</dd>
+        <dd>每人每天最多 {LIMITS.round.dailyLimit} 題，試問和測驗一起算，臺灣時間早上 8 點換日；開新額度也不會歸零。</dd>
         <dt>這期 AI 預算</dt>
-        <dd>{budget.data ? (budget.data.active ? `已預留 ${formatUsd(budget.data.reservedUsd)}／總額 ${formatUsd(budget.data.budgetUsd)}` : '目前沒有可用的預算') : '—'}</dd>
+        <dd>{budget.data ? (budget.data.active ? `已預留 ${formatUsd(budget.data.reservedUsd)}／總額 ${formatUsd(budget.data.budgetUsd)}` : '現在沒有可用的預算') : '—'}</dd>
       </dl>
     </section>
     <section className="panel" aria-live="polite">
-      <h2>回答與來源</h2>
-      {result ? <ConversationView detail={result} /> : <p className="empty">試問之後，這裡會顯示回答、引用的文件、處理流程和費用。</p>}
+      <h2>回答與引用</h2>
+      {result ? <ConversationView detail={result} /> : <p className="empty">試問後，這裡會顯示回答、引用、處理流程和費用。</p>}
     </section>
   </div>
 }

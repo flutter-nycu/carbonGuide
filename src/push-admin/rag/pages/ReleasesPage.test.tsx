@@ -7,7 +7,7 @@ import { openPage, setupPageTests } from './testing'
 
 setupPageTests()
 
-const table = (page: HTMLElement) => within(page).getByRole('table', { name: '知識版本列表' })
+const table = (page: HTMLElement) => within(page).getByRole('table', { name: '版本列表' })
 const row = (page: HTMLElement, name: string) => within(table(page)).getByText(name).closest('tr') as HTMLElement
 async function openVersion(page: HTMLElement, name: string) {
   await waitFor(() => expect(table(page).textContent).toContain(name))
@@ -37,7 +37,7 @@ describe('05 releases', () => {
     const dialog = await openVersion(page(), '2026-11 候選版')
     const checks = within(dialog).getByRole('list', { name: '發布條件' }).textContent
     expect(checks).toContain('還沒通過人工審核')
-    expect(checks).toContain('還沒跑驗收評測')
+    expect(checks).toContain('還沒跑自動測驗')
     expect((within(dialog).getByRole('button', { name: '發布這個版本' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
@@ -48,10 +48,10 @@ describe('05 releases', () => {
     fireEvent.click(within(dialog).getByLabelText('核准'))
     fireEvent.change(within(dialog).getByLabelText('審核意見'), { target: { value: '文件與 QA 都核對過了' } })
     fireEvent.click(within(dialog).getByRole('button', { name: '送出審核' }))
-    await waitFor(() => expect(dialog.textContent).toContain('請先勾選「已核對版本內容與評測結果」'))
+    await waitFor(() => expect(dialog.textContent).toContain('請先勾選「已核對版本內容和測驗結果」'))
     expect(review).not.toHaveBeenCalled()
 
-    fireEvent.click(within(dialog).getByLabelText('已核對版本內容與評測結果'))
+    fireEvent.click(within(dialog).getByLabelText('已核對版本內容和測驗結果'))
     fireEvent.click(within(dialog).getByRole('button', { name: '送出審核' }))
     await waitFor(() => expect(row(page(), '2026-11 候選版').textContent).toContain('已核准'))
     expect(review.mock.calls[0].slice(0, 4)).toEqual(['v-2', 'approve', '文件與 QA 都核對過了', true])
@@ -62,9 +62,9 @@ describe('05 releases', () => {
     const review = vi.spyOn(api, 'reviewVersion')
     const dialog = await openVersion(page(), '2026-11 候選版')
     fireEvent.click(within(dialog).getByLabelText('退回'))
-    fireEvent.click(within(dialog).getByLabelText('已核對版本內容與評測結果'))
+    fireEvent.click(within(dialog).getByLabelText('已核對版本內容和測驗結果'))
     fireEvent.click(within(dialog).getByRole('button', { name: '送出審核' }))
-    await waitFor(() => expect(dialog.textContent).toContain('請寫下審核意見'))
+    await waitFor(() => expect(dialog.textContent).toContain('請寫審核意見'))
     expect(review).not.toHaveBeenCalled()
   })
 
@@ -90,7 +90,7 @@ describe('05 releases', () => {
     const dialog = await openVersion(page(), '2026-10 第一版')
     fireEvent.click(within(dialog).getByRole('button', { name: '停用這個版本' }))
     expect(disable).not.toHaveBeenCalled()
-    expect(dialog.textContent).toContain('停用之後')
+    expect(dialog.textContent).toContain('停用後')
     fireEvent.click(within(dialog).getByRole('button', { name: '確定停用' }))
     await waitFor(() => expect(disable).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(row(page(), '2026-10 第一版').textContent).not.toContain('使用中'))
@@ -101,9 +101,9 @@ describe('05 releases', () => {
     const create = vi.spyOn(api, 'createVersion').mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await waitFor(() => expect(table(page()).textContent).toContain('2026-11 候選版'))
     fireEvent.change(within(page()).getByLabelText('版本名稱'), { target: { value: '2026-12 冬季版' } })
-    fireEvent.click(within(page()).getByRole('button', { name: '建立知識版本' }))
+    fireEvent.click(within(page()).getByRole('button', { name: '建立版本' }))
     await waitFor(() => expect(page().textContent).toContain('連不上伺服器'))
-    fireEvent.click(within(page()).getByRole('button', { name: '建立知識版本' }))
+    fireEvent.click(within(page()).getByRole('button', { name: '建立版本' }))
     await waitFor(() => expect(table(page()).textContent).toContain('2026-12 冬季版'))
     expect(create.mock.calls[1][1]).toBe(create.mock.calls[0][1])
   })
@@ -111,8 +111,8 @@ describe('05 releases', () => {
   it('shows versions to an editor without any actions', async () => {
     const { page } = openPage('releases', 'editor')
     await waitFor(() => expect(table(page()).textContent).toContain('2026-11 候選版'))
-    expect((within(page()).getByRole('button', { name: '建立知識版本' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(page().textContent).toContain('只有 owner 可以建立、審核和發布知識版本')
+    expect((within(page()).getByRole('button', { name: '建立版本' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(page().textContent).toContain('只有管理者可以建立、審核和發布版本')
     const dialog = await openVersion(page(), '2026-11 候選版')
     expect(within(dialog).queryByRole('button', { name: '送出審核' })).toBeNull()
     expect((within(dialog).getByRole('button', { name: '發布這個版本' }) as HTMLButtonElement).disabled).toBe(true)

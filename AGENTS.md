@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-11-20 下午。上方分頁「使用者」（原「對話使用者」）列出所有 App 帳號並顯示目前狀態：網站程式基線 `092051a`（PR #1 合併 main），後端正式庫 migration `20261119100000` 與 `20261120100000` 都已套用，兩個 repo 的 main／develop 同步。Git 與 Vercel 狀態分開核對，完整紀錄與「目前狀態總表」在後端 docs/rag.md。
+最後核對：2026-11-25。main 工作樹有一批還沒提交的介面整理（OpenSpec change `rag-plain-ui-refresh`，見下方「現況」最後一項），以下的頁名、上方分頁與側欄已照這批修改描述；正式站在提交、合併前仍是舊介面。2026-11-20 下午的狀態：上方分頁「使用者」（原「對話使用者」）列出所有 App 帳號並顯示目前狀態：網站程式基線 `092051a`（PR #1 合併 main），後端正式庫 migration `20261119100000` 與 `20261120100000` 都已套用，兩個 repo 的 main／develop 同步。Git 與 Vercel 狀態分開核對，完整紀錄與「目前狀態總表」在後端 docs/rag.md。
 
 這份文件給 Codex、Claude 與其他 AI agent 接手時先讀。內容以本 repo 的程式碼、設定與 Git／部署紀錄為準；和程式碼不一致時，先確認實際行為，再在同一個變更裡修正文件。
 
@@ -63,31 +63,35 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站（deployment `7931096289`）；同日依 Ken 授權用 Supabase MCP 在正式庫套用 migration，套用前後兩份 SQL 測試都通過並 rollback，後端分支合併 main。後端套用前狀態欄顯示「—」，套用後應顯示真實狀態；管理員登入確認真實畫面後再歸檔規格（tasks 6.4）。部署與套用收據見後端 `docs/rag.md`。
 - 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面；網址仍是 `#conversations`。同日 James 與 Ken 確認 owner 可看到所有 App 帳號的資料，Ken 用 Supabase MCP 在正式庫套用 migration，三份 SQL 測試前後都通過並 rollback；PR #1 `092051a` fast-forward 合併 main 部署正式站，develop 同步。部署與驗證收據見後端 `docs/rag.md`）：列表改成所有帳號，有提問的排前面（最近提問在上），其他帳號依加入時間排列，顯示「0 次」「還沒有對話」，角色「一般使用者」；列表上的今日用量只在當天有題數時顯示。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`（cursor 多一個分組鍵，舊 cursor 回「列表已經變動，請重新整理頁面」）。這會讓 owner 看得到所有 App 帳號的 email 與登入時間，已於 2026-11-20 經人工確認。新網站搭配舊後端仍只列有提問的人，舊網站搭配新後端會多出 0 次的帳號、時間顯示「—」，兩邊可以先後上線。
 - 「使用者」分頁的分頁與字體（James 2026-11-20 下午）：每頁 10 位，上一頁／下一頁／頁碼，已知總數時顯示「第 N／M 頁，共 X 位」；表格文字 14px。只改網站：後端仍以 cursor 每次給 50 位，頁數用完才取下一批，不送頁碼或 offset。
+- 介面與文字整理（James 2026-11-24 提出並逐項確認，OpenSpec `openspec/changes/rag-plain-ui-refresh/`，決策表在 design.md；**還沒提交、沒推送、沒部署**）：上方列合成一列 52px，分頁改名「知識庫」「運作原理」並拿掉小標籤；側欄拿掉 01–10 編號，依「資料／教練／測試與發布／紀錄」重排並改用白話頁名，可收成 56px 圖示窄條；拿掉麵包屑，標題 20px，主要按鈕在標題列；最小字 13px；讀取失敗都有「重新讀取」；工作樹原本未提交的操作教學面板保留，改成預設收起；三個 RAG 分頁的文字全部改白話，技術名詞只留在運作原理的「技術細節」。推播頁只改標題樣式，文字不動。網址 hash、資料契約與後端都不變。
 
 ### 怎麼運作
 
 - 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入（獨立 chunk，推播管理不用下載），用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM。樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
-- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時 01–10 頁與使用者分頁顯示「RAG 後端尚未啟用」，技術架構導覽照常顯示教學內容，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。後端部署並驗收之前不要在正式站開啟，11/19 已授權開啟 Production；實際部署證據見後端 docs/rag.md。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時知識庫 10 頁與使用者分頁顯示「RAG 後端尚未啟用」，運作原理照常顯示說明，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。後端部署並驗收之前不要在正式站開啟，11/19 已授權開啟 Production；實際部署證據見後端 docs/rag.md。
 - 資料層 `rag/api/`：`supabase.ts` 在 RLS 下直接讀表，所有寫入都經 App repo 的 `rag-v1` Edge Function；`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。
 - 不能重複的操作（試問、建立輪次、建立版本、開始評測、登記網址、審核、發布、改回、停用）都帶請求鍵（`requestKeys.ts`，存在元件外，成功之後才清掉）。重送時沿用第一次送出的內容，因為後端只接受同一個請求鍵、同樣內容的重送；試問回來是「還在處理中」時保留請求鍵，避免重複扣款。
 - 頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。輪詢只在頁面可見時每 15 秒一次。
-- 上方分頁（`components/Dashboard.tsx`）依序是推播管理、RAG 知識工作台、使用者、技術架構導覽；使用者只給 owner。後三個共用同一個 `RagWorkspace`，由 `Workspace` 的 `view` 決定顯示側欄 10 頁或單一全寬頁，切換分頁不卸載頁面。網址 `#push`、`#rag`、`#conversations`、`#guide` 直接開分頁，角色看不到的分頁不會被網址打開。
-- 頁面與可讀的角色（01–10 在 RAG 側欄，使用者與技術架構導覽在上方分頁）：
+- 上方列（`components/Dashboard.tsx`）是一列：品牌、分頁、角色與登出，桌面 52px 並固定在頂端，720px 以下分兩列。分頁依序是推播管理、知識庫、使用者、運作原理；使用者只給 owner。後三個共用同一個 `RagWorkspace`，由 `Workspace` 的 `view` 決定顯示側欄 10 頁或單一全寬頁，切換分頁不卸載頁面。上方列高度透過 `.rag-workspace` 上的 CSS 變數 `--rag-top` 傳進 shadow root，讓側欄黏在它下面。
+- 側欄可以收成圖示窄條（`rag/icons.tsx` 的 inline SVG，不用 style 屬性）。收合狀態與操作教學的進度存在 localStorage（`rag-sidebar-collapsed`、`rag-tutorial`），只經 `rag/storage.ts` 讀寫並包 try/catch；這是每台瀏覽器自己的偏好，不是共用資料。操作教學（`rag/Tutorial.tsx`、`tutorialContent.ts`）預設收起，不發任何請求。網址 `#push`、`#rag`、`#conversations`、`#guide` 直接開分頁，角色看不到的分頁不會被網址打開。
+- 頁面與可讀的角色（側欄依分組排列，使用者與運作原理在上方分頁）：
 
-| 頁 | 檔案 | 可以看的角色 |
+| 頁（舊名） | 檔案 | 可以看的角色 |
 |---|---|---|
-| 01 知識庫與文件 | `pages/DocumentsPage.tsx` | 全部；editor 以上可改分類、修正或排除段落 |
-| 02 匯入與預檢 | `pages/ImportPage.tsx` | 全部；editor 以上可上傳 PDF／DOCX／TXT、登記 https PDF 網址 |
-| 03 檢索試問台 | `pages/PlaygroundPage.tsx` | owner |
-| 04 RAG 評測 | `pages/EvaluationPage.tsx` | owner |
-| 05 知識版本 | `pages/ReleasesPage.tsx` | owner、editor（只有 owner 能建立、審核、發布） |
-| 06 人格設定 | `pages/PersonasPage.tsx` | 全部；editor 以上可編輯 |
-| 07 System Prompt | `pages/PromptPage.tsx` | 全部；editor 以上可編輯 |
-| 08 基本通用 QA | `pages/QaPage.tsx` | 全部；editor 以上可編輯與核對引用 |
-| 09 進階檢索設定 | `pages/SettingsPage.tsx` | 全部；只有 owner 能改 |
-| 10 互動紀錄 | `pages/LogsPage.tsx` | owner |
+| 資料：文件（01 知識庫與文件） | `pages/DocumentsPage.tsx` | 全部；editor 以上可改分類、修正或排除段落 |
+| 資料：上傳文件（02 匯入與預檢） | `pages/ImportPage.tsx` | 全部；editor 以上可上傳 PDF／DOCX／TXT、登記 https PDF 網址 |
+| 教練：教練人格（06 人格設定） | `pages/PersonasPage.tsx` | 全部；editor 以上可編輯 |
+| 教練：回答規則（07 System Prompt） | `pages/PromptPage.tsx` | 全部；editor 以上可編輯 |
+| 教練：常見問答（08 基本通用 QA） | `pages/QaPage.tsx` | 全部；editor 以上可編輯與核對引用 |
+| 教練：搜尋設定（09 進階檢索設定） | `pages/SettingsPage.tsx` | 全部；只有 owner 能改 |
+| 測試與發布：版本與發布（05 知識版本） | `pages/ReleasesPage.tsx` | owner、editor（只有 owner 能建立、審核、發布） |
+| 測試與發布：試問（03 檢索試問台） | `pages/PlaygroundPage.tsx` | owner |
+| 測試與發布：自動測驗（04 RAG 評測） | `pages/EvaluationPage.tsx` | owner |
+| 紀錄：問答紀錄（10 互動紀錄） | `pages/LogsPage.tsx` | owner |
 | 上方分頁：使用者（原「對話使用者」） | `pages/ConversationsPage.tsx` | owner（其他角色看不到這個分頁） |
-| 上方分頁：技術架構導覽 | `pages/ArchitecturePage.tsx`、`guideContent.ts` | 全部；「目前的實際設定」只讀，知識版本只查給 owner／editor，AI 預算只查給 owner，不呼叫付費模型 |
+| 上方分頁：運作原理（原「技術架構導覽」） | `pages/ArchitecturePage.tsx`、`guideContent.ts` | 全部；「目前的實際設定」只讀，使用中的版本只查給 owner／editor，AI 預算只查給 owner，不呼叫付費模型 |
+
+畫面上的角色叫管理者、編輯者、唯讀者（owner、editor、viewer）。文字規則與完整名稱對照見 `openspec/changes/rag-plain-ui-refresh/design.md`：短動詞、不加箭頭或加號、每頁一句 20 字內的副標、技術名詞只放在運作原理的「技術細節」。改文案時沿用，並同步 `tutorialContent.ts` 裡引用的按鈕與欄位名稱。
 
 ### 資料與重送契約
 
@@ -105,10 +109,12 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 
 | 檔案 | 用途 |
 |---|---|
-| `rag/pageList.ts` | 頁面順序、標題、副標、可讀角色，以及放在側欄或上方分頁（`placement`、`viewOf`） |
+| `rag/pageList.ts` | 頁面順序、分組、頁名、副標、可讀角色，以及放在側欄或上方分頁（`placement`、`viewOf`） |
+| `rag/icons.tsx`、`rag/storage.ts` | 側欄圖示（inline SVG）；localStorage 的安全讀寫，只給側欄收合與操作教學用 |
+| `rag/Tutorial.tsx`、`rag/tutorialContent.ts` | 右下角的操作教學面板與 12 個步驟的文字；步驟裡引用的按鈕名稱要和頁面一致 |
 | `components/Dashboard.tsx`、`components/RagWorkspace.tsx` | 上方四個分頁、依角色顯示、網址 hash；三個 RAG 分頁共用的 Shadow DOM 外框 |
-| `rag/guideContent.ts` | 技術架構導覽的文字：五個架構區塊、兩條路線（7 步、8 步）、把關小卡與名詞辭典。依後端 `docs/rag.md`（2026-11-19）撰寫，後端架構、模型或門檻改變時要一起更新 |
-| `rag/Workspace.tsx`、`rag/ui.tsx`、`rag/hooks.ts` | 外框、導覽、對話框（`useId` 產生 id）、toast、讀取與分頁、輪詢 |
+| `rag/guideContent.ts` | 運作原理的文字：五個架構區塊、兩條路線（7 步、8 步）、把關小卡與名詞辭典。白話說明與收起的技術細節分開存放；依後端 `docs/rag.md`（2026-11-19）撰寫，後端架構、模型或門檻改變時要一起更新 |
+| `rag/Workspace.tsx`、`rag/ui.tsx`、`rag/hooks.ts` | 外框、可收合側欄、頁首與標題列按鈕（`PageAction`）、對話框（`useId` 產生 id）、讀取失敗與重新讀取（`LoadError`）、toast、讀取與分頁、輪詢 |
 | `rag/api/types.ts` | `RagApi` 介面、各種資料型別、`LIMITS`、前端檢查（檔案、網址、設定、段落長度） |
 | `rag/api/supabase.ts` | 真實資料層：讀表、`rag-v1` action、上傳 signed URL 流程、段落修正的基準與排除推算 |
 | `rag/api/errors.ts` | 錯誤碼與原因碼轉白話中文 |
@@ -120,7 +126,7 @@ CarbonGuide 由兩個 repo 組成，這是其中的網站 repo：
 ### 不做的事與驗證
 
 - 不做：App 端、計算與係數流程、Google 帳單匯入、多位管理員。
-- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、側欄 10 頁與兩個上方分頁、導覽頁鍵盤操作）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。驗證邊界見 README「開發與驗證」。2026-11-05 mock 驗證通過；2026-11-16 type-check、188 項測試（24 檔；11/19 重測）、build 及 npm ci 通過，真實 Google 登入、網址匯入、Chrome 原生選檔與 signed URL 上傳、自動處理、試問、引用與費用明細已驗證。實際逐頁結果及未驗證邊界見 App repo `docs/rag.md`；Safari 與本次手機版面未重測。2026-11-19 導覽頁分支：type-check、205 項測試（26 檔）、啟用 RAG 的 build 通過；兩支瀏覽器腳本以本機 headless Chromium 跑過（記憶體資料層與未啟用 RAG 的 build，含正式 CSP），不是真實資料或 Safari／實機手機驗收。2026-11-19 上方分頁分支：type-check、218 項測試（27 檔）、啟用 RAG 的 build 通過；兩支瀏覽器腳本重跑通過（四種寬度、上方分頁網址與角色、editor 看不到對話使用者、分頁頁全寬、鍵盤焦點框），同樣是 mock。2026-11-20 對話使用者狀態（`e92e010`）：推送前 type-check、228 項測試（27 檔）、啟用 RAG 的 build 通過；正式程式包在本機 headless Chromium 模擬新舊後端各一次通過，也是 mock。2026-11-20 下午列出所有帳號（`092051a`）：合併前在本機重跑 type-check 與 231 項測試（27 檔，單執行緒）通過，同一 commit 的 Vercel Preview 建置成功；本輪沒有啟動本機瀏覽器或伺服器。
+- 驗證：`npm test`（含 `src/push-admin/rag/**/*.test.tsx` 與 `test/rag-workspace.test.tsx`）；`test/verify-rag-workspace.py`（Vite dev server＋記憶體資料層，四種寬度、側欄 10 頁與兩個上方分頁、導覽頁鍵盤操作）；`test/verify-admin-integration.py`（正式 CSP、未啟用狀態、推播回歸）。驗證邊界見 README「開發與驗證」。2026-11-05 mock 驗證通過；2026-11-16 type-check、188 項測試（24 檔；11/19 重測）、build 及 npm ci 通過，真實 Google 登入、網址匯入、Chrome 原生選檔與 signed URL 上傳、自動處理、試問、引用與費用明細已驗證。實際逐頁結果及未驗證邊界見 App repo `docs/rag.md`；Safari 與本次手機版面未重測。2026-11-19 導覽頁分支：type-check、205 項測試（26 檔）、啟用 RAG 的 build 通過；兩支瀏覽器腳本以本機 headless Chromium 跑過（記憶體資料層與未啟用 RAG 的 build，含正式 CSP），不是真實資料或 Safari／實機手機驗收。2026-11-19 上方分頁分支：type-check、218 項測試（27 檔）、啟用 RAG 的 build 通過；兩支瀏覽器腳本重跑通過（四種寬度、上方分頁網址與角色、editor 看不到對話使用者、分頁頁全寬、鍵盤焦點框），同樣是 mock。2026-11-20 對話使用者狀態（`e92e010`）：推送前 type-check、228 項測試（27 檔）、啟用 RAG 的 build 通過；正式程式包在本機 headless Chromium 模擬新舊後端各一次通過，也是 mock。2026-11-20 下午列出所有帳號（`092051a`）：合併前在本機重跑 type-check 與 231 項測試（27 檔，單執行緒）通過，同一 commit 的 Vercel Preview 建置成功；本輪沒有啟動本機瀏覽器或伺服器。2026-11-25 介面整理（`rag-plain-ui-refresh`，未提交）：type-check、258 項測試（28 檔）、啟用 RAG 的 build 通過；兩支瀏覽器腳本已更新，經 James 同意以本機 headless Chromium 重跑通過（工作台腳本用記憶體資料層，整合腳本用未啟用 RAG 的 build、正式 CSP 與 mock 後端），另有 1440／1024／390 改前改後截圖。這些都不是真實資料、Safari 或實機手機的驗收。
 - 舊的靜態示範（`rag/app.js`、`index.html`）在這個分支已經刪除；`openspec/changes/rag-admin-static-uiux-cleanup/`（已完成、未歸檔）與 `rag-admin-integration/` 是歷史紀錄。下方 Phase 0 原型也是歷史紀錄，其建置與驗證工具只適用原分支。
 
 ## AI 氣候教練 Phase 0 原型（原分支歷史紀錄）

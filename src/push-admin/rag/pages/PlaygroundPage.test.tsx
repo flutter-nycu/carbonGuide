@@ -19,12 +19,12 @@ beforeEach(() => { vi.spyOn(Date, 'now').mockReturnValue(NOW.getTime()) })
 function open(role: Role = 'owner', options: FakeOptions = {}) {
   const api = createFakeRagApi({ role, now: () => NOW, ...options })
   const view = render(<Workspace api={api} role={role} />)
-  fireEvent.change(view.getByLabelText('切換管理功能'), { target: { value: 'playground' } })
+  fireEvent.change(view.getByLabelText('切換頁面'), { target: { value: 'playground' } })
   const page = () => view.container.querySelector('[data-page="playground"]') as HTMLElement
   return { api, view, page }
 }
 async function ask(page: HTMLElement, question: string) {
-  await waitFor(() => expect(within(page).getByLabelText('知識版本')).toBeTruthy())
+  await waitFor(() => expect(within(page).getByLabelText('版本')).toBeTruthy())
   fireEvent.change(within(page).getByLabelText('問題'), { target: { value: question } })
   fireEvent.click(within(page).getByRole('button', { name: '試問' }))
 }
@@ -32,12 +32,12 @@ async function ask(page: HTMLElement, question: string) {
 describe('03 playground', () => {
   it('asks the active version and shows the answer with citations and the round', async () => {
     const { page } = open()
-    await waitFor(() => expect(page().textContent).toContain('第一次試問時會自動開一輪'))
-    expect((within(page()).getByLabelText('知識版本') as HTMLSelectElement).selectedOptions[0].textContent).toContain('2026-10 第一版')
+    await waitFor(() => expect(page().textContent).toContain('第一次試問會自動開一份'))
+    expect((within(page()).getByLabelText('版本') as HTMLSelectElement).selectedOptions[0].textContent).toContain('2026-10 第一版')
     await ask(page(), '每月少用 20 度電，少多少碳排？')
-    await waitFor(() => expect(page().textContent).toContain('文件回答'))
+    await waitFor(() => expect(page().textContent).toContain('用文件回答'))
     expect(page().textContent).toContain('綠生活指引.pdf')
-    expect(page().textContent).toContain('這一輪還可以問 19 題')
+    expect(page().textContent).toContain('還可以問 19 題')
   })
 
   it('reuses the request key when the same question is sent again after a failure', async () => {
@@ -46,7 +46,7 @@ describe('03 playground', () => {
     await ask(page(), '如何減少食物浪費？')
     await waitFor(() => expect(page().textContent).toContain('連不上伺服器'))
     fireEvent.click(within(page()).getByRole('button', { name: '試問' }))
-    await waitFor(() => expect(page().textContent).toContain('QA 回答'))
+    await waitFor(() => expect(page().textContent).toContain('用常見問答回答'))
     expect(spy).toHaveBeenCalledTimes(2)
     expect(spy.mock.calls[1][2]).toBe(spy.mock.calls[0][2])
   })
@@ -56,9 +56,9 @@ describe('03 playground', () => {
     const original = api.ask
     const asked = vi.spyOn(api, 'ask').mockImplementationOnce(async (...args) => ({ ...(await original(...args)), state: 'running', kind: 'incomplete', answer: null }))
     await ask(page(), '如何減少食物浪費？')
-    await waitFor(() => expect(page().textContent).toContain('還在處理中'))
+    await waitFor(() => expect(page().textContent).toContain('還在處理'))
     fireEvent.click(within(page()).getByRole('button', { name: '試問' }))
-    await waitFor(() => expect(page().textContent).toContain('QA 回答'))
+    await waitFor(() => expect(page().textContent).toContain('用常見問答回答'))
     expect(asked.mock.calls[1][2]).toBe(asked.mock.calls[0][2])
   })
 
@@ -68,9 +68,9 @@ describe('03 playground', () => {
     const original = api.ask
     vi.spyOn(api, 'ask').mockImplementationOnce((...args) => new Promise(resolve => { finish = () => resolve(original(...args)) }))
     await ask(page(), '如何減少食物浪費？')
-    await waitFor(() => expect((within(page()).getByLabelText('知識版本') as HTMLSelectElement).disabled).toBe(true))
+    await waitFor(() => expect((within(page()).getByLabelText('版本') as HTMLSelectElement).disabled).toBe(true))
     finish()
-    await waitFor(() => expect((within(page()).getByLabelText('知識版本') as HTMLSelectElement).disabled).toBe(false))
+    await waitFor(() => expect((within(page()).getByLabelText('版本') as HTMLSelectElement).disabled).toBe(false))
   })
 
   it('opens a new round when the current one is used up', async () => {
@@ -79,21 +79,21 @@ describe('03 playground', () => {
     for (let i = 0; i < round.requestLimit; i++) await api.ask(round.id, '如何減少食物浪費？', `earlier-${i}`)
     const create = vi.spyOn(api, 'createRound')
     await ask(page(), '如何減少食物浪費？')
-    await waitFor(() => expect(page().textContent).toContain('QA 回答'))
+    await waitFor(() => expect(page().textContent).toContain('用常見問答回答'))
     expect(create).toHaveBeenCalledTimes(1)
-    expect(page().textContent).toContain('這一輪還可以問 19 題')
+    expect(page().textContent).toContain('還可以問 19 題')
   })
 
   it('has no persona option', async () => {
     const { page } = open()
-    await waitFor(() => expect(within(page()).getByLabelText('知識版本')).toBeTruthy())
+    await waitFor(() => expect(within(page()).getByLabelText('版本')).toBeTruthy())
     expect(page().textContent).not.toContain('人格')
   })
 
   it('is closed to editors, whose account cannot read the AI budget', async () => {
     const { api, page } = open('editor')
     const versions = vi.spyOn(api, 'listVersions')
-    expect(page().textContent).toContain('這一頁只有 owner 可以查看。')
+    expect(page().textContent).toContain('這一頁只有管理者可以看。')
     expect(versions).not.toHaveBeenCalled()
   })
 
@@ -106,10 +106,10 @@ describe('03 playground', () => {
   it('stops the current round on request', async () => {
     const { api, page } = open()
     await ask(page(), '如何減少食物浪費？')
-    await waitFor(() => expect(page().textContent).toContain('QA 回答'))
+    await waitFor(() => expect(page().textContent).toContain('用常見問答回答'))
     const stop = vi.spyOn(api, 'stopRound')
-    fireEvent.click(within(page()).getByRole('button', { name: '停止這一輪' }))
+    fireEvent.click(within(page()).getByRole('button', { name: '結束這份額度' }))
     await waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
-    await waitFor(() => expect(page().textContent).toContain('第一次試問時會自動開一輪'))
+    await waitFor(() => expect(page().textContent).toContain('第一次試問會自動開一份'))
   })
 })

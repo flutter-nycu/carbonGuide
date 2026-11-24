@@ -5,16 +5,16 @@ import { KIND_LABEL, KIND_TONE, formatDate, formatUsd, formatEstimate } from './
 import { Notice } from './ui'
 
 const STEP_LABEL: Record<string, string> = {
-  snapshot_and_access: '確認版本與權限', scope_guard: '檢查問題範圍', verified_qa: '比對 QA', query_embedding: '把問題轉成可搜尋的格式',
-  hybrid_retrieval: '搜尋相關段落', rewrite: '改寫問題', rewritten_embedding: '轉換改寫後的問題', rewritten_retrieval: '再搜尋一次',
-  context_selection: '挑選要參考的段落', answer: '產生回答', citation_and_number_validation: '核對引用與數字', deterministic_tools: '舊版流程（已不使用）',
+  snapshot_and_access: '確認版本與權限', scope_guard: '檢查問題範圍', verified_qa: '比對常見問答', query_embedding: '整理問題',
+  hybrid_retrieval: '搜尋相關段落', rewrite: '改寫問題', rewritten_embedding: '整理改寫後的問題', rewritten_retrieval: '再搜尋一次',
+  context_selection: '挑選要參考的段落', answer: '寫回答', citation_and_number_validation: '核對引用和數字', deterministic_tools: '已停用的舊流程',
 }
 const STATE_LABEL: Record<string, string> = {
   succeeded: '完成', skipped: '略過', failed: '失敗', abstained: '資料不足', running: '處理中', started: '已開始', reserved: '已預留費用',
   received: '已收到回應', http_error: 'AI 服務回傳錯誤', uncertain: '結果不確定', answered: '已回答',
 }
 const PURPOSE_LABEL: Record<string, string> = {
-  query_embedding: '轉換問題', rewrite: '改寫問題', answer: '產生回答', evaluation: '評測', document_embedding: '整理文件',
+  query_embedding: '整理問題', rewrite: '改寫問題', answer: '寫回答', evaluation: '測驗', document_embedding: '整理文件',
 }
 const seconds = (ms: number | null) => (ms === null ? '—' : `${(ms / 1000).toFixed(2)} 秒`)
 
@@ -22,18 +22,18 @@ export default function ConversationView({ detail }: { detail: ConversationDetai
   return <div className="conversation">
     <div className="section-head">
       <span className={`tag ${KIND_TONE[detail.kind]}`.trim()}>{KIND_LABEL[detail.kind]}</span>
-      <small className="muted">{formatDate(detail.createdAt)} · {detail.userLabel} · {detail.origin === 'evaluation' ? '自動評測' : '人工試問'}</small>
+      <small className="muted">{formatDate(detail.createdAt)} · {detail.userLabel} · {detail.origin === 'evaluation' ? '自動測驗' : '人工試問'}</small>
     </div>
     {detail.expired
-      ? <Notice tone="warn">這筆對話的內容已經超過 180 天的保存期限，只保留時間、結果、知識版本和費用。</Notice>
+      ? <Notice tone="warn">這筆對話已超過 180 天保存期限，只留下時間、結果、版本和費用。</Notice>
       : <>
-        <p className="small-note">問題：{detail.question ?? '（沒有內容）'}</p>
-        <div className="answer">{detail.answer ?? '這一次沒有產生回答。'}</div>
+        <p className="small-note">問題：{detail.question ?? '沒有內容'}</p>
+        <div className="answer">{detail.answer ?? '這次沒有產生回答。'}</div>
       </>}
-    <div className="decision"><strong>為什麼是這個結果？</strong>{reasonText(detail.reason)}</div>
+    <div className="decision"><strong>結果說明</strong>{reasonText(detail.reason)}</div>
 
-    {!detail.expired && detail.citations.length > 0 && <section aria-label="引用來源">
-      <h3>引用來源</h3>
+    {!detail.expired && detail.citations.length > 0 && <section aria-label="引用">
+      <h3>引用</h3>
       {detail.citations.map((c, index) => <div key={index} className="source-result">
         <span className="tag">[{index + 1}]</span>
         <div><h3>{c.documentTitle}{c.page ? ` · 第 ${c.page} 頁` : ''}</h3>{c.section && <small className="muted">{c.section}</small>}<p>{c.quote}</p></div>
@@ -54,7 +54,7 @@ export default function ConversationView({ detail }: { detail: ConversationDetai
     <section aria-label="費用">
       <h3>費用</h3>
       <dl className="metadata">
-        <dt>知識版本</dt><dd>{detail.versionName || '—'}</dd>
+        <dt>版本</dt><dd>{detail.versionName || '—'}</dd>
         <dt>預留費用</dt><dd>{formatUsd(detail.reservedUsd)}</dd>
         <dt>估計費用</dt><dd>{formatEstimate(detail.estimatedUsd, detail.unknownCostCalls)}</dd>
       </dl>
@@ -65,7 +65,7 @@ export default function ConversationView({ detail }: { detail: ConversationDetai
           <td>{formatUsd(c.reservedUsd)}</td><td>{formatUsd(c.estimatedUsd)}</td><td>{seconds(c.durationMs)}</td>
         </tr>)}</tbody>
       </table></div>}
-      <p className="caption">預留是每次使用 AI 前先保留的金額上限；估計是實際用量乘上 Google 公告的單價（價目表 {detail.priceVersion}），實際金額以 Google 帳單為準。</p>
+      <p className="caption">「預留」是每次用 AI 前先保留的上限，「估計」是用量乘上 Google 公告的單價，價目表版本 {detail.priceVersion}。實際金額以 Google 帳單為準。</p>
     </section>
   </div>
 }

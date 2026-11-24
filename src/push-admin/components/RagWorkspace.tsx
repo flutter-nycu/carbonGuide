@@ -35,5 +35,5 @@ export default function RagWorkspace({ role, active, view, onView }: { role: Rol
   const content = enabled && !api
     ? <p className="muted" role="status">正在連線到知識庫…</p>
     : <Workspace api={api} role={role} active={active} view={view} onView={onView} />
-  return <div ref={host} className="rag-workspace" aria-label="RAG 知識工作台">{container && createPortal(content, container)}</div>
+  return <div ref={host} className="rag-workspace" aria-label="知識庫">{container && createPortal(content, container)}</div>
 }

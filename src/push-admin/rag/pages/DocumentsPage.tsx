@@ -3,7 +3,7 @@ import { failureText, messageFor, toRagError } from '../api/errors'
 import { LIMITS, correctionBytes, type DocumentChunk, type KnowledgeDocument, type RagApi, type Role } from '../api/types'
 import { useLoader, usePolling } from '../hooks'
 import { DOMAINS, PURPOSES, STATUS_LABEL, STATUS_TONE, canEdit, formatDate } from '../labels'
-import { Dialog, Notice, useNavigate, useToast, type PageProps } from '../ui'
+import { Dialog, LoadError, Notice, PageAction, useNavigate, useToast, type PageProps } from '../ui'
 
 const ALL = '全部'
 const unique = (values: string[]) => [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-Hant'))
@@ -31,16 +31,13 @@ export default function DocumentsPage({ api, role }: PageProps) {
   const count = (...statuses: KnowledgeDocument['status'][]) => list.filter(d => statuses.includes(d.status)).length
 
   return <>
-    <div className="section-head">
-      <p className="muted">完成處理的文件，才能放進知識版本給教練引用。</p>
-      {canEdit(role) && <button type="button" className="primary" onClick={() => navigate('import')}>＋ 匯入來源</button>}
-    </div>
-    {documents.error && <Notice tone="error">{documents.error}<div className="actions"><button type="button" className="secondary" onClick={() => void documents.reload()}>重新讀取</button></div></Notice>}
+    {canEdit(role) && <PageAction><button type="button" className="primary" onClick={() => navigate('import')}>上傳文件</button></PageAction>}
+    {documents.error && <LoadError message={documents.error} onRetry={() => void documents.reload()} />}
     {documents.data && <div className="summary">
-      <div className="metric"><small>文件總數</small><b>{list.length}</b><p>上傳的檔案和 PDF 網址</p></div>
-      <div className="metric"><small>處理完成</small><b>{count('completed')}</b><p>可以放進知識版本</p></div>
-      <div className="metric"><small>還在處理</small><b>{count('pending', 'processing')}</b><p>系統會自動處理</p></div>
-      <div className="metric"><small>需要留意</small><b>{count('failed', 'budget_paused')}</b><p>處理失敗或預算不足</p></div>
+      <div className="metric"><small>全部文件</small><b>{list.length}</b></div>
+      <div className="metric"><small>已整理好</small><b>{count('completed')}</b></div>
+      <div className="metric"><small>整理中</small><b>{count('pending', 'processing')}</b></div>
+      <div className="metric"><small>需要處理</small><b>{count('failed', 'budget_paused')}</b></div>
     </div>}
     <div className="toolbar">
       <label className="field">搜尋文件<input value={query} placeholder="輸入文件名稱" onChange={event => setQuery(event.target.value)} /></label>
@@ -54,17 +51,20 @@ export default function DocumentsPage({ api, role }: PageProps) {
     {!documents.data && documents.loading && <p className="empty" role="status">正在讀取文件…</p>}
     {documents.data && <>
       <div className="table-wrap"><table>
-        <thead><tr><th>文件</th><th>用途 / 領域</th><th>處理狀態</th><th>加入時間</th><th>操作</th></tr></thead>
+        <thead><tr><th>文件</th><th>用途／領域</th><th>狀態</th><th>加入時間</th><th><span className="sr-only">操作</span></th></tr></thead>
         <tbody>
           {shown.map(d => <tr key={d.id}>
-            <td><div className="file-title"><span className="file-type">{d.sourceType.toUpperCase()}</span><div><strong>{d.title}</strong>
-              <small>第 {d.versionNumber} 版{d.chunkCount !== null ? ` · ${d.chunkCount} 段` : ''}</small></div></div></td>
+            <td><strong>{d.title}</strong>
+              <small>{d.sourceType.toUpperCase()} · 第 {d.versionNumber} 版{d.chunkCount !== null ? ` · ${d.chunkCount} 段` : ''}</small></td>
             <td>{d.purpose}<small>{d.domain}</small></td>
             <td><StatusCell doc={d} /></td>
             <td>{formatDate(d.createdAt)}</td>
-            <td><button type="button" className="text-button" aria-label={`檢視 ${d.title}`} onClick={() => setOpenId(d.id)}>檢視 →</button></td>
+            <td><button type="button" className="text-button" aria-label={`檢視 ${d.title}`} onClick={() => setOpenId(d.id)}>檢視</button></td>
           </tr>)}
-          {!shown.length && <tr><td colSpan={5}><div className="empty">{list.length ? '沒有符合條件的文件，換個條件試試。' : '知識庫裡還沒有文件。'}</div></td></tr>}
+          {!shown.length && <tr><td colSpan={5}><div className="empty">
+            {list.length ? <>沒有符合條件的文件。<div className="actions empty-actions"><button type="button" className="secondary" onClick={() => { setQuery(''); setPurpose(ALL); setDomain(ALL) }}>清除條件</button></div></>
+              : <>還沒有文件。{canEdit(role) && <div className="actions empty-actions"><button type="button" className="primary" onClick={() => navigate('import')}>上傳文件</button></div>}</>}
+          </div></td></tr>}
         </tbody>
       </table></div>
       <p className="scroll-hint">表格可以左右滑動</p>
@@ -87,7 +87,7 @@ function DocumentDetail({ api, role, id, onChanged }: { api: RagApi; role: Role;
   const editable = canEdit(role)
 
   if (!detail.data) {
-    return detail.error ? <Notice tone="error">{detail.error}</Notice> : <p className="empty" role="status">正在讀取文件…</p>
+    return detail.error ? <LoadError message={detail.error} onRetry={() => void detail.reload()} /> : <p className="empty" role="status">正在讀取文件…</p>
   }
   const { document: doc, chunks, basis } = detail.data
   const values = form ?? { purpose: doc.purpose, domain: doc.domain, scope: doc.citationScope }
@@ -127,7 +127,7 @@ function DocumentDetail({ api, role, id, onChanged }: { api: RagApi; role: Role;
   }
 
   function submitEdit(edit: Editing) {
-    if (!edit.reason.trim()) { setProblem('請寫下原因，之後才查得到為什麼修改。'); return }
+    if (!edit.reason.trim()) { setProblem('請寫原因，之後才查得到為什麼改。'); return }
     if (edit.mode === 'exclude' && kept <= 1) { setProblem('至少要留一段，不能全部排除。'); return }
     const section = keptChunks.find(c => c.ordinal === edit.ordinal)?.sectionPath ?? ''
     if (edit.mode === 'edit' && (!edit.text.trim() || correctionBytes(doc.title, section, edit.text) > LIMITS.correctionBytes)) { setProblem(messageFor('correction_too_long')); return }
@@ -148,7 +148,7 @@ function DocumentDetail({ api, role, id, onChanged }: { api: RagApi; role: Role;
       <dt>檔案類型</dt><dd>{doc.sourceType.toUpperCase()}</dd>
       <dt>文件版本</dt><dd>第 {doc.versionNumber} 版</dd>
       <dt>加入時間</dt><dd>{formatDate(doc.createdAt)}</dd>
-      <dt>段落數</dt><dd>{kept} 段{chunks.length > kept ? `（另有 ${chunks.length - kept} 段已排除）` : ''}</dd>
+      <dt>段落數</dt><dd>{kept} 段{chunks.length > kept ? `，另排除 ${chunks.length - kept} 段` : ''}</dd>
     </dl>
     {doc.originalId && <div className="actions"><button type="button" className="secondary" onClick={() => void download()}>下載原檔</button></div>}
     {problem && <p className="form-error" role="alert">{problem}</p>}
@@ -160,9 +160,9 @@ function DocumentDetail({ api, role, id, onChanged }: { api: RagApi; role: Role;
       <datalist id="rag-purposes">{PURPOSES.map(v => <option key={v} value={v} />)}</datalist>
       <datalist id="rag-domains">{DOMAINS.map(v => <option key={v} value={v} />)}</datalist>
       <button type="button" className="primary" disabled={busy} onClick={saveClassification}>儲存分類</button>
-    </section> : <p className="caption">唯讀權限只能檢視，不能修改分類或段落。</p>}
+    </section> : <p className="caption">唯讀者只能看，不能修改。</p>}
     <h3>段落</h3>
-    {!keptChunks.length && <p className="empty">還沒有段落，處理完成後就會出現。</p>}
+    {!keptChunks.length && <p className="empty">還沒有段落，整理好後會出現在這裡。</p>}
     {keptChunks.map(chunk => <div key={chunk.id} className="chunk">
       <strong>第 {chunk.ordinal} 段{pageRange(chunk) ? ` · 第 ${pageRange(chunk)} 頁` : ''}{chunk.sectionPath ? ` · ${chunk.sectionPath}` : ''}</strong>
       <p>{chunk.text}</p>
@@ -187,6 +187,6 @@ function DocumentDetail({ api, role, id, onChanged }: { api: RagApi; role: Role;
         <p>{chunk.text}</p>
       </div>)}
     </section>}
-    <p className="caption">這裡不用逐份核准，審核知識版本時會一起確認。修改或排除段落後，要建立新的知識版本才會用到。</p>
+    <p className="caption">修改或排除段落後，要建立新版本才會生效。</p>
   </>
 }

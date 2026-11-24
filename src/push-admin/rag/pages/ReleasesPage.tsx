@@ -4,7 +4,7 @@ import { requestKeyFor, settleRequestKey } from '../api/requestKeys'
 import type { KnowledgeVersion, RagApi, Role } from '../api/types'
 import { useLoader } from '../hooks'
 import { formatDate } from '../labels'
-import { Dialog, Notice, useToast, type PageProps } from '../ui'
+import { Dialog, LoadError, Notice, useToast, type PageProps } from '../ui'
 
 const REVIEW_LABEL: Record<KnowledgeVersion['review'], string> = { awaiting: '待審核', approved: '已核准', rejected: '已退回' }
 const REVIEW_TONE: Record<KnowledgeVersion['review'], string> = { awaiting: 'warn', approved: '', rejected: 'error' }
@@ -13,14 +13,14 @@ const percent = (value: number | null) => (value === null ? '—' : `${Math.roun
 /** The publishing conditions the backend checks, in plain words. */
 export function publishChecks(version: KnowledgeVersion): { label: string; met: boolean }[] {
   const { gate, review } = version
-  const reviewed = { met: review === 'approved', label: review === 'approved' ? '人工審核已核准' : review === 'rejected' ? '人工審核退回了這個版本' : '還沒通過人工審核' }
-  if (!gate.evaluated) return [reviewed, { met: false, label: '還沒跑驗收評測' }]
+  const reviewed = { met: review === 'approved', label: review === 'approved' ? '人工審核已核准' : review === 'rejected' ? '人工審核已退回' : '還沒通過人工審核' }
+  if (!gate.evaluated) return [reviewed, { met: false, label: '還沒跑自動測驗' }]
   return [
     reviewed,
-    { met: gate.caseCount >= 40, label: `驗收題組至少 40 題（這次 ${gate.caseCount} 題）` },
-    { met: gate.caseCount > 0 && gate.passedCount === gate.caseCount, label: `每一題都通過（這次 ${gate.passedCount}／${gate.caseCount}）` },
-    { met: (gate.recallAt5 ?? 0) >= 0.9, label: `找到正確來源的比例 90% 以上（這次 ${percent(gate.recallAt5)}）` },
-    { met: (gate.citationValidity ?? 0) >= 0.95, label: `引用能支持回答的比例 95% 以上（這次 ${percent(gate.citationValidity)}）` },
+    { met: gate.caseCount >= 40, label: `驗收題組至少 40 題，這次 ${gate.caseCount} 題` },
+    { met: gate.caseCount > 0 && gate.passedCount === gate.caseCount, label: `每一題都通過，這次 ${gate.passedCount}／${gate.caseCount}` },
+    { met: (gate.recallAt5 ?? 0) >= 0.9, label: `找到正確來源 90% 以上，這次 ${percent(gate.recallAt5)}` },
+    { met: (gate.citationValidity ?? 0) >= 0.95, label: `引用能支持回答 95% 以上，這次 ${percent(gate.citationValidity)}` },
   ]
 }
 
@@ -44,7 +44,7 @@ export default function ReleasesPage({ api, role }: PageProps) {
       await api.createVersion(value, requestKeyFor('version', { name: value }))
       settleRequestKey('version', { name: value })
       setName('')
-      toast(`已建立「${value}」，審核和驗收評測都通過之後就能發布。`)
+      toast(`已建立「${value}」。通過自動測驗和審核後就能發布。`)
       await versions.reload()
     } catch (caught) {
       setProblem(toRagError(caught).message)
@@ -54,35 +54,36 @@ export default function ReleasesPage({ api, role }: PageProps) {
   }
 
   return <>
-    {versions.error && <Notice tone="error">{versions.error}</Notice>}
-    {!owner && <Notice>只有 owner 可以建立、審核和發布知識版本。</Notice>}
+    {versions.error && <LoadError message={versions.error} onRetry={() => void versions.reload()} />}
+    {!owner && <Notice>只有管理者可以建立、審核和發布版本。</Notice>}
     <div className="grid">
       <section className="panel">
-        <h2>建立知識版本</h2>
+        <h2>建立版本</h2>
+        <p className="muted">把下面這些內容打包成一個版本：</p>
         <ul className="release-manifest">
-          <li>處理完成的文件</li>
-          <li>啟用中的人格，以及引用都核對過的 QA</li>
-          <li>最新的 System Prompt 和目前的檢索設定</li>
+          <li>整理好的文件</li>
+          <li>啟用中的人格，和引用核對過的常見問答</li>
+          <li>目前的回答規則和搜尋設定</li>
         </ul>
         <form onSubmit={event => void create(event)}>
           <label className="field">版本名稱<input value={name} maxLength={100} disabled={!owner} placeholder="例如：2026-12 冬季版" onChange={event => setName(event.target.value)} /></label>
-          <button type="submit" className="primary" disabled={!owner || busy}>建立知識版本</button>
+          <button type="submit" className="primary" disabled={!owner || busy}>建立版本</button>
         </form>
         {problem && <p className="form-error" role="alert">{problem}</p>}
-        <p className="caption">建立之後內容就固定下來。之後再修改文件、人格、QA 或設定，要建立新的版本才會用到。</p>
+        <p className="caption">建立後內容就固定了。之後再改文件、人格、問答或設定，要再建立新版本。</p>
       </section>
       <section className="panel">
         <h2>版本紀錄</h2>
-        <div className="table-wrap compact"><table aria-label="知識版本列表">
-          <thead><tr><th>版本</th><th>審核</th><th>驗收評測</th><th>操作</th></tr></thead>
+        <div className="table-wrap compact"><table aria-label="版本列表">
+          <thead><tr><th>版本</th><th>審核</th><th>自動測驗</th><th><span className="sr-only">操作</span></th></tr></thead>
           <tbody>
             {list.map(v => <tr key={v.id}>
               <td><strong>{v.name}</strong>{v.isActive && <> <span className="tag">使用中</span></>}<small>{formatDate(v.createdAt)} · {v.documentCount} 份文件</small></td>
               <td><span className={`tag ${REVIEW_TONE[v.review]}`.trim()}>{REVIEW_LABEL[v.review]}</span></td>
-              <td>{v.gate.evaluated ? `${v.gate.passedCount}／${v.gate.caseCount} 題通過` : '還沒評測'}</td>
-              <td><button type="button" className="text-button" aria-label={`檢視 ${v.name}`} onClick={() => setOpenId(v.id)}>檢視 →</button></td>
+              <td>{v.gate.evaluated ? `${v.gate.passedCount}／${v.gate.caseCount} 題通過` : '還沒測驗'}</td>
+              <td><button type="button" className="text-button" aria-label={`檢視 ${v.name}`} onClick={() => setOpenId(v.id)}>檢視</button></td>
             </tr>)}
-            {versions.data && !list.length && <tr><td colSpan={4}><div className="empty">還沒有知識版本。</div></td></tr>}
+            {versions.data && !list.length && <tr><td colSpan={4}><div className="empty">還沒有版本。</div></td></tr>}
           </tbody>
         </table></div>
         <p className="scroll-hint">表格可以左右滑動</p>
@@ -146,7 +147,7 @@ function VersionDetail({ api, role, id, onChanged }: { api: RagApi; role: Role; 
     <dl className="metadata">
       <dt>建立時間</dt><dd>{formatDate(version.createdAt)}</dd>
       <dt>文件數</dt><dd>{version.documentCount} 份</dd>
-      <dt>目前狀態</dt><dd>{version.isActive ? 'App 的教練正在使用這個版本' : version.wasPublished ? '曾經發布過，目前沒有使用' : '還沒發布'}</dd>
+      <dt>目前狀態</dt><dd>{version.isActive ? 'App 的教練正在用這個版本' : version.wasPublished ? '發布過，現在沒有使用' : '還沒發布'}</dd>
     </dl>
     <h3>發布條件</h3>
     <ul className="checklist" aria-label="發布條件">
@@ -160,9 +161,9 @@ function VersionDetail({ api, role, id, onChanged }: { api: RagApi; role: Role; 
         onClick={() => void act('rollback', key => api.rollbackVersion(id, key), `已改回「${version.name}」。`, { id })}>改回這個版本</button>}
       {owner && version.isActive && !confirmDisable && <button type="button" className="secondary" disabled={busy} onClick={() => setConfirmDisable(true)}>停用這個版本</button>}
     </div>
-    {!ready && <p className="caption">條件都符合之後才能發布。</p>}
+    {!ready && <p className="caption">條件都符合才能發布。</p>}
     {confirmDisable && <Notice tone="warn">
-      停用之後，App 的教練會暫時沒有知識版本可以用，直到發布或改回另一個版本。
+      停用後，App 的教練會暫時沒有版本可用，直到發布或改回另一個版本。
       <div className="actions">
         <button type="button" className="primary" disabled={busy} onClick={() => void act('disable', key => api.disableVersion(key), '已停用目前的版本。', { id })}>確定停用</button>
         <button type="button" className="secondary" onClick={() => setConfirmDisable(false)}>取消</button>
@@ -176,7 +177,7 @@ function VersionDetail({ api, role, id, onChanged }: { api: RagApi; role: Role; 
         <label className="check-label"><input type="radio" name="verdict" checked={verdict === 'reject'} onChange={() => setVerdict('reject')} />退回</label>
       </fieldset>
       <label className="field">審核意見<textarea value={reason} maxLength={2000} placeholder="寫下看過哪些內容、為什麼核准或退回" onChange={event => setReason(event.target.value)} /></label>
-      <label className="check-label"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />已核對版本內容與評測結果</label>
+      <label className="check-label"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />已核對版本內容和測驗結果</label>
       <button type="submit" className="secondary" disabled={busy}>送出審核</button>
     </form>}
   </>

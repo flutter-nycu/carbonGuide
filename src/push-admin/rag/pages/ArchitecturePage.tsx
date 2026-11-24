@@ -1,10 +1,11 @@
-// 技術架構導覽 (a top tab): a diagram of the five blocks, two step-by-step routes, safeguards, live settings and a glossary.
+// 運作原理 (a top tab): a diagram of the five blocks, two step-by-step routes, safeguards, live settings and a glossary.
+// Plain words first; the technology behind each block and step stays folded until opened.
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import type { KnowledgeDocument, RagApi, Role } from '../api/types'
 import { GUIDE_GLOSSARY, GUIDE_MODELS, GUIDE_NODES, GUIDE_ROUTES, GUIDE_SAFEGUARDS, type GuideNodeId } from '../guideContent'
 import { useLoader } from '../hooks'
 import { formatUsd } from '../labels'
-import { PAGES, pageName } from '../pageList'
+import { PAGES } from '../pageList'
 import { Notice, useNavigate, usePageActive } from '../ui'
 
 const TAB_KEYS: Record<string, (index: number, last: number) => number> = {
@@ -61,16 +62,19 @@ export default function ArchitecturePage({ api, role }: { api: RagApi | null; ro
 
   return <>
     <section className="panel guide-overview" aria-labelledby={`${id}-overview`}>
-      <h2 id={`${id}-overview`}>架構總覽</h2>
-      <p className="caption guide-lead">這套系統分成五個區塊。點一個區塊，下面會跳到用到它的步驟。</p>
+      <h2 id={`${id}-overview`}>整體架構</h2>
+      <p className="caption guide-lead">整套系統分成五個部分。點任何一個，下方會跳到用到它的步驟。</p>
       <ol className="guide-diagram" aria-label="架構總覽圖">
         {GUIDE_NODES.map(n => <li key={n.id}>
           <button type="button" className="guide-node" aria-current={n.id === step.node ? true : undefined} onClick={() => showBlock(n.id)}>
-            <strong>{n.name}</strong><span>{n.tech}</span>
+            <strong>{n.name}</strong><span>{n.summary}</span>
           </button>
         </li>)}
       </ol>
-      <p className="guide-node-note"><strong>{node.name}</strong>{node.role}</p>
+      <div className="guide-node-note">
+        <p><strong>{node.name}</strong>{node.role}</p>
+        <details className="guide-tech"><summary>技術細節</summary><p>{node.tech}</p></details>
+      </div>
     </section>
 
     <section className="panel guide-walk" aria-labelledby={`${id}-walk`}>
@@ -91,12 +95,12 @@ export default function ArchitecturePage({ api, role }: { api: RagApi | null; ro
           <p className="guide-count">第 {stepIndex + 1} 步，共 {route.steps.length} 步 · {node.name}</p>
           <h3>{step.title}</h3>
           <p>{step.plain}</p>
-          <p className="guide-tech"><strong>背後技術</strong>{step.tech}</p>
+          <details className="guide-tech"><summary>技術細節</summary><p>{step.tech}</p></details>
         </div>
         <div className="actions guide-actions">
           <button ref={previous} type="button" className="secondary" disabled={stepIndex === 0} onClick={() => stepTo(stepIndex - 1)}>上一步</button>
           <button ref={next} type="button" className="primary" disabled={stepIndex === last} onClick={() => stepTo(stepIndex + 1)}>下一步</button>
-          {target && <button type="button" className="text-button" onClick={() => navigate(target.id)}>到這一頁看看：{pageName(target)}</button>}
+          {target && <button type="button" className="text-button" onClick={() => navigate(target.id)}>前往「{target.label}」</button>}
         </div>
       </div>
     </section>
@@ -111,7 +115,7 @@ export default function ArchitecturePage({ api, role }: { api: RagApi | null; ro
     <section className="panel guide-live" aria-labelledby={`${id}-live`}>
       <h2 id={`${id}-live`}>目前的實際設定</h2>
       {api ? <LiveSettings api={api} role={role} />
-        : <Notice tone="warn">RAG 後端尚未啟用。開啟之後，這裡會顯示正式環境目前的設定。</Notice>}
+        : <Notice tone="warn">RAG 後端尚未啟用，這裡還沒有設定可以顯示。</Notice>}
     </section>
 
     <section className="panel guide-glossary" aria-labelledby={`${id}-glossary`}>
@@ -124,23 +128,23 @@ export default function ArchitecturePage({ api, role }: { api: RagApi | null; ro
 function countDocuments(documents: KnowledgeDocument[]): string {
   if (!documents.length) return '還沒有文件'
   const count = (...statuses: KnowledgeDocument['status'][]) => documents.filter(d => statuses.includes(d.status)).length
-  return `共 ${documents.length} 份：完成 ${count('completed')} 份、處理中 ${count('pending', 'processing')} 份、需要留意 ${count('failed', 'budget_paused')} 份`
+  return `共 ${documents.length} 份：已整理好 ${count('completed')} 份、整理中 ${count('pending', 'processing')} 份、需要處理 ${count('failed', 'budget_paused')} 份`
 }
 
 // Read-only, and only what the role may read: versions for owner and editor, the budget for owner. No polling, no paid calls;
-// each fact is read again when the guide is shown again, so a version published on 05 shows up here.
+// each fact is read again when the guide is shown again, so a version just published shows up here.
 function LiveSettings({ api, role }: { api: RagApi; role: Role }) {
   return <>
     <dl className="guide-facts">
       <Fact label="文件" load={() => api.listDocuments()} show={countDocuments} />
-      <Fact label="檢索設定" load={() => api.getSettings()} show={s => `先找 ${s.candidates} 筆資料，參考 ${s.contextChunks} 段`} />
-      {role !== 'viewer' && <Fact label="知識版本" load={() => api.listVersions()}
-        show={versions => versions.find(v => v.isActive)?.name ?? '目前沒有發布中的版本'} />}
+      <Fact label="搜尋設定" load={() => api.getSettings()} show={s => `先找 ${s.candidates} 筆資料，參考 ${s.contextChunks} 段`} />
+      {role !== 'viewer' && <Fact label="使用中的版本" load={() => api.listVersions()}
+        show={versions => versions.find(v => v.isActive)?.name ?? '現在沒有發布中的版本'} />}
       {role === 'owner' && <Fact label="AI 預算" load={() => api.getBudget()} show={b =>
-        `總額 ${formatUsd(b.budgetUsd)}，已預留 ${formatUsd(b.reservedUsd)}，還剩 ${formatUsd(Math.max(0, b.budgetUsd - b.reservedUsd))}${b.active ? '' : '（目前停用）'}`} />}
-      <div><dt>模型</dt><dd>回答用 {GUIDE_MODELS.answer}，向量用 {GUIDE_MODELS.embedding}</dd></div>
+        `總額 ${formatUsd(b.budgetUsd)}，已預留 ${formatUsd(b.reservedUsd)}，還剩 ${formatUsd(Math.max(0, b.budgetUsd - b.reservedUsd))}${b.active ? '' : '，目前停用'}`} />}
+      <div><dt>AI 模型</dt><dd>寫回答用 {GUIDE_MODELS.answer}，轉換文字用 {GUIDE_MODELS.embedding}</dd></div>
     </dl>
-    <p className="caption">知識版本只有 owner 和編輯者看得到，AI 預算只有 owner 看得到。模型名稱依後端文件，{GUIDE_MODELS.checkedAt} 核對。</p>
+    <p className="caption">使用中的版本只有管理者和編輯者看得到，AI 預算只有管理者看得到。模型名稱依後端文件，{GUIDE_MODELS.checkedAt} 核對。</p>
   </>
 }
 

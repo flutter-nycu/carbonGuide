@@ -4,8 +4,8 @@ import { RagError, failureText, messageFor, reasonText, toRagError } from './err
 describe('RAG error messages', () => {
   it('turns known codes into plain Chinese', () => {
     expect(messageFor('budget_exhausted')).toBe('這期的 AI 預算已經用完，暫時不能試問。')
-    expect(messageFor('owner_required')).toBe('這項操作只有 owner 可以使用。')
-    expect(messageFor('unsupported_format')).toContain('PDF、DOCX、TXT')
+    expect(messageFor('owner_required')).toBe('只有管理者可以做這件事。')
+    expect(messageFor('unsupported_format')).toContain('PDF、Word')
   })
 
   it('covers the conversation query errors', () => {
@@ -24,9 +24,9 @@ describe('RAG error messages', () => {
 
   it('explains processing failures and answer reasons', () => {
     expect(failureText('url_not_pdf')).toBe('這個網址下載到的不是 PDF。')
-    expect(failureText('campaign_unavailable')).toBe('AI 預算不足，等補上預算後會自動接續。')
-    expect(failureText('mystery')).toBe('處理沒有完成（原因碼：mystery）。')
-    expect(reasonText('verified_qa')).toContain('QA')
+    expect(failureText('campaign_unavailable')).toBe('AI 預算不足，補上預算後會自動繼續。')
+    expect(failureText('mystery')).toBe('處理沒有完成。（原因碼：mystery）')
+    expect(reasonText('verified_qa')).toContain('常見問答')
     expect(reasonText('deterministic_calculation')).not.toContain('計算')
   })
 

@@ -3,7 +3,7 @@ import { messageFor, toRagError } from '../api/errors'
 import { requestKeyFor, settleRequestKey } from '../api/requestKeys'
 import { LIMITS, type EvaluationBatch, type EvaluationReport } from '../api/types'
 import { useLoader } from '../hooks'
-import { Notice, usePageActive, type PageProps } from '../ui'
+import { LoadError, Notice, usePageActive, type PageProps } from '../ui'
 
 const SPLIT_LABEL = { acceptance: '驗收題組', development: '練習題組' } as const
 const UNFINISHED_LABEL: Record<string, string> = { failed: '失敗', uncertain: '結果不確定' }
@@ -90,7 +90,7 @@ export default function EvaluationPage({ api, role }: PageProps) {
     try {
       while (mounted.current && activeRef.current) {
         if (calls-- <= 0) {
-          setProblem('題目都跑完了，但系統還沒回報完成，請稍等一下再按「接續」。')
+          setProblem('題目都跑完了，系統還在整理結果，請稍等再按「接續」。')
           break
         }
         const step = await api.nextEvaluation(batch.id)
@@ -102,7 +102,7 @@ export default function EvaluationPage({ api, role }: PageProps) {
         }
         if (mounted.current) setProgress({ done, total: batch.total })
         if (step.state && step.state !== 'answered' && step.state !== 'abstained') {
-          setProblem(`題目 ${step.caseId ?? ''} 沒有順利完成（${UNFINISHED_LABEL[step.state] ?? step.state}），已經先暫停。到「互動紀錄」確認之後，可以按「接續」繼續跑。`)
+          setProblem(`題目 ${step.caseId ?? ''} 沒有完成，狀態是「${UNFINISHED_LABEL[step.state] ?? step.state}」，已先暫停。到「問答紀錄」確認後，按「接續」繼續。`)
           break
         }
       }
@@ -133,7 +133,7 @@ export default function EvaluationPage({ api, role }: PageProps) {
     setBusy(true)
     setProblem(null)
     try {
-      // The key stays until the backend answers, so pressing 開始評測 again cannot open a second batch.
+      // The key stays until the backend answers, so pressing 開始測驗 again cannot open a second batch.
       const batchId = await api.beginEvaluation(datasetId, versionId, requestKeyFor('evaluation', payload))
       settleRequestKey('evaluation', payload)
       const batch = (await api.listBatches()).find(b => b.id === batchId)
@@ -149,8 +149,8 @@ export default function EvaluationPage({ api, role }: PageProps) {
   const error = datasets.error ?? versions.error ?? batches.error
 
   return <>
-    {error && <Notice tone="error">{error}</Notice>}
-    {!owner && <Notice>只有 owner 可以登記題組和執行評測，評測會使用 AI 預算。</Notice>}
+    {error && <LoadError message={error} onRetry={() => { void datasets.reload(); void versions.reload(); void batches.reload() }} />}
+    {!owner && <Notice>只有管理者可以登記題組和跑測驗。測驗會用到 AI 預算。</Notice>}
     <div className="grid">
       <section className="panel">
         <h2>題組</h2>
@@ -162,47 +162,47 @@ export default function EvaluationPage({ api, role }: PageProps) {
           </tbody>
         </table></div>
         <label className="field">題組檔案<input type="file" accept=".json,application/json" disabled={!owner || busy} onChange={event => void choose(event)} /></label>
-        <p className="form-tip">JSON 檔，64 KB 以內。驗收題組至少 40 題，要包含檢索、資料不足、安全、QA、人格這幾類。</p>
+        <p className="form-tip">JSON 檔，64 KB 以內。驗收題組至少 40 題，要有搜尋、資料不足、安全、常見問答、人格這幾類題目。</p>
         {preview && <div className="actions">
           <span>{preview.name} · {preview.split} · {preview.count} 題</span>
           <button type="button" className="primary" disabled={busy} onClick={() => void register()}>登記題組</button>
         </div>}
       </section>
       <section className="panel">
-        <h2>開始評測</h2>
+        <h2>開始測驗</h2>
         <form onSubmit={event => void start(event)}>
           <label className="field">題組<select value={datasetId} required onChange={event => setDatasetId(event.target.value)}>
             <option value="">選擇題組</option>
             {(datasets.data ?? []).map(d => <option key={d.id} value={d.id}>{d.name} · {SPLIT_LABEL[d.split]} · {d.caseCount} 題</option>)}
           </select></label>
-          <label className="field">知識版本<select value={versionId} required onChange={event => setVersionId(event.target.value)}>
-            <option value="">選擇知識版本</option>
+          <label className="field">版本<select value={versionId} required onChange={event => setVersionId(event.target.value)}>
+            <option value="">選擇版本</option>
             {(versions.data ?? []).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
           </select></label>
-          <button type="submit" className="primary" disabled={!owner || busy || !datasetId || !versionId}>開始評測</button>
+          <button type="submit" className="primary" disabled={!owner || busy || !datasetId || !versionId}>開始測驗</button>
         </form>
-        <p className="caption">一次跑一題。離開這一頁時評測會暫停，回來後按「接續」從下一題開始，跑過的題目不會重跑。</p>
-        {progress && <p className="prompt-status" role="status">正在評測：已完成 {progress.done}／{progress.total} 題</p>}
+        <p className="caption">一次跑一題。離開這一頁會暫停，回來按「接續」從下一題繼續，跑過的不會重跑。</p>
+        {progress && <p className="prompt-status" role="status">測驗中：已完成 {progress.done}／{progress.total} 題</p>}
         {problem && <p className="form-error" role="alert">{problem}</p>}
       </section>
     </div>
 
-    {report && <section className="panel" aria-label="評測報告">
-      <h2>評測報告</h2>
+    {report && <section className="panel" aria-label="測驗報告">
+      <h2>測驗報告</h2>
       <dl className="metadata">
-        <dt>知識版本</dt><dd>{versionName(report.versionId)}</dd>
+        <dt>版本</dt><dd>{versionName(report.versionId)}</dd>
         <dt>題組類型</dt><dd>{SPLIT_LABEL[report.split]}</dd>
         <dt>通過題數</dt><dd>{report.passedCount}／{report.caseCount}</dd>
         <dt>找到正確來源</dt><dd>{percent(report.recallAt5)}</dd>
         <dt>引用支持回答</dt><dd>{percent(report.citationValidity)}</dd>
       </dl>
-      <p className="caption">這些數字由系統自動比對，通過不代表回答一定正確，發布前還要人工審核。{report.split === 'acceptance' ? '驗收題組的結果會列入知識版本的發布條件。' : '練習題組的結果只供調整參考，不算發布條件。'}</p>
+      <p className="caption">這些數字是系統自動比對的，通過不代表回答都對，發布前還要人工審核。{report.split === 'acceptance' ? '驗收題組的結果是發布條件之一。' : '練習題組的結果只供參考，不算發布條件。'}</p>
     </section>}
 
     <section className="panel">
-      <h2>評測紀錄</h2>
-      <div className="table-wrap"><table aria-label="評測紀錄">
-        <thead><tr><th>題組</th><th>知識版本</th><th>進度</th><th>操作</th></tr></thead>
+      <h2>測驗紀錄</h2>
+      <div className="table-wrap"><table aria-label="測驗紀錄">
+        <thead><tr><th>題組</th><th>版本</th><th>進度</th><th><span className="sr-only">操作</span></th></tr></thead>
         <tbody>
           {(batches.data ?? []).map(b => <tr key={b.id}>
             <td>{datasetName(b.datasetId)}</td>
@@ -212,7 +212,7 @@ export default function EvaluationPage({ api, role }: PageProps) {
               ? b.reportId && <button type="button" className="text-button" disabled={busy} onClick={() => void openReport(b.reportId!)}>查看報告</button>
               : owner && <button type="button" className="text-button" disabled={busy} onClick={() => void run(b)}>接續</button>}</td>
           </tr>)}
-          {batches.data && !batches.data.length && <tr><td colSpan={4}><div className="empty">還沒有評測紀錄。</div></td></tr>}
+          {batches.data && !batches.data.length && <tr><td colSpan={4}><div className="empty">還沒有測驗紀錄。</div></td></tr>}
         </tbody>
       </table></div>
     </section>

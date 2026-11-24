@@ -21,13 +21,13 @@ describe('conversation detail', () => {
   it('shows the answer, citations, plain step names and costs', () => {
     const { container } = render(<ConversationView detail={detail()} />)
     const text = container.textContent!
-    expect(text).toContain('文件回答')
+    expect(text).toContain('用文件回答')
     expect(text).toContain('大約可以少排 10 公斤。[1]')
     expect(text).toContain('綠生活指引.pdf')
     expect(text).toContain('第 3 頁')
     expect(text).toContain('第一章 家庭用電')
     expect(text).toContain('搜尋相關段落')
-    expect(text).toContain('產生回答')
+    expect(text).toContain('寫回答')
     expect(text).not.toContain('hybrid_retrieval')
     expect(text).toContain('0.84 秒')
     expect(text).toContain('US$0.0021')
@@ -36,11 +36,11 @@ describe('conversation detail', () => {
 
   it('labels the total as partial when a receipt is missing', () => {
     const { container } = render(<ConversationView detail={detail({ unknownCostCalls: 1 })} />)
-    expect(container.textContent).toContain('已知 US$0.0006（1 筆尚未取得用量）')
+    expect(container.textContent).toContain('已知 US$0.0006，另有 1 筆還沒有用量資料')
   })
 
   it('explains each of the four result kinds', () => {
-    for (const [kind, label] of [['qa', 'QA 回答'], ['insufficient', '資料不足'], ['incomplete', '沒有完成']] as const) {
+    for (const [kind, label] of [['qa', '用常見問答回答'], ['insufficient', '資料不足'], ['incomplete', '沒有完成']] as const) {
       const { container, unmount } = render(<ConversationView detail={detail({ kind, citations: [], reason: kind === 'qa' ? 'verified_qa' : null })} />)
       expect(container.textContent).toContain(label)
       unmount()
@@ -50,7 +50,7 @@ describe('conversation detail', () => {
   it('hides expired content but keeps time, state, version and cost', () => {
     const { container } = render(<ConversationView detail={detail({ expired: true, question: null, answer: null, questionPreview: null, steps: [], citations: [] })} />)
     const text = container.textContent!
-    expect(text).toContain('已經超過 180 天的保存期限')
+    expect(text).toContain('已超過 180 天保存期限')
     expect(text).toContain('2026-10 第一版')
     expect(text).toContain('US$0.0021')
     expect(text).not.toContain('每月少用 20 度電')

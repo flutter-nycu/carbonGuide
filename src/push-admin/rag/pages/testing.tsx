@@ -19,12 +19,12 @@ export function setupPageTests() {
     HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
     HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) }
   })
-  afterEach(() => { cleanup(); clearRequestKeys() })
+  afterEach(() => { cleanup(); clearRequestKeys(); localStorage.clear() })
 }
 
-// The admin's top tabs that hold the RAG workspace. Dashboard shows the same names (plus a tag on the RAG tab);
+// The admin's top tabs that hold the RAG workspace. Dashboard shows the same names;
 // this host does not hide tabs by role or follow the address, which Dashboard's own tests cover.
-const VIEW_LABEL: Record<RagView, string> = { workspace: 'RAG 知識工作台', conversations: '使用者', guide: '技術架構導覽' }
+const VIEW_LABEL: Record<RagView, string> = { workspace: '知識庫', conversations: '使用者', guide: '運作原理' }
 
 /** Stands in for the admin's top tabs: one workspace, switched between its three views. */
 export function WorkspaceHost({ initialView = 'workspace', ...props }: Omit<ComponentProps<typeof Workspace>, 'view' | 'onView'> & { initialView?: RagView }) {
@@ -40,7 +40,7 @@ export function WorkspaceHost({ initialView = 'workspace', ...props }: Omit<Comp
 export function showPage(view: RenderResult, id: PageId) {
   const target = viewOf(id)
   fireEvent.click(within(view.getByRole('navigation', { name: '上方分頁' })).getByRole('button', { name: VIEW_LABEL[target] }))
-  if (target === 'workspace') fireEvent.change(view.getByLabelText('切換管理功能'), { target: { value: id } })
+  if (target === 'workspace') fireEvent.change(view.getByLabelText('切換頁面'), { target: { value: id } })
 }
 
 /** `prepare` runs before the first render, for spies that must see the first request. */

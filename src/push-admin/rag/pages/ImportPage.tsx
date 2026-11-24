@@ -4,7 +4,7 @@ import { requestKeyFor, settleRequestKey } from '../api/requestKeys'
 import { fileProblem, urlProblem } from '../api/types'
 import { useLoader, usePolling } from '../hooks'
 import { STATUS_LABEL, STATUS_TONE, canEdit, formatDate } from '../labels'
-import { Notice, useNavigate, type PageProps } from '../ui'
+import { LoadError, Notice, useNavigate, type PageProps } from '../ui'
 
 interface UploadRow { key: string; name: string; state: 'waiting' | 'uploading' | 'done' | 'skipped' | 'error'; message: string }
 const TONE: Record<UploadRow['state'], string> = { waiting: 'quiet', uploading: 'warn', done: '', skipped: 'quiet', error: 'error' }
@@ -40,7 +40,7 @@ export default function ImportPage({ api, role }: PageProps) {
         const result = await api.uploadFile(row.file, message => update(row.key, { message }))
         update(row.key, result.outcome === 'uploaded'
           ? { state: 'done', message: '上傳完成' }
-          : { state: 'skipped', message: '這個檔案已經在知識庫裡，不用再上傳。' })
+          : { state: 'skipped', message: '已經有這個檔案，略過' })
       } catch (caught) {
         update(row.key, { state: 'error', message: toRagError(caught).message })
       }
@@ -58,7 +58,7 @@ export default function ImportPage({ api, role }: PageProps) {
       await api.registerUrl(value, requestKeyFor('url', { url: value }))
       settleRequestKey('url', { url: value })
       setAddress('')
-      setUrlMessage({ tone: 'ok', text: '已登記，系統會自動下載。不是 PDF 的網址會顯示失敗。' })
+      setUrlMessage({ tone: 'ok', text: '已登記，會自動下載並整理。' })
       await urls.reload()
     } catch (caught) {
       setUrlMessage({ tone: 'error', text: toRagError(caught).message })
@@ -68,29 +68,22 @@ export default function ImportPage({ api, role }: PageProps) {
   }
 
   return <>
-    <div className="steps">
-      <div className="step active"><strong>01</strong>選擇檔案或網址</div>
-      <div className="step active"><strong>02</strong>上傳並核對檔案</div>
-      <div className="step"><strong>03</strong>系統自動整理</div>
-      <div className="step"><strong>04</strong>放進知識版本審核</div>
-    </div>
-    {!editable && <Notice>唯讀權限不能上傳檔案或登記網址。</Notice>}
+    {!editable && <Notice>唯讀者不能上傳檔案或登記網址。</Notice>}
     <div className="grid">
       <section className="panel">
         <h2>上傳檔案</h2>
         <div className="drop-area">
-          <h3>選擇要加入知識庫的檔案</h3>
-          <p>PDF、DOCX、TXT，每個檔案 20 MB 以內，可以一次選多個。上傳後系統會自動整理，不用另外操作。</p>
+          <p>PDF、Word 或文字檔，每個 20 MB 以內，可以一次選好幾個。上傳後會自動整理。</p>
           <label className="field">選擇檔案<input type="file" accept=".pdf,.docx,.txt" multiple disabled={!editable || busy} onChange={event => void choose(event)} /></label>
         </div>
         {uploads.length > 0 && <ul className="release-manifest" aria-label="上傳結果">
           {uploads.map(row => <li key={row.key}><strong>{row.name}</strong> <span className={`tag ${TONE[row.state]}`.trim()}>{row.message}</span></li>)}
         </ul>}
-        <button type="button" className="text-button" onClick={() => navigate('documents')}>到「知識庫與文件」看處理進度 →</button>
+        <button type="button" className="text-button" onClick={() => navigate('documents')}>到「文件」看整理進度</button>
       </section>
       <section className="panel">
         <h2>登記 PDF 網址</h2>
-        <p className="muted">網址要以 https 開頭，而且下載下來是 PDF。網頁不會被收進知識庫。</p>
+        <p className="muted">網址要是 https 開頭的 PDF，一般網頁不會收進來。</p>
         <form onSubmit={event => void register(event)}>
           <label className="field">PDF 網址<input type="url" value={address} maxLength={2048} placeholder="https://…/報告.pdf" disabled={!editable}
             onChange={event => setAddress(event.target.value)} /></label>
@@ -101,14 +94,14 @@ export default function ImportPage({ api, role }: PageProps) {
     </div>
     <section className="panel">
       <h2>已登記的網址</h2>
-      {urls.error && <Notice tone="error">{urls.error}</Notice>}
+      {urls.error && <LoadError message={urls.error} onRetry={() => void urls.reload()} />}
       {!urls.data && urls.loading && <p className="empty" role="status">正在讀取網址…</p>}
       {urls.data && (urls.data.length ? <ul className="release-manifest" aria-label="已登記的網址">
         {urls.data.map(u => <li key={u.id}>
           <span className={`tag ${STATUS_TONE[u.status]}`.trim()}>{STATUS_LABEL[u.status]}</span> {u.url}
           <small> · {formatDate(u.createdAt)}{u.failureReason ? ` · ${failureText(u.failureReason)}` : ''}</small>
         </li>)}
-      </ul> : <p className="empty">還沒有登記任何網址。</p>)}
+      </ul> : <p className="empty">還沒有登記網址。</p>)}
     </section>
   </>
 }

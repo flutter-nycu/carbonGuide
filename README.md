@@ -1,6 +1,6 @@
 # CarbonGuide 網站與管理工作台
 
-本 repo 維護公開網站、React 推播管理前端與 RAG 知識工作台。管理入口為 `/push-admin`，RAG 直達入口為 `/push-admin#rag`（上方分頁另有 `#conversations` 對話使用者、`#guide` 技術架構導覽）；舊 `/rag-preview/` 由 Vercel 導向同一登入入口。
+本 repo 維護公開網站、React 推播管理前端與 RAG 知識工作台。管理入口為 `/push-admin`，RAG 直達入口為 `/push-admin#rag`（上方分頁「知識庫」；另有 `#conversations` 使用者、`#guide` 運作原理）；舊 `/rag-preview/` 由 Vercel 導向同一登入入口。
 
 Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄、角色、資料契約、部署限制及分支現況。全專案文件中心在後端 `githyoung/carbon-navigation` 的 main：[文件入口](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md)、[整體架構](https://github.com/githyoung/carbon-navigation/blob/main/docs/architecture.md)、[RAG 架構與進度](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md)。後者是部署、評測、預算與待辦的唯一完整紀錄。
 
@@ -20,6 +20,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 - 對話使用者狀態（James 在 Multica C-3 提出，2026-11-19）：列表加「目前狀態」欄與結果分布，個人頁在對話列表上方顯示帳號狀態、角色、加入與最近登入、今日用量、進行中的測試輪次及結果分布。後端 `conversation_users` 每列多一個 `status`（後端 migration `20261119100000_rag_conversation_user_status.sql`，Edge Function 不變）。規格在 `openspec/changes/rag-conversation-user-status/`。2026-11-20 依 James 指示部署網站正式站，同日依 Ken 授權在正式庫套用 migration（前後 SQL 測試通過並 rollback），後端分支合併 main。管理員登入確認狀態欄的真實畫面後再歸檔規格。收據見後端 `docs/rag.md`。
 - 對話使用者列出所有帳號、分頁改名「使用者」（James 2026-11-20 補充並確認畫面）：有提問的排前面，其他帳號依加入時間排列，顯示「0 次」「還沒有對話」。後端新 migration `20261120100000_rag_conversation_users_all_accounts.sql`；owner 會看到所有 App 帳號的 email 與登入時間，James 與 Ken 已於 11/20 確認。同日 Ken 用 Supabase MCP 在正式庫套用（三份 SQL 測試前後都通過並 rollback），PR #1 合併 main 部署正式站、develop 同步。細節見 AGENTS 與後端 `docs/rag.md`。
 - 「使用者」分頁每頁 10 位，有頁碼與總數，表格文字放大到 14px（James 2026-11-20 下午；只改網站，後端不變）。
+- 介面與文字整理（James 2026-11-24 提出並逐項確認，`openspec/changes/rag-plain-ui-refresh/`；**main 工作樹上還沒提交、沒部署**）：上方列一列 52px、分頁改名「知識庫」「運作原理」；側欄改白話頁名與四個分組、可收成圖示窄條；文字全面改白話，技術名詞只留在運作原理的技術細節；操作教學面板預設收起。細節見 AGENTS。
 
 ## 架構與資料流
 
@@ -29,11 +30,11 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 | 管理登入 | `src/push-admin/App.tsx`、`auth.ts` | Supabase Google OAuth、唯一帳號白名單、`admin_users` 角色驗證 |
 | 推播管理 | `src/push-admin/` | 系統推播、個人化規則、發送紀錄、用量；沿用既有 Edge Functions／RLS |
 | RAG 外框 | `components/RagWorkspace.tsx`、`rag/Workspace.tsx` | 登入後 React.lazy 載入，React portal 掛入 Shadow DOM 隔離樣式 |
-| RAG 側欄 10 頁＋上方 2 個分頁 | `rag/pages/`、`rag/pageList.ts`、`rag/guideContent.ts`、`components/Dashboard.tsx` | 側欄：文件、匯入、試問、評測、版本、人格、Prompt、QA、設定、互動紀錄；上方分頁：對話使用者（只給 owner）、技術架構導覽 |
+| RAG 側欄 10 頁＋上方 2 個分頁 | `rag/pages/`、`rag/pageList.ts`、`rag/guideContent.ts`、`components/Dashboard.tsx` | 側欄：文件、上傳文件、教練人格、回答規則、常見問答、搜尋設定、版本與發布、試問、自動測驗、問答紀錄；上方分頁：使用者（只給 owner）、運作原理 |
 | RAG 資料層 | `rag/api/supabase.ts`、`types.ts`、`requestKeys.ts` | 讀取受 RLS 保護的資料表，寫入經 `rag-v1`，保存重送鍵與原始請求內容 |
 | 後端與 worker | 另一個 repo 的 `supabase/`、`scripts/rag/`、`deploy/cloud-run/` | 權限、snapshot、檢索、模型呼叫、帳本、文件自動處理及排程 |
 
-`VITE_RAG_ENABLED=true` 才讀寫真實 RAG 資料；沒有設定時 01–10 頁與使用者分頁顯示尚未啟用，技術架構導覽照常顯示教學內容，都不送 RAG 請求。它是公開開關，不能取代後端授權。`rag/api/fake.ts` 只給測試使用，不進入正式 bundle。正式 CSP 限制 `style-src 'self'`，RAG 使用獨立 CSS，不能新增 inline style。
+`VITE_RAG_ENABLED=true` 才讀寫真實 RAG 資料；沒有設定時知識庫 10 頁與使用者分頁顯示尚未啟用，運作原理照常顯示說明，都不送 RAG 請求。它是公開開關，不能取代後端授權。`rag/api/fake.ts` 只給測試使用，不進入正式 bundle。正式 CSP 限制 `style-src 'self'`，RAG 使用獨立 CSS，不能新增 inline style。
 
 文件流程：管理員取 signed URL、上傳、核對 SHA-256；`rag-v1` 觸發 Cloud Run，worker 完成解析與向量化，管理員再建立不可變的知識候選。只收 PDF／DOCX／TXT，每檔 20 MB 以內；網址僅收公開 https PDF。disabled 文件及引用其段落的 QA 不進入新候選。候選需通過完整評測及 owner 人工核准才可發布，修改工作區不回寫既有 snapshot。
 
@@ -41,7 +42,7 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，其中包含目錄
 
 ## 角色與設定
 
-owner 可使用全部功能。editor 可上傳、修正段落、編輯人格／Prompt／QA，不能試問、評測、核准或發布；viewer 只能讀取其允許的頁面。互動紀錄與對話使用者僅 owner 可讀，問答內容保存 180 天，費用帳本保留。完整頁面矩陣見 AGENTS。
+owner（畫面上叫管理者）可使用全部功能。editor（編輯者）可上傳、修正段落、編輯教練人格／回答規則／常見問答，不能試問、跑自動測驗、核准或發布；viewer（唯讀者）只能讀取其允許的頁面。問答紀錄與使用者僅 owner 可讀，問答內容保存 180 天，費用帳本保留。完整頁面矩陣見 AGENTS。
 
 瀏覽器只需 `.env.example` 的公開設定 `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`，以及 RAG 開關。service role、Gemini key、Google 服務帳號私鑰、OneSignal REST key 只能在後端 secrets，不能放入任何 `VITE_*` 或提交 Git。
 

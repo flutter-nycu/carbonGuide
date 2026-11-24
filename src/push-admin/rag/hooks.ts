@@ -51,7 +51,7 @@ export function usePolling(tick: () => void, wanted: boolean, ms = 15_000) {
   }, [wanted, active, ms])
 }
 
-export interface Paged<T> { items: T[] | null; error: string | null; loading: boolean; hasMore: boolean; more: () => Promise<void> }
+export interface Paged<T> { items: T[] | null; error: string | null; loading: boolean; hasMore: boolean; more: () => Promise<void>; reload: () => Promise<void> }
 
 /** Cursor pages: reloads from the first page whenever `key` changes, and appends on `more`. */
 export function usePaged<T>(load: (cursor: string | null) => Promise<Page<T>>, key: string): Paged<T> {
@@ -89,5 +89,12 @@ export function usePaged<T>(load: (cursor: string | null) => Promise<Page<T>>, k
   }, [key, fetchPage])
 
   const more = useCallback(async () => { if (next) await fetchPage(next) }, [next, fetchPage])
-  return { items, error, loading, hasMore: next !== null, more }
+  // Starts the list over, e.g. after a failed read; answers for the old list are dropped as on a key change.
+  const reload = useCallback(async () => {
+    generation.current += 1
+    setItems(null)
+    setNext(null)
+    await fetchPage(null)
+  }, [fetchPage])
+  return { items, error, loading, hasMore: next !== null, more, reload }
 }

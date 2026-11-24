@@ -15,7 +15,7 @@ beforeAll(() => {
   HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) { this.open = true }
   HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) { this.open = false; this.dispatchEvent(new Event('close')) }
 })
-afterEach(() => { cleanup(); clearRequestKeys() })
+afterEach(() => { cleanup(); clearRequestKeys(); localStorage.clear() })
 
 const RAG = resolve('src/push-admin/rag')
 const NOW = new Date('2026-11-05T08:00:00Z')
@@ -36,12 +36,11 @@ function open(role: Role) {
 describe('RAG workspace', () => {
   it('shows ten sidebar pages in order, with nothing about coefficients or service connections', () => {
     const { view } = open('owner')
-    const nav = within(view.getByRole('navigation', { name: 'RAG 工作台頁面' }))
+    const nav = within(view.getByRole('navigation', { name: '知識庫頁面' }))
     expect(nav.getAllByRole('button').map(b => b.textContent)).toEqual([
-      '01知識庫與文件', '02匯入與預檢', '03檢索試問台', '04RAG 評測', '05知識版本', '06人格設定',
-      '07System Prompt', '08基本通用 QA', '09進階檢索設定', '10互動紀錄',
+      '文件', '上傳文件', '教練人格', '回答規則', '常見問答', '搜尋設定', '版本與發布', '試問', '自動測驗', '問答紀錄',
     ])
-    expect([...(view.getByLabelText('切換管理功能') as HTMLSelectElement).options].map(o => o.value)).toEqual(SIDEBAR_PAGES.map(p => p.id))
+    expect([...(view.getByLabelText('切換頁面') as HTMLSelectElement).options].map(o => o.value)).toEqual(SIDEBAR_PAGES.map(p => p.id))
     expect(PAGES.length - SIDEBAR_PAGES.length).toBe(2)
   })
 
@@ -64,7 +63,7 @@ describe('RAG workspace', () => {
     const playground = await visit('playground')
     fireEvent.change(within(playground).getByLabelText('問題'), { target: { value: '每月少用 20 度電，少多少碳排？' } })
     fireEvent.click(within(playground).getByRole('button', { name: '試問' }))
-    await waitFor(() => expect(playground.textContent).toContain('文件回答'))
+    await waitFor(() => expect(playground.textContent).toContain('用文件回答'))
     seen.push(playground.textContent ?? '')
 
     const logs = await visit('logs')
@@ -87,10 +86,10 @@ describe('RAG workspace', () => {
 
   it('leaves a viewer with nothing that writes', async () => {
     const { visit } = open('viewer')
-    const writes = /^(＋ 匯入來源|上傳|登記網址|試問|停止這一輪|登記題組|開始評測|接續|建立知識版本|＋ 新增人格|＋ 新增 QA|儲存|另存成新版本|儲存設定)$/
+    const writes = /^(上傳文件|上傳|登記網址|試問|結束這份額度|登記題組|開始測驗|接續|建立版本|新增人格|新增問答|儲存|另存新版|儲存設定)$/
     for (const { id, readers } of PAGES) {
       const page = await visit(id)
-      if (readers) { expect(page.textContent).toMatch(/這一頁只有 owner (和編輯者)?可以查看。/); continue }
+      if (readers) { expect(page.textContent).toMatch(/這一頁只有管理者(和編輯者)?可以看。/); continue }
       const enabled = within(page).queryAllByRole('button').filter(b => writes.test(b.textContent ?? '') && !(b as HTMLButtonElement).disabled)
       expect(enabled.map(b => b.textContent)).toEqual([])
       const fields = [...page.querySelectorAll('input:not([type="search"]), textarea')] as (HTMLInputElement | HTMLTextAreaElement)[]
@@ -98,16 +97,23 @@ describe('RAG workspace', () => {
     }
   }, ALL_PAGES_TIMEOUT)
 
-  it('no longer ships the static demo, and keeps nothing in browser storage', () => {
+  it('no longer ships the static demo, and keeps only per-browser conveniences in storage', () => {
     for (const name of ['app.js', 'app.d.ts', 'index.html']) expect(existsSync(join(RAG, name))).toBe(false)
     const sources = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
       entry.isDirectory() ? sources(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : [])
-    for (const file of sources(RAG)) expect(readFileSync(file, 'utf8'), file).not.toMatch(/\b(localStorage|sessionStorage|innerHTML|dangerouslySetInnerHTML)\b/)
+    for (const file of sources(RAG)) {
+      const text = readFileSync(file, 'utf8')
+      expect(text, file).not.toMatch(/\b(sessionStorage|innerHTML|dangerouslySetInnerHTML)\b/)
+      // Only storage.ts touches localStorage, and only the folded sidebar and the tutorial's progress use it.
+      // pages/testing.tsx is the tests' own setup, which clears storage between tests.
+      if (!file.endsWith('storage.ts') && !file.endsWith('testing.tsx')) expect(text, file).not.toMatch(/\blocalStorage\b/)
+      if (/from '\.\/storage'/.test(text)) expect(['Workspace.tsx', 'Tutorial.tsx'].some(name => file.endsWith(name)), file).toBe(true)
+    }
   })
 
   it('pads dialog content through a valid selector', () => {
     const css = readFileSync(join(RAG, 'styles.css'), 'utf8')
     expect(css).not.toContain('#dialog-.rag-body')
-    expect(css).toMatch(/\.dialog-body\{padding:24px/)
+    expect(css).toMatch(/\.dialog-body\{padding:20px/)
   })
 })

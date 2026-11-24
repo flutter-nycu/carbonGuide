@@ -17,7 +17,7 @@ const NOW = new Date('2026-11-05T08:00:00Z')
 function open(role: Role = 'editor') {
   const api = createFakeRagApi({ role, now: () => NOW })
   const view = render(<Workspace api={api} role={role} />)
-  fireEvent.change(view.getByLabelText('切換管理功能'), { target: { value: 'import' } })
+  fireEvent.change(view.getByLabelText('切換頁面'), { target: { value: 'import' } })
   const page = () => view.container.querySelector('[data-page="import"]') as HTMLElement
   return { api, view, page }
 }
@@ -42,7 +42,7 @@ describe('02 import', () => {
     await waitFor(() => expect(page().textContent).toMatch(/乙\.docx\s*上傳完成/))
     const results = page().querySelector('[aria-label="上傳結果"]')!.textContent!
     expect(results).toMatch(/甲\.pdf\s*上傳完成/)
-    expect(results).toMatch(/係數\.json\s*只收 PDF、DOCX、TXT 檔案。/)
+    expect(results).toMatch(/係數\.json\s*只能上傳 PDF、Word（\.docx）和文字檔（\.txt）。/)
     expect(upload).toHaveBeenCalledTimes(2)
     expect(upload.mock.calls.map(([f]) => f.name)).toEqual(['甲.pdf', '乙.docx'])
     expect((await api.listDocuments()).map(d => d.title)).toEqual(expect.arrayContaining(['甲.pdf', '乙.docx']))
@@ -53,7 +53,7 @@ describe('02 import', () => {
     choose(page(), [file('甲.pdf')])
     await waitFor(() => expect(page().textContent).toMatch(/甲\.pdf\s*上傳完成/))
     choose(page(), [file('甲.pdf')])
-    await waitFor(() => expect(page().textContent).toContain('這個檔案已經在知識庫裡'))
+    await waitFor(() => expect(page().textContent).toContain('已經有這個檔案，略過'))
   })
 
   it('checks addresses before registering and lists their status', async () => {
@@ -62,11 +62,11 @@ describe('02 import', () => {
     const input = within(page()).getByLabelText('PDF 網址')
     fireEvent.change(input, { target: { value: 'http://example.org/a.pdf' } })
     fireEvent.click(within(page()).getByRole('button', { name: '登記網址' }))
-    expect(page().textContent).toContain('請輸入 https 開頭')
+    expect(page().textContent).toContain('網址要是 https 開頭的 PDF')
     expect(register).not.toHaveBeenCalled()
     fireEvent.change(input, { target: { value: 'https://example.org/report.pdf' } })
     fireEvent.click(within(page()).getByRole('button', { name: '登記網址' }))
-    await waitFor(() => expect(page().textContent).toContain('已登記，系統會自動下載'))
+    await waitFor(() => expect(page().textContent).toContain('已登記，會自動下載並整理'))
     const list = page().querySelector('[aria-label="已登記的網址"]')!.textContent!
     expect(list).toContain('https://example.org/report.pdf')
     expect(list).toContain('待處理')
@@ -77,6 +77,6 @@ describe('02 import', () => {
     const { page } = open('viewer')
     expect((within(page()).getByLabelText('選擇檔案') as HTMLInputElement).disabled).toBe(true)
     expect((within(page()).getByRole('button', { name: '登記網址' }) as HTMLButtonElement).disabled).toBe(true)
-    expect(page().textContent).toContain('唯讀權限不能上傳')
+    expect(page().textContent).toContain('唯讀者不能上傳')
   })
 })
