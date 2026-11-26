@@ -2,26 +2,25 @@
 
 本 repo 負責公開網站、密碼重設 callback、App Links、React 推播管理與 RAG 知識工作台。另一個 repo `githyoung/carbon-navigation` 負責 Flutter App、Supabase migrations／Edge Functions、Cloud Run worker 及全專案文件。
 
-Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，再讀本頁；Claude 的 [CLAUDE.md](CLAUDE.md) 導向相同文件。全專案入口在後端 `docs/README.md`，整體資料流在 `docs/architecture.md`，跨 repo 版本與 RAG 證據統一在 `docs/rag.md`。有本次交接 checkout／包時優先讀其中文件；尚未 push 的 C-4 資訊不會出現在 [GitHub main 文件](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md)。
+Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，再讀本頁；Claude 的 [CLAUDE.md](CLAUDE.md) 導向相同文件。全專案入口在後端 `docs/README.md`，整體資料流在 `docs/architecture.md`，跨 repo 版本與 RAG 證據統一在 `docs/rag.md`。後端文件以 [GitHub main](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md) 為準。
 
-## 目前進度（2026-11-26）
+## 目前進度（2026-11-26 晚間）
 
 | 項目 | 狀態 |
 |---|---|
 | 正式入口 | https://carbon-guide.vercel.app/push-admin#rag；上方分頁為「知識庫」，另有 `#conversations` 使用者、`#guide` 運作原理 |
-| 正式版本 | origin/main `065d3abdfe5c041312036f063b993d76ce56f178`；Production deployment `8034551534` success，建立於 `2026-11-24T16:49:04Z`，11/26 重查 |
+| 正式版本 | origin/main `3c7e1eb31125d6934436e03ac29f854b478afd3e`（C-4 前端）；Production deployment `8086794018` success（2026-11-26）。上一個正式版本 `8034551534`（`065d3ab`）是回退點 |
 | 現有功能 | 既有 RAG 真實工作台、全帳號使用者列表、每頁 10 位、白話文案、可收合側欄及預設收起的教學；App 端未接入 |
-| C-4 候選 | 本分支 `agent/cto/336ff7935d6a`，程式 commit `9725c350b91f37a76071c2493331746f1c0bf2a1`；本輪文件 commit 接在它之後。人工標準答案與版本收錄提示已實作，未部署 |
-| 後端配套 | `e9056c5d3b9fa6f7a7c1ffd4c4d86526c4e5fe0f`、新增 `20261126033000_rag_manual_faq.sql`，尚未部署；後端候選另缺 main 的兩份使用者 migration，整合前必看後端 rag.md |
-| 分支差異 | 網站 origin/develop `cbb4bba28a8a33ca04a4496d406b2580d4e8763d`，已落後 main；舊 preview 分支只供歷史追查，不可假定已同步 |
-| 最新指示 | Ken 暫停重新授權與部署，先完整更新架構／進度並 commit；本輪不 push、merge 或觸發 Preview |
-| 尚待驗證 | 人工 FAQ 真實登入與端到端、Safari／實機手機、原 8.17 秒檢索失敗的 logs；本機測試不能替代 |
+| C-4 人工標準答案 | 2026-11-26 已部署：程式 `9725c35`（分支 `agent/cto/336ff7935d6a` fast-forward 合併 main）；QA 頁可勾「人工標準答案」不附引用，版本詳情列出實際收錄的 FAQ。要建立並核准新知識版本後才會在試問生效 |
+| 後端配套 | 正式庫 migration `20261126033000_rag_manual_faq` 已套用、`rag-v1` v11 已部署（後端 main `825526c`）；套用前後的驗證與回退方式見後端 rag.md |
+| 分支 | main 與 develop 都是 `3c7e1eb` 之後的同一個 commit；測試站是同一 commit 的 Preview `8086334896`（與正式站共用正式 Supabase）。舊 preview 與 agent 分支只供歷史追查 |
+| 尚待驗證 | 人工 FAQ 真實登入與端到端（勾選人工答案 → 建新版本 → 試問回「管理者提供」、無模型呼叫）、新知識版本核准發布、Safari／實機手機、原 8.17 秒檢索失敗的 logs；本機測試不能替代 |
 
-前次部署預檢中，Supabase 連線無權存取卡夢 project，且未確認獨立後端測試環境。既有 Preview 與正式站共用正式 Supabase。現在依使用者指示暫停，不能自動重試部署，也不能改用可存取的其他 project。
+沒有獨立後端測試環境：Preview 與正式站共用正式 Supabase，DB 與 Edge 的變更一上就是正式。
 
 ## 工具與專案邊界
 
-React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 package-lock.json 為準。11/26 候選在 Node 22.23.2 驗證。沒有獨立 Node API server；瀏覽器打包產物部署到 Vercel，服務端權限與資料規則在後端 repo。
+React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 package-lock.json 為準。C-4 在 Node 22.23.2 驗證。沒有獨立 Node API server；瀏覽器打包產物部署到 Vercel，服務端權限與資料規則在後端 repo。
 
 ## 目錄與頁面
 
@@ -52,7 +51,7 @@ React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 
 ### 載入、頁面與互動
 
 - 程式入口是 `src/push-admin/components/RagWorkspace.tsx`：先通過既有登入與角色檢查，再以 `React.lazy` 載入（獨立 chunk，推播管理不用下載），用 React portal 把 `src/push-admin/rag/Workspace.tsx` 畫進 Shadow DOM。樣式只用 `rag/styles.css`（Tailwind 的 content 排除這個目錄）。正式站的 CSP 是 `style-src 'self'`，元件不能用 inline `style`。
-- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時知識庫 10 頁與使用者分頁顯示「RAG 後端尚未啟用」，運作原理照常顯示說明，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。正式開關已有歷史上線證據；新增 schema／API 的相容性仍要依本次候選核對，不能因開關已開就先部署網站。
+- 開關：只有 `VITE_RAG_ENABLED=true` 才讀寫真實資料；沒有設定時知識庫 10 頁與使用者分頁顯示「RAG 後端尚未啟用」，運作原理照常顯示說明，只有「目前的實際設定」一區顯示尚未啟用。任何一頁都不送出 RAG 請求。正式開關已開。之後若前端要讀新的欄位或 API，要先部署後端、再部署網站，不能因開關已開就先上網站。
 - 資料層 `rag/api/`：`supabase.ts` 在 RLS 下直接讀表，所有寫入都經 App repo 的 `rag-v1` Edge Function；`fake.ts` 是記憶體版，只給測試和瀏覽器驗證用，不會被打包。
 - 不能重複的操作（試問、建立輪次、建立版本、開始評測、登記網址、審核、發布、改回、停用）都帶請求鍵（`requestKeys.ts`，存在元件外，成功之後才清掉）。重送時沿用第一次送出的內容，因為後端只接受同一個請求鍵、同樣內容的重送；試問回來是「還在處理中」時保留請求鍵，避免重複扣款。
 - 頁面第一次打開後保持掛載；被隱藏時會關掉對話框、停止輪詢和評測。輪詢只在頁面可見時每 15 秒一次。
@@ -82,7 +81,7 @@ React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 
 | 行為 | 必須保留的契約 |
 |---|---|
 | 上傳 | `upload_begin` 取 signed URL → 瀏覽器上傳 → `upload_verify` 核對 SHA-256 → 後端觸發 worker；上傳成功不等於解析／向量化成功 |
-| 建立版本 | 凍結有效文件、明確標記 manual_answer 的啟用人工答案，以及引用有效段落的文件型 QA；disabled 驗收文件及依賴它的文件型 QA 不得進入新 snapshot，既有 snapshot 不回寫。人工答案來源為「管理者提供」，不得偽造文件引用；這項 C-4 變更尚未部署 |
+| 建立版本 | 凍結有效文件、明確標記 manual_answer 的啟用人工答案，以及引用有效段落的文件型 QA；disabled 驗收文件及依賴它的文件型 QA 不得進入新 snapshot，既有 snapshot 不回寫。人工答案來源為「管理者提供」，不得偽造文件引用（C-4，2026-11-26 已部署） |
 | 評測 | 題組與輪次固定；先扣除當日已用額度，進度只計 terminal requests。回應遺失時沿用原輪次／批次／請求鍵，離頁停止前端接續，不清除已完成結果 |
 | 對話分頁 | 後端 cursor 綁定 cutoff、使用者與來源；保留 cursor，換篩選重開列表，不用 offset 或自行拼頁碼。「使用者」分頁的頁碼只在瀏覽器裡切已載入的資料，向後端仍只送 cursor |
 | 使用者狀態 | 帳號、今日用量（UTC 日，試問與評測合計）與輪次以查詢當下計算；結果分布跟對話次數用同一個 cutoff，四項合計等於次數。後端沒提供 `status` 時顯示「—」，不補 0 或「正常」 |
@@ -153,15 +152,15 @@ React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 
 | 使用者頁狀態為「—」或 cursor 失效 | DB 是否含兩份使用者 migration；舊 cursor 需重新讀列表，不自行轉成 offset |
 | 檢索 8.17 秒失敗 | 此 C-4 尚未證明根因；取得該 request 的 trace／Edge logs 後另診斷，不把人工 FAQ 命中當檢索已修復 |
 
-## 部署與恢復工作
+## 部署
 
 Vercel 專案 carbon-guide；main push 會觸發 Production、其他分支 push 可能觸發 Preview，純文件 commit 也可能重新部署。Git push 不會部署 Supabase／Cloud Run。Preview 可能受 Vercel Authentication 保護，且並非資料隔離；以當次平台設定確認，不靠舊分享網址判定可用。
 
-恢復部署前依後端 docs/deployment-and-release.md 的 C-4 段落，確認正確 project、獨立測試目標、候選 SHA、DB 定義、測試及 rollback。保留既有公開網站、政策、支援、auth callback、AASA／assetlinks；部署後同時核對 source SHA、HTTP／CSP／匿名拒絕、管理員登入與人工 FAQ 真實功能。知識版本核准／發布與程式部署分開，不自行追加預算或開 App 公開服務。
+部署依後端 docs/deployment-and-release.md 的 C-4 段落（11/26 已照此執行）：確認正確 project、SHA、DB 定義、測試及 rollback，順序是 migration → Edge → 網站。保留既有公開網站、政策、支援、auth callback、AASA／assetlinks；部署後同時核對 source SHA、HTTP／CSP／匿名拒絕、管理員登入與人工 FAQ 真實功能。知識版本核准／發布與程式部署分開，不自行追加預算或開 App 公開服務。
 
 ## 規格與待辦
 
-- rag-manual-faq：實作／本機驗證完成，未部署；C-4 為追蹤入口，詳細狀態與下一步在後端 rag.md。
+- rag-manual-faq：2026-11-26 已部署測試與正式；剩真實畫面驗收與新知識版本核准，之後歸檔。C-4 為追蹤入口，詳細狀態在後端 rag.md。
 - rag-plain-ui-refresh：程式已在 main；strict scenario 缺口、真實資料／Safari／手機驗收仍待補。
 - rag-conversation-user-status：程式與兩個 DB migration 已有歷史上線證據；確認所有帳號真實畫面後處理歸檔，不把 tasks 狀態直接當成平台狀態。
 - rag-admin-live-workspace、rag-architecture-guide、rag-top-tabs 已歸檔，現行主規格在 `openspec/specs/rag-admin-live-workspace/spec.md`。

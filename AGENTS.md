@@ -1,13 +1,13 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-11-26。此文件提供 Codex、Claude 與其他 Agent 共用規則；網站架構、程式地圖、角色與測試在 [README.md](README.md)，完整跨端進度在後端 repo 的 docs/rag.md。
+最後核對：2026-11-26 晚間（C-4 已部署測試與正式）。此文件提供 Codex、Claude 與其他 Agent 共用規則；網站架構、程式地圖、角色與測試在 [README.md](README.md)，完整跨端進度在後端 repo 的 docs/rag.md。
 
 ## 接手先做
 
-1. 讀本檔及 README 的「目前進度」，再讀後端 docs/README.md、docs/architecture.md、docs/rag.md。若只有網路上的 main 文件，注意尚未 push 的候選／本輪文件不在其中；使用使用者交付的 checkout 或 patch 包核對。
+1. 讀本檔及 README 的「目前進度」，再讀後端 docs/README.md、docs/architecture.md、docs/rag.md。兩個 repo 的 main 都是正式來源，GitHub main 上的文件就是最新版本。
 2. 查 `git status --short --branch`、`git log -5 --oneline`，有網路時 fetch 並比對 origin/main／origin/develop。保留既有 staged、unstaged、untracked；不直接 pull、reset、切分支或自行建立工作樹。
-3. 本次既有分支是 agent/cto/336ff7935d6a；C-4 程式候選尚未部署。main 是正式來源，develop 已落後。後端候選也有 main 的 migration 落差，不能整份覆蓋。
-4. **Ken 最新指示是暫停重新授權與部署，完整更新架構／進度後 commit。** 不因先前授權或連線恢復自動推送／部署。後續要恢復時先確認使用者已要求繼續。
+3. main 是正式來源，develop 與 main 相同（11/26 同步到 `3c7e1eb` 之後）；`agent/cto/336ff7935d6a`、`agent/cto/f26ad673dc53` 都已合併，只作歷史追查。新工作從 main 開始。
+4. 推 main 會直接部署正式站；commit、push、合併、部署與知識版本核准都要使用者當次授權，不因先前授權自動推送或部署。
 
 ## Repo 邊界
 

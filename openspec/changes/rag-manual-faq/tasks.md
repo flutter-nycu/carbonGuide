@@ -12,3 +12,10 @@
 - [x] 3.1 執行單工前端全套測試、type-check、build，後端 Node tests、SQL migration 測試與 OpenSpec strict。
 - [x] 3.2 完整 diff self-review，更新測試證據、已知限制與部署／rollback 說明。
 - [x] 3.3 建立本 issue 的 candidate commits，回報兩個 exact SHA 與部署未執行狀態（SHA 記於 C-4 交付紀錄）。
+
+## 4. 部署與驗收（2026-11-26 依 Ken 授權）
+- [x] 4.1 兩個 repo 合併 main 並同步 develop：網站 `3c7e1eb`（fast-forward）、後端 merge `825526c`。
+- [x] 4.2 正式庫以 rollback 試跑後套用 `20261126033000`，套用後再測；紀錄在後端 docs/rag.md。
+- [x] 4.3 部署 `rag-v1` v11（保持 verify_jwt），再部署網站：Preview `8086334896`、Production `8086794018`；入口、標頭、bundle 與匿名 401 驗證通過。
+- [ ] 4.4 管理員真實畫面驗收：勾選人工答案、建立新版本、試問回 `verified_qa` 且來源「管理者提供」、沒有模型呼叫。
+- [ ] 4.5 新知識版本經 owner 核准發布後，歸檔本 change。
