@@ -1,7 +1,7 @@
-# carbonGuide 網站 repo
+# carbonGuide：Claude／其他 Agent 入口
 
-請使用繁體中文。先完整閱讀 [AGENTS.md](AGENTS.md)，再讀 [README.md](README.md)；兩者記錄現行網站架構、RAG 工作台、驗收與待辦。本檔只做導引，不另外維護進度。
+先完整讀 [AGENTS.md](AGENTS.md)，再讀 [README.md](README.md)。兩者提供現況、架構、程式地圖、API／版本契約、測試、部署與待辦，Codex、Claude 共用同一套文件。
 
-全專案文件中心在 `githyoung/carbon-navigation` 的 main：[入口](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md)、[架構](https://github.com/githyoung/carbon-navigation/blob/main/docs/architecture.md)、[RAG 現況](https://github.com/githyoung/carbon-navigation/blob/main/docs/rag.md)。網站 main 是正式來源，RAG 工作台已上線（頁面與分頁見 AGENTS），develop 與 main 同步；舊的 `preview/*` 分支只作歷史追查。
+跨 repo 進度以後端 carbon-navigation 的 docs/README.md、docs/architecture.md、docs/rag.md 為準；優先讀本次交接 checkout／包，未推送文件不會出現在 GitHub main。
 
-授權只對使用者當次指定的範圍有效：commit、推送、合併 main／develop、改 Vercel 設定、核准知識候選，每一項都要當次明確同意。推 main 會直接部署正式網站。接手先核對 Git、平台部署及 AGENTS 的本機執行限制。
+11/26 最新指示是暫停重新授權與部署，先更新文件並 commit。C-4 候選尚未上線；不要把舊 Preview、歷史授權或本機 commit 當成已部署證據。先核對 Git 工作樹、兩邊分支落差與 README 的驗證限制，再依最新授權工作。
