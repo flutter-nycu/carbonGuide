@@ -7,6 +7,20 @@ const api = (role: Role = 'owner') => createFakeRagApi({ role, now: () => NOW })
 const file = (name: string, size = 1024) => new File([new Uint8Array(size)], name)
 const code = async (promise: Promise<unknown>) => promise.then(() => 'resolved', (error: { code?: string }) => error.code)
 
+it('answers manual FAQ from the frozen version after its draft is disabled or edited', async () => {
+  const rag = api()
+  const input = { question: '怎麼開始減碳？', answer: '先記錄通勤方式。', sourceNote: '管理者提供', enabled: true, manualAnswer: true }
+  await rag.saveQa(input)
+  const versionId = await rag.createVersion('人工版', 'version-key')
+  const draft = (await rag.listQa()).find(q => q.question === input.question)!
+  await rag.saveQa({ ...input, answer: '修改後草稿', enabled: false }, draft)
+  const round = await rag.createRound(versionId, 'round-key')
+  const answer = await rag.ask(round.id, input.question, 'question-key')
+  expect(answer).toMatchObject({ answer: input.answer, manualAnswer: true, calls: [], citations: [] })
+  const nextId = await rag.createVersion('停用後版本', 'next-version')
+  expect((await rag.getVersionQa(nextId)).some(q => q.id === draft.id)).toBe(false)
+})
+
 describe('fake RAG API: knowledge and ingestion', () => {
   it('lists documents in every processing status', async () => {
     const statuses = new Set((await api().listDocuments()).map(d => d.status))

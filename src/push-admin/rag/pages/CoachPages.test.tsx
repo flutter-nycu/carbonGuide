@@ -96,6 +96,35 @@ describe('07 system prompt', () => {
 })
 
 describe('08 QA', () => {
+  it('hides document fields immediately when an existing FAQ is switched to manual', async () => {
+    const { page } = openPage('qa', 'editor')
+    await waitFor(() => expect(page().textContent).toContain('如何減少食物浪費？'))
+    click(page(), '編輯 如何減少食物浪費？')
+    const dialog = within(page()).getByRole('dialog')
+    expect(within(dialog).getByLabelText('來源文件')).toBeTruthy()
+    fireEvent.click(within(dialog).getByLabelText('人工標準答案'))
+    expect(within(dialog).queryByLabelText('來源文件')).toBeNull()
+    expect(within(dialog).queryByLabelText('來源說明')).toBeNull()
+    fireEvent.click(within(dialog).getByLabelText('人工標準答案'))
+    expect(within(dialog).getByLabelText('來源文件')).toBeTruthy()
+  })
+  it('saves an explicit manual answer without a source document and explains when it takes effect', async () => {
+    const { api, page } = openPage('qa', 'editor')
+    await waitFor(() => expect(page().textContent).toContain('如何減少食物浪費？'))
+    click(page(), '新增問答')
+    const dialog = within(page()).getByRole('dialog')
+    type(dialog, '問題', '怎麼開始減碳？')
+    type(dialog, '答案', '先記錄一週通勤方式。')
+    fireEvent.click(within(dialog).getByLabelText('人工標準答案'))
+    click(dialog, '儲存')
+    await waitFor(() => expect(within(page()).queryByRole('dialog')).toBeNull())
+    const saved = (await api.listQa()).find(q => q.question === '怎麼開始減碳？')!
+    expect(saved).toMatchObject({ manualAnswer: true, sourceNote: '管理者提供', citations: [] })
+    const article = within(page()).getByText('怎麼開始減碳？').closest('article')!
+    expect(article.textContent).toContain('下次建立版本時收錄')
+    expect(article.textContent).not.toContain('還沒有引用')
+    expect(page().textContent).toContain('建立新版本後生效')
+  })
   it('adds, edits and disables a QA', async () => {
     const { page } = openPage('qa', 'editor')
     await waitFor(() => expect(page().textContent).toContain('如何減少食物浪費？'))

@@ -20,37 +20,36 @@ export default function QaPage({ api, role }: PageProps) {
     {!entries.data && entries.loading && <p className="empty" role="status">正在讀取常見問答…</p>}
     {entries.data && <section className="panel">
       {list.map(q => <article key={q.id} className="qa-row">
-        <div className="section-head"><h3>{q.question}</h3><span className={q.enabled ? 'tag' : 'tag quiet'}>{q.enabled ? '啟用中' : '已停用'}</span></div>
+        <div className="section-head"><h3>{q.question}</h3><span className={q.enabled ? 'tag' : 'tag quiet'}>{!q.enabled ? '已停用' : q.manualAnswer ? '下次建立版本時收錄' : q.citations.length ? '引用已填，建立版本時核對' : '待補引用'}</span></div>
         <p>{q.answer}</p>
         <div className="actions">
-          <span className={q.citations.length ? 'tag quiet' : 'tag warn'}>{q.citations.length ? `${q.citations.length} 筆引用` : '還沒有引用'}</span>
-          <small className="muted">來源：{q.sourceNote} · {formatDate(q.updatedAt)} 更新</small>
+          <span className={q.manualAnswer || q.citations.length ? 'tag quiet' : 'tag warn'}>{q.manualAnswer ? '人工標準答案' : q.citations.length ? `${q.citations.length} 筆引用` : '還沒有引用'}</span>
+          <small className="muted">來源：{q.manualAnswer ? '管理者提供' : q.sourceNote} · {formatDate(q.updatedAt)} 更新</small>
           {editable && <button type="button" className="text-button" aria-label={`編輯 ${q.question}`} onClick={() => setEditing(q.id)}>編輯</button>}
         </div>
       </article>)}
       {!list.length && <div className="empty">還沒有常見問答。{editable && <div className="actions empty-actions"><button type="button" className="primary" onClick={() => setEditing('new')}>新增問答</button></div>}</div>}
     </section>}
-    <p className="caption">有核對過引用的問答才會放進版本。修改後，要建立新版本才會生效。{editable ? '' : '唯讀者只能看。'}</p>
+    <p className="caption">人工標準答案不必附文件引用；文件型問答要有核對過的引用。修改會在建立新版本後生效，試問時請選取新版本。舊版本不會跟著修改。{editable ? '' : '唯讀者只能看。'}</p>
     <Dialog open={editing !== null} title={editing === 'new' ? '新增問答' : '編輯問答'} onClose={() => setEditing(null)}>
-      {editing === 'new' && <QaForm key="new" api={api} entry={null} onSaved={() => { setEditing(null); toast('已新增，接著打開它加上引用。'); void entries.reload() }} />}
-      {current && <>
-        <QaForm key={current.id} api={api} entry={current} onSaved={() => { setEditing(null); toast('已儲存。'); void entries.reload() }} />
-        <CitationEditor key={`${current.id}-citations`} api={api} entry={current} onSaved={() => { toast('引用已儲存。'); void entries.reload() }} />
-      </>}
+      {editing === 'new' && <QaForm key="new" api={api} entry={null} onSaved={() => { setEditing(null); toast('已儲存。請核對來源設定，建立新版本後生效。'); void entries.reload() }} />}
+      {current && <QaForm key={current.id} api={api} entry={current}
+        onSaved={() => { setEditing(null); toast('已儲存，建立新版本後生效。'); void entries.reload() }}
+        onCitationsSaved={() => { toast('引用已儲存，建立新版本後生效。'); void entries.reload() }} />}
     </Dialog>
   </>
 }
 
-function QaForm({ api, entry, onSaved }: { api: RagApi; entry: QaEntry | null; onSaved: () => void }) {
+function QaForm({ api, entry, onSaved, onCitationsSaved }: { api: RagApi; entry: QaEntry | null; onSaved: () => void; onCitationsSaved?: () => void }) {
   const [values, setValues] = useState<QaInput>(entry
-    ? { question: entry.question, answer: entry.answer, sourceNote: entry.sourceNote, enabled: entry.enabled }
-    : { question: '', answer: '', sourceNote: '', enabled: true })
+    ? { question: entry.question, answer: entry.answer, sourceNote: entry.sourceNote, enabled: entry.enabled, manualAnswer: entry.manualAnswer === true }
+    : { question: '', answer: '', sourceNote: '', enabled: true, manualAnswer: false })
   const [problem, setProblem] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    const input = { ...values, question: values.question.trim(), answer: values.answer.trim(), sourceNote: values.sourceNote.trim() }
+    const input = { ...values, question: values.question.trim(), answer: values.answer.trim(), sourceNote: values.manualAnswer ? '管理者提供' : values.sourceNote.trim() }
     if (!input.question || !input.answer || !input.sourceNote) { setProblem('問題、答案和來源說明都要填。'); return }
     setBusy(true)
     setProblem(null)
@@ -64,15 +63,19 @@ function QaForm({ api, entry, onSaved }: { api: RagApi; entry: QaEntry | null; o
     }
   }
 
-  return <form onSubmit={event => void submit(event)}>
+  return <><form onSubmit={event => void submit(event)}>
     <label className="field">問題<input value={values.question} maxLength={500} onChange={e => setValues({ ...values, question: e.target.value })} /></label>
     <label className="field">答案<textarea value={values.answer} maxLength={10000} onChange={e => setValues({ ...values, answer: e.target.value })} /></label>
-    <label className="field">來源說明<input value={values.sourceNote} maxLength={2000} placeholder="例如：餐飲減碳指南第 6 頁" onChange={e => setValues({ ...values, sourceNote: e.target.value })} /></label>
+    <label className="check-label"><input type="checkbox" checked={values.manualAnswer === true} onChange={e => setValues({ ...values, manualAnswer: e.target.checked })} />人工標準答案</label>
+    {values.manualAnswer ? <p className="form-tip">由管理者提供並負責核對內容，不必附文件引用。相同問題會直接使用這份答案。</p>
+      : <label className="field">來源說明<input value={values.sourceNote} maxLength={2000} placeholder="例如：餐飲減碳指南第 6 頁" onChange={e => setValues({ ...values, sourceNote: e.target.value })} /></label>}
     <label className="check-label"><input type="checkbox" checked={values.enabled} onChange={e => setValues({ ...values, enabled: e.target.checked })} />啟用</label>
     {problem && <p className="form-error" role="alert">{problem}</p>}
     <button type="submit" className="primary" disabled={busy}>儲存</button>
-    {!entry && <p className="caption">先儲存，再打開它加上引用。</p>}
+    {!entry && !values.manualAnswer && <p className="caption">先儲存，再打開它加上引用。</p>}
   </form>
+    {entry && !values.manualAnswer && <CitationEditor api={api} entry={entry} onSaved={() => onCitationsSaved?.()} />}
+  </>
 }
 
 function CitationEditor({ api, entry, onSaved }: { api: RagApi; entry: QaEntry; onSaved: () => void }) {

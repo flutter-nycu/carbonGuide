@@ -1,0 +1,23 @@
+## Why
+
+管理者已填好常見問答，卻因未附文件引用而被版本收錄流程排除；「啟用中」也沒有說明版本尚未生效。Ken 已於 2026-11-26 同意人工標準答案的最小方案並要求開始實作。
+
+## What Changes
+
+- 常見問答新增明確的「人工標準答案」選項，預設關閉；人工答案可無文件引用納入新版本。
+- 試問原樣使用所選版本的人工答案並標示管理者提供，沿用相同問題的比對規則。
+- 顯示待補引用、下次建立版本收錄的提示，版本詳情列出實際收錄的問答。
+- 新增向後相容 migration，不回寫舊版本、不放寬文件型引用檢查。
+
+## Capabilities
+
+### New Capabilities
+- `rag-manual-faq`: 人工答案的編輯、版本收錄、直接回答與來源標示。
+
+### Modified Capabilities
+
+- `rag-admin-live-workspace`: 試問的來源顯示新增人工來源；QA 編輯明確區分人工與文件型。
+
+## Impact
+
+網站的 QaPage、ReleasesPage、ConversationView、RagApi 與相關測試。後端新增 migration，調整 snapshot 收錄與對話來源投影，擴充 answer-run 來源欄位。沿用既有編輯與 owner 權限、版本審核及發布條件，不新增依賴到執行期。檢索失敗原因仍需正式 logs，本次不改逾時、預算或正式服務。

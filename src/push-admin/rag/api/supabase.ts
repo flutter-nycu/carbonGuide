@@ -69,6 +69,7 @@ function detailFrom(row: Row): ConversationDetail {
     answer: typeof row.answer === 'string' ? row.answer : null,
     reason: typeof row.reason === 'string' ? row.reason : null,
     expired: row.expired === true,
+    manualAnswer: row.expired !== true && row.manual_answer === true,
     steps: list(row.steps).map(s => ({ node: str(s.node), state: str(s.state), durationMs: num(s.duration_ms), reason: typeof s.reason === 'string' ? s.reason : null })),
     citations: list(row.citations).map(c => ({ documentTitle: str(c.document_title), page: c.page == null ? null : String(c.page), section: str(c.section), quote: str(c.quote) })),
     calls: list(row.calls).map(c => ({ id: str(c.id), model: str(c.model), purpose: str(c.purpose), status: str(c.status),
@@ -250,7 +251,7 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
   async function currentSelection() {
     const [sets, qa, citations, personas, prompts] = await Promise.all([
       currentSets(),
-      rows(client.from('qa_entries').select('id').eq('enabled', true).limit(1000)),
+      rows(client.from('qa_entries').select('id,manual_answer').eq('enabled', true).limit(1000)),
       rows(client.from('rag_v1_qa_citations').select('qa_id,chunk_id').limit(5000)),
       rows(client.from('personas').select('id').eq('enabled', true).limit(100)),
       rows(client.from('prompts').select('id').order('updated_at', { ascending: false }).limit(1)),
@@ -262,11 +263,12 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     for (let i = 0; i < cited.length; i += 200) {
       for (const chunk of await rows(client.from('chunks').select('id,chunk_set_id').in('id', cited.slice(i, i + 200)))) chunkSets.set(str(chunk.id), str(chunk.chunk_set_id))
     }
-    // A QA joins the version only when every citation points into a chosen set.
-    const qaIds = qa.map(q => str(q.id)).filter(id => {
-      const own = citations.filter(c => c.qa_id === id)
+    // Explicit manual answers are independent of documents. Legacy drafts still require citations.
+    const qaIds = qa.filter(q => {
+      if (q.manual_answer === true) return true
+      const own = citations.filter(c => c.qa_id === q.id)
       return own.length > 0 && own.every(c => setIds.includes(chunkSets.get(str(c.chunk_id)) ?? ''))
-    })
+    }).map(q => str(q.id))
     return { chunk_set_ids: setIds, qa_ids: qaIds, persona_ids: personas.map(p => str(p.id)), calculation_ids: [],
       prompt_id: str(prompts[0].id), rewrite_enabled: false, tools_enabled: false }
   }
@@ -540,15 +542,20 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
       return list.map((p): PromptVersion => ({ id: str(p.id), name: str(p.name), content: str(p.content), updatedAt: str(p.updated_at) }))
     },
     async savePrompt(input, previous) { await saveRow('prompts', { name: input.name, content: input.content }, previous) },
+    async getVersionQa(versionId) {
+      const release = await one(client.from('knowledge_releases').select('qa:manifest->qa').eq('id', versionId).single())
+      if (!Array.isArray(release.qa)) return []
+      return release.qa.map((q: Row) => ({ id: str(q.id), question: str(q.question), answer: str(q.answer), manualAnswer: q.manual_answer === true }))
+    },
     async listQa() {
       const [entries, citations] = await Promise.all([
-        rows(client.from('qa_entries').select('id,question,answer,source_note,enabled,updated_at').order('updated_at').limit(1000)),
+        rows(client.from('qa_entries').select('id,question,answer,source_note,enabled,updated_at,manual_answer').order('updated_at').limit(1000)),
         rows(client.from('rag_v1_qa_citations').select('qa_id,chunk_id,quote').limit(5000)),
       ])
       return entries.map((q): QaEntry => ({ id: str(q.id), question: str(q.question), answer: str(q.answer), sourceNote: str(q.source_note), enabled: q.enabled === true,
-        updatedAt: str(q.updated_at), citations: citations.filter(c => c.qa_id === q.id).map(c => ({ chunkId: str(c.chunk_id), quote: str(c.quote) })) }))
+        manualAnswer: q.manual_answer === true, updatedAt: str(q.updated_at), citations: citations.filter(c => c.qa_id === q.id).map(c => ({ chunkId: str(c.chunk_id), quote: str(c.quote) })) }))
     },
-    async saveQa(input, previous) { await saveRow('qa_entries', { question: input.question, answer: input.answer, source_note: input.sourceNote, enabled: input.enabled }, previous) },
+    async saveQa(input, previous) { await saveRow('qa_entries', { question: input.question, answer: input.answer, source_note: input.sourceNote, enabled: input.enabled, manual_answer: input.manualAnswer === true }, previous) },
     async saveQaCitations(id, updatedAt, citations) {
       if (citations.length > LIMITS.qaCitations) throw new RagError('unverified_citation')
       await action({ action: 'qa_citations', qaId: id, updatedAt, citations: citations.map(c => ({ chunk_id: c.chunkId, quote: c.quote })) })

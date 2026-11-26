@@ -114,6 +114,8 @@ export interface ConversationSummary {
 }
 
 export interface ConversationDetail extends ConversationSummary {
+  /** Taken from the stored answer, never from the current FAQ draft. */
+  manualAnswer?: boolean
   question: string | null
   answer: string | null
   reason: string | null
@@ -174,8 +176,9 @@ export interface PromptVersion { id: string; name: string; content: string; upda
 export type PromptInput = Omit<PromptVersion, 'id' | 'updatedAt'>
 
 export interface QaCitation { chunkId: string; quote: string }
-export interface QaEntry { id: string; question: string; answer: string; sourceNote: string; enabled: boolean; updatedAt: string; citations: QaCitation[] }
+export interface QaEntry { id: string; question: string; answer: string; sourceNote: string; enabled: boolean; updatedAt: string; citations: QaCitation[]; manualAnswer?: boolean }
 export type QaInput = Omit<QaEntry, 'id' | 'updatedAt' | 'citations'>
+export type VersionQa = Pick<QaEntry, 'id' | 'question' | 'answer' | 'manualAnswer'>
 
 export interface RetrievalSettings { candidates: number; contextChunks: number; updatedAt: string }
 export type SettingsInput = Omit<RetrievalSettings, 'updatedAt'>
@@ -244,6 +247,7 @@ export interface RagApi {
   listPrompts(): Promise<PromptVersion[]>
   savePrompt(input: PromptInput, previous?: Pick<PromptVersion, 'id' | 'updatedAt'>): Promise<void>
   listQa(): Promise<QaEntry[]>
+  getVersionQa(versionId: string): Promise<VersionQa[]>
   saveQa(input: QaInput, previous?: Pick<QaEntry, 'id' | 'updatedAt'>): Promise<void>
   saveQaCitations(id: string, updatedAt: string, citations: QaCitation[]): Promise<void>
   getSettings(): Promise<RetrievalSettings>

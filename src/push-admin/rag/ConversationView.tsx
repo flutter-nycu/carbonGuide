@@ -29,6 +29,7 @@ export default function ConversationView({ detail }: { detail: ConversationDetai
       : <>
         <p className="small-note">問題：{detail.question ?? '沒有內容'}</p>
         <div className="answer">{detail.answer ?? '這次沒有產生回答。'}</div>
+        {detail.kind === 'qa' && detail.manualAnswer && <p className="small-note">來源：管理者提供</p>}
       </>}
     <div className="decision"><strong>結果說明</strong>{reasonText(detail.reason)}</div>
 

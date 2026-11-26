@@ -47,7 +47,7 @@ const CATEGORY_MINIMUMS: Record<string, number> = { retrieval: 10, abstention: 6
 const CATEGORIES = ['retrieval', 'qa', 'calculation', 'abstention', 'safety', 'persona']
 
 const copy = <T>(value: T): T => structuredClone(value)
-const normalize = (text: string) => text.replace(/[\s?？。，,.!！]/g, '')
+const normalize = (text: string) => text.replace(/\s+/gu, '').replace(/[?？。!！]$/u, '')
 
 function chunk(id: string, ordinal: number, page: number, section: string, text: string): DocumentChunk {
   return { id, ordinal, pageStart: page, pageEnd: page, sectionPath: section, text, excluded: false }
@@ -110,6 +110,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
       citations: [{ chunkId: 'c-food-2', quote: '剩菜收好，快到期的食材先用，可以減少食物浪費。' }] },
   ]
   let settings: RetrievalSettings = { candidates: 20, contextChunks: 6, updatedAt: at(-7 * DAY) }
+  const versionQa = new Map(versions.map(v => [v.id, copy(qa)]))
 
   const rounds: TestRound[] = []
   const roundKeys = new Map<string, string>()
@@ -145,7 +146,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
   const tidy = (stored: StoredRequest): ConversationDetail => {
     const detail = copy(stored.detail)
     if (!expired(detail.createdAt)) return detail
-    return { ...detail, question: null, answer: null, questionPreview: null, steps: [], citations: [], expired: true }
+    return { ...detail, question: null, answer: null, questionPreview: null, steps: [], citations: [], manualAnswer: false, expired: true }
   }
   const summary = (stored: StoredRequest): ConversationSummary => {
     const { question: _q, answer: _a, reason: _r, expired: _e, steps: _s, citations: _c, calls: _calls, priceVersion: _p, ...rest } = tidy(stored)
@@ -154,7 +155,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
 
   function record(input: {
     question: string; kind: AnswerKind; createdAt: string; userId: string | null; origin: Origin; versionName: string
-    roundId?: string | null; key?: string | null
+    roundId?: string | null; key?: string | null; qaEntry?: QaEntry
   }): StoredRequest {
     const { question, kind } = input
     let answer: string | null = null
@@ -166,10 +167,10 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
     const embedding: ModelCall = { id: id('call'), model: 'gemini-embedding-001', purpose: 'query_embedding', status: 'received', reservedUsd: 0.00026, estimatedUsd: 0.0000021, durationMs: 180 }
     const base: [string, string, number][] = [['snapshot_and_access', 'succeeded', 12], ['scope_guard', 'succeeded', 1]]
     if (kind === 'qa') {
-      const entry = qa.find(q => normalize(q.question) === normalize(question))!
+      const entry = input.qaEntry ?? qa.find(q => normalize(q.question) === normalize(question))!
       answer = entry.answer
       reason = 'verified_qa'
-      citations = entry.citations.map(c => ({ documentTitle: titleOf(c.chunkId), page: '6', section: '剩菜處理', quote: c.quote }))
+      citations = entry.manualAnswer ? [] : entry.citations.map(c => ({ documentTitle: titleOf(c.chunkId), page: '6', section: '剩菜處理', quote: c.quote }))
       flow = steps([...base, ['verified_qa', 'succeeded', 3]], reason)
     } else if (kind === 'document') {
       const hit = documents.flatMap(d => d.doc.status === 'completed' ? d.chunks.filter(c => !c.excluded).map(c => ({ d, c })) : [])
@@ -194,6 +195,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
       detail: {
         id: id('req'), createdAt: input.createdAt, origin: input.origin, userLabel: label(input.userId), questionPreview: question.slice(0, 60),
         kind, state, versionName: input.versionName, reservedUsd, estimatedUsd, question, answer, reason, expired: false,
+        manualAnswer: input.qaEntry?.manualAnswer === true,
         steps: flow, citations, calls, priceVersion: PRICE_VERSION,
       },
     }
@@ -309,6 +311,11 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
     }),
 
     listVersions: () => resolve(() => copy(versions).sort((a, b) => b.createdAt.localeCompare(a.createdAt))),
+    getVersionQa: versionId => resolve(() => {
+      guard('editor')
+      findVersion(versionId)
+      return copy(versionQa.get(versionId) ?? []).map(q => ({ id: q.id, question: q.question, answer: q.answer, manualAnswer: q.manualAnswer === true }))
+    }),
     createVersion: (name, requestKey) => resolve(() => {
       guard('owner')
       const known = versionKeys.get(requestKey)
@@ -317,6 +324,9 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
       const version: KnowledgeVersion = { id: id('v'), name: name.trim(), createdAt: stamp(), review: 'awaiting', isActive: false, wasPublished: false,
         documentCount: documents.filter(d => d.doc.status === 'completed').length, gate: { evaluated: false, caseCount: 0, passedCount: 0, recallAt5: null, citationValidity: null, clean: false } }
       versions.push(version)
+      const readyChunks = new Set(documents.filter(d => d.doc.status === 'completed').flatMap(d => d.chunks.filter(c => !c.excluded).map(c => c.id)))
+      versionQa.set(version.id, copy(qa.filter(q => q.enabled && (q.manualAnswer || (q.citations.length > 0 && q.citations.every(c => readyChunks.has(c.chunkId)))))
+        .map(q => ({ ...q, citations: q.manualAnswer ? [] : q.citations }))))
       versionKeys.set(requestKey, version.id)
       return version.id
     }),
@@ -383,10 +393,11 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
       if (round.requestCount >= round.requestLimit) throw new RagError('round_limit')
       if (!budget.active || budget.reservedUsd >= budget.budgetUsd) throw new RagError('campaign_closed')
       const version = findVersion(round.versionId)
-      const isQa = qa.some(q => q.enabled && normalize(q.question) === normalize(question))
+      const qaEntry = versionQa.get(version.id)?.find(q => normalize(q.question) === normalize(question))
+      const isQa = !!qaEntry
       const isDocument = !isQa && documents.some(d => d.doc.status === 'completed' && d.chunks.some(c => !c.excluded && KEYWORDS.some(k => question.includes(k) && c.text.includes(k))))
       const kind: AnswerKind = isQa ? 'qa' : isDocument ? 'document' : 'insufficient'
-      const stored = record({ question, kind, createdAt: stamp(), userId: OWNER.userId, origin: 'query', versionName: version.name, roundId, key: requestKey })
+      const stored = record({ question, kind, createdAt: stamp(), userId: OWNER.userId, origin: 'query', versionName: version.name, roundId, key: requestKey, qaEntry })
       const cost = stored.detail.reservedUsd
       if (budget.reservedUsd + cost > budget.budgetUsd) { requests.pop(); throw new RagError('budget_exhausted') }
       if (round.reservedUsd + cost > round.budgetUsd) { requests.pop(); throw new RagError('round_budget_exhausted') }

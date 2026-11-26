@@ -62,7 +62,7 @@ export default function ReleasesPage({ api, role }: PageProps) {
         <p className="muted">把下面這些內容打包成一個版本：</p>
         <ul className="release-manifest">
           <li>整理好的文件</li>
-          <li>啟用中的人格，和引用核對過的常見問答</li>
+          <li>啟用中的人格、人工標準答案，以及引用核對過的文件型問答</li>
           <li>目前的回答規則和搜尋設定</li>
         </ul>
         <form onSubmit={event => void create(event)}>
@@ -100,6 +100,7 @@ function VersionDetail({ api, role, id, onChanged }: { api: RagApi; role: Role; 
   const toast = useToast()
   // Read again on open, so the conditions reflect reviews and evaluations made since the list loaded.
   const versions = useLoader(() => api.listVersions())
+  const qa = useLoader(() => api.getVersionQa(id))
   const [verdict, setVerdict] = useState<'approve' | 'reject' | ''>('')
   const [reason, setReason] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -149,6 +150,13 @@ function VersionDetail({ api, role, id, onChanged }: { api: RagApi; role: Role; 
       <dt>文件數</dt><dd>{version.documentCount} 份</dd>
       <dt>目前狀態</dt><dd>{version.isActive ? 'App 的教練正在用這個版本' : version.wasPublished ? '發布過，現在沒有使用' : '還沒發布'}</dd>
     </dl>
+    <h3>已收錄常見問答</h3>
+    {qa.error && <LoadError message={qa.error} onRetry={() => void qa.reload()} />}
+    {!qa.data && qa.loading && <p role="status">正在讀取版本問答…</p>}
+    {qa.data && (qa.data.length ? <ul className="release-manifest" aria-label="已收錄常見問答">
+      {qa.data.map(entry => <li key={entry.id}><strong>{entry.question}</strong><p>{entry.answer}</p>
+        <small>來源：{entry.manualAnswer ? '管理者提供' : '文件引用'}</small></li>)}
+    </ul> : <p className="small-note">這個版本沒有收錄常見問答。</p>)}
     <h3>發布條件</h3>
     <ul className="checklist" aria-label="發布條件">
       {checks.map(c => <li key={c.label}>{c.label}<span className={c.met ? 'tag' : 'tag warn'}>{c.met ? '已符合' : '還沒符合'}</span></li>)}

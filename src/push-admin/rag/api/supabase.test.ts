@@ -52,6 +52,31 @@ const failure = (code: string) => new Response(JSON.stringify({ error: code }), 
 const code = async (promise: Promise<unknown>) => promise.then(() => 'resolved', (error: { code?: string }) => error.code)
 
 describe('supabase RAG API: rag-v1 actions', () => {
+  it('includes explicitly manual FAQ without treating old uncited drafts as manual', async () => {
+    const tables: Record<string, unknown[]> = {
+      prompts: [{ id: 'prompt' }],
+      qa_entries: [{ id: 'manual', manual_answer: true }, { id: 'legacy' }, { id: 'document', manual_answer: false }],
+    }
+    const mock = mockClient({ tables: q => ({ data: tables[q.table] ?? [], error: null }), actions: () => ({ id: 'version' }) })
+    await api(mock).createVersion('人工版本', 'key')
+    expect(mock.actions[0].selection).toMatchObject({ qa_ids: ['manual'] })
+    expect(mock.queries.find(q => q.table === 'qa_entries')?.ops).toContainEqual(['eq', ['enabled', true]])
+  })
+
+  it('persists the explicit source and reads manual provenance from the stored conversation', async () => {
+    const mock = mockClient({ tables: () => ({ data: { id: 'qa' }, error: null }), actions: () => ({ manual_answer: true, expired: false }) })
+    await api(mock).saveQa({ question: '問題', answer: '人工答案', sourceNote: '管理者提供', enabled: true, manualAnswer: true })
+    expect(mock.queries[0].payload).toMatchObject({ manual_answer: true })
+    expect((await api(mock).getConversation('request')).manualAnswer).toBe(true)
+  })
+
+  it('reads version FAQ from the immutable manifest with legacy provenance defaulting to document', async () => {
+    const mock = mockClient({ tables: () => ({ data: { qa: [{ id: 'old', question: '舊問句', answer: '凍結答案', citations: [] },
+      { id: 'manual', question: '新問句', answer: '人工答案', manual_answer: true, citations: [] }] }, error: null }) })
+    expect(await api(mock).getVersionQa('v1')).toMatchObject([{ id: 'old', manualAnswer: false }, { id: 'manual', manualAnswer: true }])
+    expect(mock.queries[0].ops).toContainEqual(['select', ['qa:manifest->qa']])
+    expect(mock.queries[0].ops).toContainEqual(['eq', ['id', 'v1']])
+  })
   it('turns the backend error code into a RagError', async () => {
     const mock = mockClient({ actions: () => failure('round_limit') })
     expect(await code(api(mock).stopRound('11111111-1111-4111-8111-111111111111'))).toBe('round_limit')

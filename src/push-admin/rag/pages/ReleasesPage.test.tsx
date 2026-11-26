@@ -25,6 +25,25 @@ async function passAcceptance(api: RagApi, versionId: string) {
 }
 
 describe('05 releases', () => {
+  it('lists the frozen manual FAQ in version details after the draft was edited', async () => {
+    const { api, page } = openPage('releases')
+    const input = { question: '怎麼開始減碳？', answer: '版本原答案', sourceNote: '管理者提供', manualAnswer: true, enabled: true }
+    await api.saveQa(input)
+    await api.createVersion('人工問答版本', 'manual-version')
+    const entry = (await api.listQa()).find(q => q.question === input.question)!
+    await api.saveQa({ ...input, answer: '新的草稿答案' }, entry)
+    // Reopen reads all versions including the one created outside this mounted list.
+    const dialog = await openVersion(page(), '2026-11 候選版')
+    fireEvent.click(within(dialog).getByRole('button', { name: '關閉' }))
+    // The page refreshes through the create action; its new version captures the edited draft.
+    fireEvent.change(within(page()).getByLabelText('版本名稱'), { target: { value: '畫面建立版本' } })
+    fireEvent.click(within(page()).getByRole('button', { name: '建立版本' }))
+    await waitFor(() => expect(table(page()).textContent).toContain('人工問答版本'))
+    const frozen = await openVersion(page(), '人工問答版本')
+    await waitFor(() => expect(within(frozen).getByRole('list', { name: '已收錄常見問答' }).textContent).toContain('版本原答案'))
+    expect(frozen.textContent).toContain('管理者提供')
+    expect(frozen.textContent).not.toContain('新的草稿答案')
+  })
   it('lists versions with their review state and which one is in use', async () => {
     const { page } = openPage('releases')
     await waitFor(() => expect(table(page()).textContent).toContain('2026-11 候選版'))

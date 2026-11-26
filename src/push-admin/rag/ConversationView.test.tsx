@@ -18,6 +18,13 @@ const detail = (overrides: Partial<ConversationDetail> = {}): ConversationDetail
 })
 
 describe('conversation detail', () => {
+  it('labels manual answers without inventing document citations and hides expired provenance', () => {
+    const { container, rerender } = render(<ConversationView detail={detail({ kind: 'qa', manualAnswer: true, citations: [], reason: 'verified_qa' })} />)
+    expect(container.textContent).toContain('來源：管理者提供')
+    expect(container.querySelector('[aria-label="引用"]')).toBeNull()
+    rerender(<ConversationView detail={detail({ kind: 'qa', manualAnswer: true, expired: true })} />)
+    expect(container.textContent).not.toContain('來源：管理者提供')
+  })
   it('shows the answer, citations, plain step names and costs', () => {
     const { container } = render(<ConversationView detail={detail()} />)
     const text = container.textContent!
