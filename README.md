@@ -9,11 +9,11 @@ Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，再讀本頁；Cla
 | 項目 | 狀態 |
 |---|---|
 | 正式入口 | https://carbon-guide.vercel.app/push-admin#rag；上方分頁為「知識庫」，另有 `#conversations` 使用者、`#guide` 運作原理 |
-| 正式版本 | origin/main `3c7e1eb31125d6934436e03ac29f854b478afd3e`（C-4 前端）；Production deployment `8086794018` success（2026-11-26）。上一個正式版本 `8034551534`（`065d3ab`）是回退點 |
+| 正式版本 | 程式基線 `0f5991f`（C-4 前端加 11/27 收錄提示），之後只有純文件 commit；該 commit 的 Production deployment `8101098372` success（2026-11-27）。上一個程式部署 `8086794018`（`3c7e1eb`）是回退點 |
 | 現有功能 | 既有 RAG 真實工作台、全帳號使用者列表、每頁 10 位、白話文案、可收合側欄及預設收起的教學；App 端未接入 |
 | C-4 人工標準答案 | 2026-11-26 已部署：程式 `9725c35`（分支 `agent/cto/336ff7935d6a` fast-forward 合併 main）；QA 頁可勾「人工標準答案」不附引用，版本詳情列出實際收錄的 FAQ。要建立新知識版本、試問時選取該版本才會生效。11/27 第一次驗收問不到答案：問答沒勾人工、版本也是上線前建的；已補上收錄提示（列表標籤、版本頁預告、建立後筆數） |
 | 後端配套 | 正式庫 migration `20261126033000_rag_manual_faq` 已套用、`rag-v1` v11 已部署（後端 main `825526c`）；套用前後的驗證與回退方式見後端 rag.md |
-| 分支 | main 與 develop 都是 `3c7e1eb` 之後的同一個 commit；測試站是同一 commit 的 Preview `8086334896`（與正式站共用正式 Supabase）。舊 preview 與 agent 分支只供歷史追查 |
+| 分支 | main 與 develop 相同；`0f5991f` 先推 develop（Preview `8101093250` success）再推 main。Preview 與正式站共用正式 Supabase。舊 preview 與 agent 分支只供歷史追查 |
 | 尚待驗證 | 人工 FAQ 真實登入與端到端（勾選人工答案 → 建新版本 → 試問回「管理者提供」、無模型呼叫）、新知識版本核准發布、Safari／實機手機、放寬逾時後閒置第一題是否成功；本機測試不能替代 |
 
 沒有獨立後端測試環境：Preview 與正式站共用正式 Supabase，DB 與 Edge 的變更一上就是正式。
