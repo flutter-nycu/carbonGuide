@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { messageFor, toRagError } from '../api/errors'
 import { requestKeyFor, settleRequestKey } from '../api/requestKeys'
 import type { KnowledgeVersion, RagApi, Role } from '../api/types'
 import { useLoader } from '../hooks'
 import { formatDate } from '../labels'
-import { Dialog, LoadError, Notice, useToast, type PageProps } from '../ui'
+import { Dialog, LoadError, Notice, usePageActive, useToast, type PageProps } from '../ui'
 
 const REVIEW_LABEL: Record<KnowledgeVersion['review'], string> = { awaiting: '待審核', approved: '已核准', rejected: '已退回' }
 const REVIEW_TONE: Record<KnowledgeVersion['review'], string> = { awaiting: 'warn', approved: '', rejected: 'error' }
@@ -28,6 +28,16 @@ export default function ReleasesPage({ api, role }: PageProps) {
   const owner = role === 'owner'
   const toast = useToast()
   const versions = useLoader(() => api.listVersions())
+  // Building a version leaves out FAQ without usable citations; say so before the button is pressed.
+  const preview = useLoader(() => api.previewVersionQa())
+  const reloadPreview = preview.reload
+  const active = usePageActive()
+  const wasActive = useRef(active)
+  // Pages stay mounted, so an FAQ edited on another page has to show here on return.
+  useEffect(() => {
+    if (active && !wasActive.current) void reloadPreview()
+    wasActive.current = active
+  }, [active, reloadPreview])
   const [name, setName] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -41,11 +51,14 @@ export default function ReleasesPage({ api, role }: PageProps) {
     setBusy(true)
     setProblem(null)
     try {
-      await api.createVersion(value, requestKeyFor('version', { name: value }))
+      const id = await api.createVersion(value, requestKeyFor('version', { name: value }))
       settleRequestKey('version', { name: value })
       setName('')
-      toast(`已建立「${value}」。通過自動測驗和審核後就能發布。`)
+      // Report what the version actually holds. It exists even when this read fails.
+      const taken = await api.getVersionQa(id).then(list => list.length, () => null)
+      toast(`已建立「${value}」${taken === null ? '' : `，收錄 ${taken} 筆常見問答`}。通過自動測驗和審核後就能發布。`)
       await versions.reload()
+      void reloadPreview()
     } catch (caught) {
       setProblem(toRagError(caught).message)
     } finally {
@@ -65,6 +78,11 @@ export default function ReleasesPage({ api, role }: PageProps) {
           <li>啟用中的人格、人工標準答案，以及引用核對過的文件型問答</li>
           <li>目前的回答規則和搜尋設定</li>
         </ul>
+        {preview.data && <p className="small-note">會收錄 {preview.data.included.length} 筆常見問答。</p>}
+        {preview.data && preview.data.skipped.length > 0 && <Notice tone="warn">
+          {preview.data.skipped.length} 筆不會收錄。到常見問答補引用，或勾人工標準答案。
+          <ul className="release-manifest" aria-label="不會收錄的常見問答">{preview.data.skipped.map(q => <li key={q.id}>{q.question}</li>)}</ul>
+        </Notice>}
         <form onSubmit={event => void create(event)}>
           <label className="field">版本名稱<input value={name} maxLength={100} disabled={!owner} placeholder="例如：2026-12 冬季版" onChange={event => setName(event.target.value)} /></label>
           <button type="submit" className="primary" disabled={!owner || busy}>建立版本</button>

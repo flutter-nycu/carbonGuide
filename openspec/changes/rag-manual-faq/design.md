@@ -13,7 +13,8 @@
 - currentSelection 收錄啟用的人工作答，文件型保留所有引用必須在所選文件中的條件。SQL snapshot 的對應檢查同步更新，仍檢查文件型的原文與集合，修改以新 migration 的 guarded function replacement 完成，沿用 repo 已有方式並保留 runtime contract。
 - executeAnswer 沿用 verified_qa 的結果分類與版本內答案，output.qa 加 manual_answer。對話詳情 RPC 增加 manual_answer（僅內容未過期時可回傳）；UI 明確標示「來源：管理者提供」。不依賴當前可變草稿推論歷史來源。
 - 版本詳情以新的 getVersionQa(id) 讀取 manifest->qa，一次只取該版本問答，顯示問題、答案及來源類型。列表不下載每個完整 manifest。保留既有版本，不追溯更新。
-- QA 列表用「已停用／待補引用／下次建立版本時收錄」，caption 明示建立新版本後選取試問。人工模式不是即時發布。
+- QA 列表用「已停用／不會收進版本／下次建立版本時收錄」，caption 明示建立新版本後選取試問。人工模式不是即時發布。
+- 2026-11-27 補充：實際驗收時，上線前存的問答沒勾人工、也沒引用，建立版本時被跳過而畫面沒有提示，試問因此問不到。原標籤「待補引用」只說缺什麼，改成說後果與做法：「不會收進版本」「補引用，或勾人工標準答案」。版本頁新增 previewVersionQa()，與 currentSelection 共用同一個分類函式（真實層 splitQa、測試層同名），建立前顯示會收錄幾筆、列出不會收錄的問題；頁面保持掛載，切回時重讀。建立後的提示用 getVersionQa 回報實際收錄筆數。不改「建立新版本才生效」的設計，也不改試問預設選取使用中版本。
 
 ## Risks / Trade-offs
 

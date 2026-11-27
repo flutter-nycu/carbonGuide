@@ -155,6 +155,27 @@ describe('supabase RAG API: rag-v1 actions', () => {
     expect(mock.queries.find(q => q.table === 'document_versions')?.ops).toContainEqual(['select', ['id,document_id,content_status']])
   })
 
+  it('previews the FAQ split with the rule that builds the version', async () => {
+    const tables: Record<string, unknown[]> = {
+      rag_v1_sets: [{ chunk_set_id: 'ready-set', original_id: 'ready-original', embedding_state: 'ready' }],
+      rag_v1_originals: [{ id: 'ready-original', document_version_id: 'ready-version' }],
+      document_versions: [{ id: 'ready-version', document_id: 'ready-doc', content_status: 'in_review' }],
+      qa_entries: [{ id: 'manual', question: '人工問答', manual_answer: true }, { id: 'uncited', question: '沒有引用', manual_answer: false },
+        { id: 'cited', question: '有引用', manual_answer: false }, { id: 'stale', question: '引用已失效', manual_answer: false }],
+      rag_v1_qa_citations: [{ qa_id: 'cited', chunk_id: 'ready-chunk' }, { qa_id: 'stale', chunk_id: 'old-chunk' }],
+      chunks: [{ id: 'ready-chunk', chunk_set_id: 'ready-set' }, { id: 'old-chunk', chunk_set_id: 'old-set' }],
+      prompts: [{ id: 'prompt-1' }],
+    }
+    const mock = mockClient({ tables: query => ({ data: tables[query.table] ?? [], error: null }), actions: () => ({ id: 'new-version' }) })
+    const rag = api(mock)
+    const preview = await rag.previewVersionQa()
+    expect(preview.included).toEqual([{ id: 'manual', question: '人工問答', manualAnswer: true }, { id: 'cited', question: '有引用', manualAnswer: false }])
+    expect(preview.skipped).toEqual([{ id: 'uncited', question: '沒有引用' }, { id: 'stale', question: '引用已失效' }])
+    expect(mock.actions).toHaveLength(0) // a preview only reads
+    await rag.createVersion('同一規則', 'same-rule-key')
+    expect(mock.actions[0].selection).toMatchObject({ qa_ids: preview.included.map(q => q.id) })
+  })
+
   it('sends exactly the fields rag-v1 accepts for each write', async () => {
     const mock = mockClient({
       tables: query => ({ data: query.table === 'knowledge_releases' ? { manifest_hash: 'mh' } : query.table === 'rag_v1_datasets' ? { case_count: 2 } : [], error: null }),

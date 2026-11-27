@@ -13,7 +13,7 @@
 
 #### Scenario: Existing uncited draft
 - **WHEN** 舊草稿沒有引用且未選擇人工標準答案
-- **THEN** 顯示待補引用且不得納入新版本
+- **THEN** 顯示「不會收進版本」與處理方式（補引用，或勾人工標準答案），且不得納入新版本
 
 ### Requirement: Immutable version inclusion
 系統 SHALL 收錄啟用的人工答案與引用有效的文件型問答，版本詳情 SHALL 列出實際收錄的問答；既有版本 MUST 不隨草稿變更。
@@ -25,6 +25,14 @@
 #### Scenario: Document citation gate
 - **WHEN** 文件型問答沒有引用、引用失效或來源不在版本
 - **THEN** 不得納入版本，人工選項不得放寬文件型驗證
+
+#### Scenario: Preview before building a version
+- **WHEN** 開啟或切回版本頁，而有啟用的問答不會被收錄
+- **THEN** 顯示會收錄幾筆，並列出不會收錄的問題與處理方式；預覽與建立版本使用同一條收錄規則
+
+#### Scenario: Count after building a version
+- **WHEN** 版本建立成功
+- **THEN** 提示訊息顯示該版本實際收錄的問答筆數；讀不到筆數時仍回報版本已建立
 
 #### Scenario: Draft changes after freezing
 - **WHEN** 版本建立後草稿改答案、停用或更改來源類型

@@ -20,10 +20,10 @@ export default function QaPage({ api, role }: PageProps) {
     {!entries.data && entries.loading && <p className="empty" role="status">正在讀取常見問答…</p>}
     {entries.data && <section className="panel">
       {list.map(q => <article key={q.id} className="qa-row">
-        <div className="section-head"><h3>{q.question}</h3><span className={q.enabled ? 'tag' : 'tag quiet'}>{!q.enabled ? '已停用' : q.manualAnswer ? '下次建立版本時收錄' : q.citations.length ? '引用已填，建立版本時核對' : '待補引用'}</span></div>
+        <div className="section-head"><h3>{q.question}</h3><span className={!q.enabled ? 'tag quiet' : q.manualAnswer || q.citations.length ? 'tag' : 'tag warn'}>{!q.enabled ? '已停用' : q.manualAnswer ? '下次建立版本時收錄' : q.citations.length ? '引用已填，建立版本時核對' : '不會收進版本'}</span></div>
         <p>{q.answer}</p>
         <div className="actions">
-          <span className={q.manualAnswer || q.citations.length ? 'tag quiet' : 'tag warn'}>{q.manualAnswer ? '人工標準答案' : q.citations.length ? `${q.citations.length} 筆引用` : '還沒有引用'}</span>
+          <span className={q.manualAnswer || q.citations.length ? 'tag quiet' : 'tag warn'}>{q.manualAnswer ? '人工標準答案' : q.citations.length ? `${q.citations.length} 筆引用` : '補引用，或勾人工標準答案'}</span>
           <small className="muted">來源：{q.manualAnswer ? '管理者提供' : q.sourceNote} · {formatDate(q.updatedAt)} 更新</small>
           {editable && <button type="button" className="text-button" aria-label={`編輯 ${q.question}`} onClick={() => setEditing(q.id)}>編輯</button>}
         </div>

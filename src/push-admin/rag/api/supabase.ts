@@ -247,29 +247,37 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
     return latest.length ? (latest[0].release_id as string | null) : null
   }
 
-  /** What a new knowledge version would contain right now. */
-  async function currentSelection() {
-    const [sets, qa, citations, personas, prompts] = await Promise.all([
-      currentSets(),
-      rows(client.from('qa_entries').select('id,manual_answer').eq('enabled', true).limit(1000)),
+  /** Enabled FAQ split by whether a version built from these sets takes them. The preview and the version share this rule. */
+  async function splitQa(setIds: string[]) {
+    const [qa, citations] = await Promise.all([
+      rows(client.from('qa_entries').select('id,question,manual_answer').eq('enabled', true).limit(1000)),
       rows(client.from('rag_v1_qa_citations').select('qa_id,chunk_id').limit(5000)),
-      rows(client.from('personas').select('id').eq('enabled', true).limit(100)),
-      rows(client.from('prompts').select('id').order('updated_at', { ascending: false }).limit(1)),
     ])
-    if (!prompts.length) throw new RagError('snapshot_draft_missing')
-    const setIds = [...sets.values()].map(s => str(s.chunk_set_id))
     const chunkSets = new Map<string, string>()
     const cited = [...new Set(citations.map(c => str(c.chunk_id)))]
     for (let i = 0; i < cited.length; i += 200) {
       for (const chunk of await rows(client.from('chunks').select('id,chunk_set_id').in('id', cited.slice(i, i + 200)))) chunkSets.set(str(chunk.id), str(chunk.chunk_set_id))
     }
     // Explicit manual answers are independent of documents. Legacy drafts still require citations.
-    const qaIds = qa.filter(q => {
+    const taken = (q: Row) => {
       if (q.manual_answer === true) return true
       const own = citations.filter(c => c.qa_id === q.id)
       return own.length > 0 && own.every(c => setIds.includes(chunkSets.get(str(c.chunk_id)) ?? ''))
-    }).map(q => str(q.id))
-    return { chunk_set_ids: setIds, qa_ids: qaIds, persona_ids: personas.map(p => str(p.id)), calculation_ids: [],
+    }
+    return { included: qa.filter(taken), skipped: qa.filter(q => !taken(q)) }
+  }
+
+  /** What a new knowledge version would contain right now. */
+  async function currentSelection() {
+    const [sets, personas, prompts] = await Promise.all([
+      currentSets(),
+      rows(client.from('personas').select('id').eq('enabled', true).limit(100)),
+      rows(client.from('prompts').select('id').order('updated_at', { ascending: false }).limit(1)),
+    ])
+    if (!prompts.length) throw new RagError('snapshot_draft_missing')
+    const setIds = [...sets.values()].map(s => str(s.chunk_set_id))
+    const { included } = await splitQa(setIds)
+    return { chunk_set_ids: setIds, qa_ids: included.map(q => str(q.id)), persona_ids: personas.map(p => str(p.id)), calculation_ids: [],
       prompt_id: str(prompts[0].id), rewrite_enabled: false, tools_enabled: false }
   }
   // A retry must send the contents chosen the first time; the backend refuses a key with different contents.
@@ -546,6 +554,12 @@ export function createSupabaseRagApi(client: RagClient, options: SupabaseApiOpti
       const release = await one(client.from('knowledge_releases').select('qa:manifest->qa').eq('id', versionId).single())
       if (!Array.isArray(release.qa)) return []
       return release.qa.map((q: Row) => ({ id: str(q.id), question: str(q.question), answer: str(q.answer), manualAnswer: q.manual_answer === true }))
+    },
+    async previewVersionQa() {
+      const sets = await currentSets()
+      const { included, skipped } = await splitQa([...sets.values()].map(s => str(s.chunk_set_id)))
+      return { included: included.map(q => ({ id: str(q.id), question: str(q.question), manualAnswer: q.manual_answer === true })),
+        skipped: skipped.map(q => ({ id: str(q.id), question: str(q.question) })) }
     },
     async listQa() {
       const [entries, citations] = await Promise.all([

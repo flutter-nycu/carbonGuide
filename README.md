@@ -4,17 +4,17 @@
 
 Codex、Claude 與新開發者先讀 [AGENTS.md](AGENTS.md)，再讀本頁；Claude 的 [CLAUDE.md](CLAUDE.md) 導向相同文件。全專案入口在後端 `docs/README.md`，整體資料流在 `docs/architecture.md`，跨 repo 版本與 RAG 證據統一在 `docs/rag.md`。後端文件以 [GitHub main](https://github.com/githyoung/carbon-navigation/blob/main/docs/README.md) 為準。
 
-## 目前進度（2026-11-26 晚間）
+## 目前進度（2026-11-27）
 
 | 項目 | 狀態 |
 |---|---|
 | 正式入口 | https://carbon-guide.vercel.app/push-admin#rag；上方分頁為「知識庫」，另有 `#conversations` 使用者、`#guide` 運作原理 |
 | 正式版本 | origin/main `3c7e1eb31125d6934436e03ac29f854b478afd3e`（C-4 前端）；Production deployment `8086794018` success（2026-11-26）。上一個正式版本 `8034551534`（`065d3ab`）是回退點 |
 | 現有功能 | 既有 RAG 真實工作台、全帳號使用者列表、每頁 10 位、白話文案、可收合側欄及預設收起的教學；App 端未接入 |
-| C-4 人工標準答案 | 2026-11-26 已部署：程式 `9725c35`（分支 `agent/cto/336ff7935d6a` fast-forward 合併 main）；QA 頁可勾「人工標準答案」不附引用，版本詳情列出實際收錄的 FAQ。要建立並核准新知識版本後才會在試問生效 |
+| C-4 人工標準答案 | 2026-11-26 已部署：程式 `9725c35`（分支 `agent/cto/336ff7935d6a` fast-forward 合併 main）；QA 頁可勾「人工標準答案」不附引用，版本詳情列出實際收錄的 FAQ。要建立新知識版本、試問時選取該版本才會生效。11/27 第一次驗收問不到答案：問答沒勾人工、版本也是上線前建的；已補上收錄提示（列表標籤、版本頁預告、建立後筆數） |
 | 後端配套 | 正式庫 migration `20261126033000_rag_manual_faq` 已套用、`rag-v1` v11 已部署（後端 main `825526c`）；套用前後的驗證與回退方式見後端 rag.md |
 | 分支 | main 與 develop 都是 `3c7e1eb` 之後的同一個 commit；測試站是同一 commit 的 Preview `8086334896`（與正式站共用正式 Supabase）。舊 preview 與 agent 分支只供歷史追查 |
-| 尚待驗證 | 人工 FAQ 真實登入與端到端（勾選人工答案 → 建新版本 → 試問回「管理者提供」、無模型呼叫）、新知識版本核准發布、Safari／實機手機、原 8.17 秒檢索失敗的 logs；本機測試不能替代 |
+| 尚待驗證 | 人工 FAQ 真實登入與端到端（勾選人工答案 → 建新版本 → 試問回「管理者提供」、無模型呼叫）、新知識版本核准發布、Safari／實機手機、放寬逾時後閒置第一題是否成功；本機測試不能替代 |
 
 沒有獨立後端測試環境：Preview 與正式站共用正式 Supabase，DB 與 Edge 的變更一上就是正式。
 
@@ -128,7 +128,7 @@ React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 
 |---|---|---|
 | 相依套件 | `npm ci` | 使用 package-lock，不覆寫依賴來掩蓋 lock 問題；換環境先確認 Node 與套件 engines |
 | 型別 | `npm run type-check` | 11/26 C-4 通過；package.json 沒有獨立 lint script |
-| 單元與元件測試 | `npm test -- --maxWorkers=1 --no-file-parallelism` | 11/26 為 266／266、28 檔，mock 資料，不發送推播或付費請求 |
+| 單元與元件測試 | `npm test -- --maxWorkers=1 --no-file-parallelism` | 11/27 為 272／272、28 檔，mock 資料，不發送推播或付費請求 |
 | 正式打包 | `VITE_RAG_ENABLED=true npm run build` | C-4 通過；另核對未啟用時的行為。建置成功不代表 DB 相容或登入驗收 |
 | 規格 | `openspec validate rag-manual-faq --strict`；全量 `openspec validate --all --strict` | C-4 通過；全量 7／8，既有 rag-plain-ui-refresh 缺 7 個 scenario，不能稱全綠 |
 | 依賴 | `npm audit --audit-level=moderate` | 11/26 既有 8 項（4 moderate、4 high），本次未改依賴，另評估升級 |
@@ -150,7 +150,7 @@ React 18、TypeScript 5、Vite 8、Tailwind 3、Supabase JS 2；精確版本以 
 | 請求失敗或回應遺失 | 保留原 body／request key，查問答紀錄與 trace／錯誤碼；跨輪次到期先查既有結果，不盲目重問或重開付費輪次 |
 | 上傳成功但文件不可用 | upload_verify、worker queue／lease、解析／embedding job、預算與原檔 hash；signed upload 成功不是處理完成 |
 | 使用者頁狀態為「—」或 cursor 失效 | DB 是否含兩份使用者 migration；舊 cursor 需重新讀列表，不自行轉成 offset |
-| 檢索 8.17 秒失敗 | 此 C-4 尚未證明根因；取得該 request 的 trace／Edge logs 後另診斷，不把人工 FAQ 命中當檢索已修復 |
+| 檢索逾時 | 11/27 查明：搜尋每題掃全部段落，Free 方案主機記憶體不足，閒置後第一題 7–10 秒，超過 API 的 8 秒上限就顯示「沒有完成」。後端已把這支 RPC 放寬到 20 秒；升級主機或改寫搜尋未做，見後端 rag.md |
 
 ## 部署
 
@@ -160,7 +160,7 @@ Vercel 專案 carbon-guide；main push 會觸發 Production、其他分支 push 
 
 ## 規格與待辦
 
-- rag-manual-faq：2026-11-26 已部署測試與正式；剩真實畫面驗收與新知識版本核准，之後歸檔。C-4 為追蹤入口，詳細狀態在後端 rag.md。
+- rag-manual-faq：2026-11-26 已部署測試與正式；11/27 補上收錄提示（tasks 第 5 節）；剩真實畫面驗收與新知識版本核准，之後歸檔。C-4 為追蹤入口，詳細狀態在後端 rag.md。
 - rag-plain-ui-refresh：程式已在 main；strict scenario 缺口、真實資料／Safari／手機驗收仍待補。
 - rag-conversation-user-status：程式與兩個 DB migration 已有歷史上線證據；確認所有帳號真實畫面後處理歸檔，不把 tasks 狀態直接當成平台狀態。
 - rag-admin-live-workspace、rag-architecture-guide、rag-top-tabs 已歸檔，現行主規格在 `openspec/specs/rag-admin-live-workspace/spec.md`。

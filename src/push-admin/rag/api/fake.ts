@@ -243,6 +243,13 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
   }
 
   const resolve = async <T>(work: () => T): Promise<T> => work()
+  /** Enabled FAQ split by whether a version built now takes them; the preview and createVersion share this rule. */
+  const splitQa = () => {
+    const readyChunks = new Set(documents.filter(d => d.doc.status === 'completed').flatMap(d => d.chunks.filter(c => !c.excluded).map(c => c.id)))
+    const taken = (q: QaEntry) => q.manualAnswer === true || (q.citations.length > 0 && q.citations.every(c => readyChunks.has(c.chunkId)))
+    const enabled = qa.filter(q => q.enabled)
+    return { included: enabled.filter(taken), skipped: enabled.filter(q => !taken(q)) }
+  }
 
   const api: FakeRagApi = {
     role,
@@ -316,6 +323,12 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
       findVersion(versionId)
       return copy(versionQa.get(versionId) ?? []).map(q => ({ id: q.id, question: q.question, answer: q.answer, manualAnswer: q.manualAnswer === true }))
     }),
+    previewVersionQa: () => resolve(() => {
+      guard('editor')
+      const { included, skipped } = splitQa()
+      return { included: included.map(q => ({ id: q.id, question: q.question, manualAnswer: q.manualAnswer === true })),
+        skipped: skipped.map(q => ({ id: q.id, question: q.question })) }
+    }),
     createVersion: (name, requestKey) => resolve(() => {
       guard('owner')
       const known = versionKeys.get(requestKey)
@@ -324,9 +337,7 @@ export function createFakeRagApi(options: FakeOptions = {}): FakeRagApi {
       const version: KnowledgeVersion = { id: id('v'), name: name.trim(), createdAt: stamp(), review: 'awaiting', isActive: false, wasPublished: false,
         documentCount: documents.filter(d => d.doc.status === 'completed').length, gate: { evaluated: false, caseCount: 0, passedCount: 0, recallAt5: null, citationValidity: null, clean: false } }
       versions.push(version)
-      const readyChunks = new Set(documents.filter(d => d.doc.status === 'completed').flatMap(d => d.chunks.filter(c => !c.excluded).map(c => c.id)))
-      versionQa.set(version.id, copy(qa.filter(q => q.enabled && (q.manualAnswer || (q.citations.length > 0 && q.citations.every(c => readyChunks.has(c.chunkId)))))
-        .map(q => ({ ...q, citations: q.manualAnswer ? [] : q.citations }))))
+      versionQa.set(version.id, copy(splitQa().included.map(q => ({ ...q, citations: q.manualAnswer ? [] : q.citations }))))
       versionKeys.set(requestKey, version.id)
       return version.id
     }),

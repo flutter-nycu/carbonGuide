@@ -2,8 +2,9 @@
 
 import { fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { createFakeRagApi } from '../api/fake'
 import type { RagApi } from '../api/types'
-import { openPage, setupPageTests } from './testing'
+import { NOW, openPage, openWith, setupPageTests } from './testing'
 
 setupPageTests()
 
@@ -125,6 +126,40 @@ describe('05 releases', () => {
     fireEvent.click(within(page()).getByRole('button', { name: '建立版本' }))
     await waitFor(() => expect(table(page()).textContent).toContain('2026-12 冬季版'))
     expect(create.mock.calls[1][1]).toBe(create.mock.calls[0][1])
+  })
+
+  it('shows how many FAQ the next version takes and names the ones left out', async () => {
+    const api = createFakeRagApi({ role: 'owner', now: () => NOW })
+    await api.saveQa({ question: '沒有引用的問答', answer: '答案', sourceNote: '客製化', enabled: true })
+    const { page, view } = openWith(api, 'releases')
+    await waitFor(() => expect(page().textContent).toContain('會收錄 1 筆常見問答'))
+    const skipped = within(page()).getByRole('list', { name: '不會收錄的常見問答' })
+    expect(skipped.textContent).toContain('沒有引用的問答')
+    expect(skipped.textContent).not.toContain('如何減少食物浪費？')
+    expect(page().textContent).toContain('1 筆不會收錄')
+    expect(page().textContent).toContain('補引用，或勾人工標準答案')
+
+    fireEvent.change(within(page()).getByLabelText('版本名稱'), { target: { value: '看得到收錄數的版本' } })
+    fireEvent.click(within(page()).getByRole('button', { name: '建立版本' }))
+    // The toast reports what the new version actually holds.
+    await waitFor(() => expect(view.container.textContent).toContain('已建立「看得到收錄數的版本」，收錄 1 筆常見問答'))
+  })
+
+  it('shows no warning when every enabled FAQ goes into the next version', async () => {
+    const { page } = openPage('releases')
+    await waitFor(() => expect(page().textContent).toContain('會收錄 1 筆常見問答'))
+    expect(within(page()).queryByRole('list', { name: '不會收錄的常見問答' })).toBeNull()
+    expect(page().textContent).not.toContain('不會收錄')
+  })
+
+  it('re-reads the FAQ preview when the page is shown again', async () => {
+    const { api, page, go } = openPage('releases')
+    await waitFor(() => expect(page().textContent).toContain('會收錄 1 筆常見問答'))
+    // Pages stay mounted, so an FAQ saved on another page must show up on return.
+    await api.saveQa({ question: '後來新增的問答', answer: '答案', sourceNote: '客製化', enabled: true })
+    go('qa')
+    go('releases')
+    await waitFor(() => expect(within(page()).getByRole('list', { name: '不會收錄的常見問答' }).textContent).toContain('後來新增的問答'))
   })
 
   it('shows versions to an editor without any actions', async () => {

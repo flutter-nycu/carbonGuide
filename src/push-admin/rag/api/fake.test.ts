@@ -21,6 +21,18 @@ it('answers manual FAQ from the frozen version after its draft is disabled or ed
   expect((await rag.getVersionQa(nextId)).some(q => q.id === draft.id)).toBe(false)
 })
 
+it('previews which FAQ the next version takes and which it leaves out', async () => {
+  const rag = api()
+  await rag.saveQa({ question: '沒有引用的問答', answer: '答案', sourceNote: '客製化', enabled: true })
+  await rag.saveQa({ question: '人工問答', answer: '答案', sourceNote: '管理者提供', enabled: true, manualAnswer: true })
+  await rag.saveQa({ question: '停用的問答', answer: '答案', sourceNote: '客製化', enabled: false })
+  const preview = await rag.previewVersionQa()
+  expect(preview.skipped.map(q => q.question)).toEqual(['沒有引用的問答'])
+  expect(preview.included.map(q => q.question).sort()).toEqual(['人工問答', '如何減少食物浪費？'].sort())
+  const versionId = await rag.createVersion('預覽後版本', 'preview-version')
+  expect((await rag.getVersionQa(versionId)).map(q => q.id).sort()).toEqual(preview.included.map(q => q.id).sort())
+})
+
 describe('fake RAG API: knowledge and ingestion', () => {
   it('lists documents in every processing status', async () => {
     const statuses = new Set((await api().listDocuments()).map(d => d.status))

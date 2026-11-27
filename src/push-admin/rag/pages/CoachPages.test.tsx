@@ -125,6 +125,24 @@ describe('08 QA', () => {
     expect(article.textContent).not.toContain('還沒有引用')
     expect(page().textContent).toContain('建立新版本後生效')
   })
+  it('says an uncited FAQ stays out of versions and how to fix it', async () => {
+    const { page } = openPage('qa', 'editor')
+    await waitFor(() => expect(page().textContent).toContain('如何減少食物浪費？'))
+    click(page(), '新增問答')
+    const dialog = within(page()).getByRole('dialog')
+    type(dialog, '問題', '冷氣開幾度比較省電？')
+    type(dialog, '答案', '設定在 26 到 28 度。')
+    type(dialog, '來源說明', '客製化')
+    click(dialog, '儲存')
+    await waitFor(() => expect(page().textContent).toContain('冷氣開幾度比較省電？'))
+    const article = within(page()).getByText('冷氣開幾度比較省電？').closest('article')!
+    expect(article.textContent).toContain('不會收進版本')
+    expect(article.textContent).toContain('補引用，或勾人工標準答案')
+    // A cited FAQ keeps its own wording.
+    const cited = within(page()).getByText('如何減少食物浪費？').closest('article')!
+    expect(cited.textContent).toContain('引用已填，建立版本時核對')
+    expect(cited.textContent).not.toContain('不會收進版本')
+  })
   it('adds, edits and disables a QA', async () => {
     const { page } = openPage('qa', 'editor')
     await waitFor(() => expect(page().textContent).toContain('如何減少食物浪費？'))

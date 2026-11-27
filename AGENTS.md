@@ -1,6 +1,6 @@
 # carbonGuide 網站 repo：Agent 指南
 
-最後核對：2026-11-26 晚間（C-4 已部署測試與正式）。此文件提供 Codex、Claude 與其他 Agent 共用規則；網站架構、程式地圖、角色與測試在 [README.md](README.md)，完整跨端進度在後端 repo 的 docs/rag.md。
+最後核對：2026-11-27（C-4 已部署；補上常見問答收錄提示）。此文件提供 Codex、Claude 與其他 Agent 共用規則；網站架構、程式地圖、角色與測試在 [README.md](README.md)，完整跨端進度在後端 repo 的 docs/rag.md。
 
 ## 接手先做
 

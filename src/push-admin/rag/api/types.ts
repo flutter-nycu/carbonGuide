@@ -179,6 +179,8 @@ export interface QaCitation { chunkId: string; quote: string }
 export interface QaEntry { id: string; question: string; answer: string; sourceNote: string; enabled: boolean; updatedAt: string; citations: QaCitation[]; manualAnswer?: boolean }
 export type QaInput = Omit<QaEntry, 'id' | 'updatedAt' | 'citations'>
 export type VersionQa = Pick<QaEntry, 'id' | 'question' | 'answer' | 'manualAnswer'>
+/** Enabled FAQ split by whether a version built now would take them. */
+export interface VersionQaPreview { included: Pick<QaEntry, 'id' | 'question' | 'manualAnswer'>[]; skipped: Pick<QaEntry, 'id' | 'question'>[] }
 
 export interface RetrievalSettings { candidates: number; contextChunks: number; updatedAt: string }
 export type SettingsInput = Omit<RetrievalSettings, 'updatedAt'>
@@ -248,6 +250,8 @@ export interface RagApi {
   savePrompt(input: PromptInput, previous?: Pick<PromptVersion, 'id' | 'updatedAt'>): Promise<void>
   listQa(): Promise<QaEntry[]>
   getVersionQa(versionId: string): Promise<VersionQa[]>
+  /** Uses the same rule as createVersion, so the page can say what a new version leaves out before it is built. */
+  previewVersionQa(): Promise<VersionQaPreview>
   saveQa(input: QaInput, previous?: Pick<QaEntry, 'id' | 'updatedAt'>): Promise<void>
   saveQaCitations(id: string, updatedAt: string, citations: QaCitation[]): Promise<void>
   getSettings(): Promise<RetrievalSettings>
